@@ -96,7 +96,8 @@ options = ap.parse_args()
 
 class Runner(object):
 
-    def generate_value(self, rangesize, x):
+    def generate_value(self, x):
+        rangesize=options.max_size-options.min_size
         return b'V' * (options.min_size + (rangesize / options.batch_size)) * x
 
 
@@ -107,11 +108,10 @@ class Runner(object):
         self.cb = cb
         self.delay = options.delay
         self.key = 'K' * options.ksize
-        self.value = b'V' * options.vsize
         self.kv = {}
-        rangesize=options.max_size-options.min_size
+        
         for x in range(options.batch_size):
-            self.kv[self.generate_key(x)] =  self.generate_value(rangesize, x)
+            self.kv[self.generate_key(x)] =  self.generate_value(x)
         self.wait_time = 0
         self.opcount = 0
         self.end_time = time() + options.duration
