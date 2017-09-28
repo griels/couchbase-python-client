@@ -29,49 +29,8 @@ from couchbase.transcoder import Transcoder
 print "test2"
 ap = argparse.ArgumentParser()
 
-        
-        
-        o_userdocs("docs"),
-        o_writeJson("json"),
-        o_templatePairs("template"),
-        o_subdoc("subdoc"),
-        o_noop("noop"),
-        o_sdPathCount("pathcount"),
-        o_populateOnly("populate-only"),
-        o_exptime("expiry")
-        
-ap.add_argument('--batch-size', '-B', type=int, default=1, help="Batch size to use")
-ap.add_argument('--num-items', '-I', type=int, default=1, help="Set the total number of items the"
-                "workload will access within the cluster. This will also determine the working set size at the server and may affect disk latencies if set to a high number.")
-ap.add_argument('-r', '--set-pct', type=int, help="The percentage of operations which should be mutations. A value of 100 means only mutations while a value of 0 means only retrievals.")
-ap.add_argument('-n', '--no-population', type=bool, help="By default cbc-pillowfight will load all the items (see --num-items) into the cluster and then begin performing the normal workload. Specifying this option bypasses this stage. Useful if the items have already been loaded in a previous run.")
-
-
-ap.add_argument('-E', '--pause-at-end', type=bool, default= False,help="When the workload completes, do not exit immediately, but wait for user input. This is helpful for analyzing open socket connections and state.")
-ap.add_argument('-c', '--num-cycles', type = int, default =1, help="Specify the number of times the workload should cycle. During each cycle an amount of --batch-size operations are executed. Setting this to -1 will cause the workload to run infinitely.")
-ap.add_argument('-B','--multiSize',type=int,default=100,help='Number of operations to batch')
-ap.add_argument('-I','--numItems',type=int,default=1000,help='Number of items to operate on')
-ap.add_argument('--key-prefix', '-p', type=str, default="", help="Set the prefix to prepend to all keys in the cluster. Useful if you do not wish the items to conflict with existing data."
-               ) 
-
+    
 ap.add_argument('-t','--num-threads',type=int,default=1,help='The number of threads to use')
-ap.add_argument('-s','--random-seed',type=int,default=0,help='Specify random seed').hide()
-ap.add_argument('-m','--min-size',type=int,default=50,help='Set minimum payload size')
-ap.add_argument('-M','--max-size',type=int,default=5120,help='Set maximum payload size')
-ap.add_argument('-n','--no-population',type=bool,default=True,help='Skip population')
-ap.add_argument('-E','--pause-at-end',type=bool,default=False,help='Pause at end of run (holding connections open) until user input')
-ap.add_argument('-c','--num-cycles',type=int,default=-1,help='Number of cycles to be run until exiting. Set to -1 to loop infinitely')
-ap.add_argument('--sequential',type=int,default=False,help='Use sequential access (instead of random)')
-ap.add_argument('--start-at',type=int,default=0,help='For sequential access, set the first item')
-ap.add_argument('--rate-limit',type=int,default=0,help='Set operations per second limit (per thread)')
-ap.add_argument('--docs',type=bool,default=False,help='User documents to load (overrides --min-size and --max-size')
-ap.add_argument('--json',type=bool,default=False,help='Enable writing JSON values (rather than bytes)')
-ap.add_argument('--template',type=list,help='Values for templates to be inserted into user documents')
-ap.add_argument('--subdoc',type=bool,default=False,help='Use subdoc instead of fulldoc operations')
-ap.add_argument('--noop',type=bool,default=False,help='Use NOOP instead of document operations')
-ap.add_argument('--pathcount',type=int,default=1,help='Number of subdoc paths per command')
-ap.add_argument('--populate-only',type=bool,help='Exit after documents have been populated')
-ap.add_argument('e','--exptime',type=bool,help='Set TTL for items')
 
 ap.add_argument('-d', '--delay', default=0, type=float,
                 help="Number of seconds to wait between each op. "
@@ -99,18 +58,60 @@ ap.add_argument('--ksize', default=12, type=int,
 ap.add_argument('--vsize', default=128, type=int,
                 help="Value size to use")
 
+ap.add_argument('-B','--batch-size', type=int, default=100, help="Batch size to use")
+
+
+ap.add_argument('-I', '--num-items', type=int, default=1000, help="Set the total number of items the"
+                "workload will access within the cluster. This will also determine the working set size at the server and may affect disk latencies if set to a high number.")
+ap.add_argument('-r', '--set-pct', type=int, help="The percentage of operations which should be mutations. A value of 100 means only mutations while a value of 0 means only retrievals.")
+ap.add_argument('-n', '--no-population', type=bool, help="By default cbc-pillowfight will load all the items (see --num-items) into the cluster and then begin performing the normal workload. Specifying this option bypasses this stage. Useful if the items have already been loaded in a previous run.")
+
+
+ap.add_argument('-E', '--pause-at-end', type=bool, default= False,help="When the workload completes, do not exit immediately, but wait for user input. This is helpful for analyzing open socket connections and state.")
+ap.add_argument('-c', '--num-cycles', type = int, default =1, help="Specify the number of times the workload should cycle. During each cycle an amount of --batch-size operations are executed. Setting this to -1 will cause the workload to run infinitely.")
+ap.add_argument('-I','--numItems',type=int,default=1000,help='Number of items to operate on')
+ap.add_argument('-p','--key-prefix', type=str, default="", help="Set the prefix to prepend to all keys in the cluster. Useful if you do not wish the items to conflict with existing data."
+               ) 
+
+ap.add_argument('-s','--random-seed',type=int,default=0,help='Specify random seed').hide()
+ap.add_argument('-m','--min-size',type=int,default=50,help='Set minimum payload size')
+ap.add_argument('-M','--max-size',type=int,default=5120,help='Set maximum payload size')
+ap.add_argument('-n','--no-population',type=bool,default=True,help='Skip population')
+ap.add_argument('-E','--pause-at-end',type=bool,default=False,help='Pause at end of run (holding connections open) until user input')
+ap.add_argument('-c','--num-cycles',type=int,default=-1,help='Number of cycles to be run until exiting. Set to -1 to loop infinitely')
+ap.add_argument('--sequential',type=int,default=False,help='Use sequential access (instead of random)')
+ap.add_argument('--start-at',type=int,default=0,help='For sequential access, set the first item')
+ap.add_argument('--rate-limit',type=int,default=0,help='Set operations per second limit (per thread)')
+ap.add_argument('--docs',type=bool,default=False,help='User documents to load (overrides --min-size and --max-size')
+ap.add_argument('--json',type=bool,default=False,help='Enable writing JSON values (rather than bytes)')
+ap.add_argument('--template',type=list,help='Values for templates to be inserted into user documents')
+ap.add_argument('--subdoc',type=bool,default=False,help='Use subdoc instead of fulldoc operations')
+ap.add_argument('--noop',type=bool,default=False,help='Use NOOP instead of document operations')
+ap.add_argument('--pathcount',type=int,default=1,help='Number of subdoc paths per command')
+ap.add_argument('--populate-only',type=bool,help='Exit after documents have been populated')
+ap.add_argument('e','--expiry',type=bool,help='Set TTL for items')
+
 
 options = ap.parse_args()
 
 class Runner(object):
+
+    def generate_value(self, rangesize, x):
+        return b'V' * (options.min_size + (rangesize / options.batch_size)) * x
+
+
+    def generate_key(self, x):
+        return self.key_prefix + self.key + str(x)
+
     def __init__(self, cb):
         self.cb = cb
         self.delay = options.delay
         self.key = 'K' * options.ksize
         self.value = b'V' * options.vsize
         self.kv = {}
-        for x in range(options.batch):
-            self.kv[self.key + str(x)] = self.value
+        rangesize=options.max_size-options.min_size
+        for x in range(options.batch_size):
+            self.kv[self.generate_key(x)] =  self.generate_value(rangesize, x)
         self.wait_time = 0
         self.opcount = 0
         self.end_time = time() + options.duration
@@ -125,7 +126,7 @@ class Runner(object):
     def _schedule_deferred(self, *args):
         rv = self.cb.upsertMulti(self.kv, format=FMT_BYTES)
         rv.addCallback(self._schedule_deferred)
-        self.opcount += options.batch
+        self.opcount += options.batch_size
 
     def start(self):
         if options.deferreds:
