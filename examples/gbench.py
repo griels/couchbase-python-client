@@ -18,12 +18,14 @@
 
 import argparse
 from time import sleep, time
-
+import logging
 import gevent
-
-from couchbase import FMT_BYTES
+import sys
+from couchbase import *
+#from couchbase import FMT_BYTES
 from gcouchbase.bucket import Bucket
-
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+#couchbase.enable_logging()
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-t', '--threads', default=4, type=int,
