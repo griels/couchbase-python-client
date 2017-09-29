@@ -16,11 +16,12 @@
 # limitations under the License.
 #
 from __builtin__ import str
+import random
 
 print "test1"
 import argparse
 from time import time
-
+import logging
 from twisted.internet import reactor
 
 from txcouchbase.bucket import RawBucket, Bucket
@@ -43,7 +44,7 @@ ap.add_argument('--deferreds', action='store_true', default=False,
                 help="Whether to use Deferreds (or normal callbacks)")
 ap.add_argument('-U', '--connstr', default='couchbase://localhost/default',
                 help="Connection string")
-ap.add_argument('-p', '--password', default=None, type=str)
+ap.add_argument('-P', '--password', default=None, type=str)
 ap.add_argument('-D', '--duration', default=10, type=int,
                 help="Duration of run (in seconds)")
 
@@ -64,21 +65,18 @@ ap.add_argument('-B','--batch-size', type=int, default=100, help="Batch size to 
 ap.add_argument('-I', '--num-items', type=int, default=1000, help="Set the total number of items the"
                 "workload will access within the cluster. This will also determine the working set size at the server and may affect disk latencies if set to a high number.")
 ap.add_argument('-r', '--set-pct', type=int, help="The percentage of operations which should be mutations. A value of 100 means only mutations while a value of 0 means only retrievals.")
-ap.add_argument('-n', '--no-population', type=bool, help="By default cbc-pillowfight will load all the items (see --num-items) into the cluster and then begin performing the normal workload. Specifying this option bypasses this stage. Useful if the items have already been loaded in a previous run.")
+ap.add_argument('-n', '--no-population', type=bool, default=True, help="By default cbc-pillowfight will load all the items (see --num-items) into the cluster and then begin performing the normal workload. Specifying this option bypasses this stage. Useful if the items have already been loaded in a previous run.")
 
 
 ap.add_argument('-E', '--pause-at-end', type=bool, default= False,help="When the workload completes, do not exit immediately, but wait for user input. This is helpful for analyzing open socket connections and state.")
-ap.add_argument('-c', '--num-cycles', type = int, default =1, help="Specify the number of times the workload should cycle. During each cycle an amount of --batch-size operations are executed. Setting this to -1 will cause the workload to run infinitely.")
-ap.add_argument('-I','--numItems',type=int,default=1000,help='Number of items to operate on')
+ap.add_argument('-c', '--num-cycles', type = int, default =-1, help="Specify the number of times the workload should cycle. During each cycle an amount of --batch-size operations are executed. Setting this to -1 will cause the workload to run infinitely.")
+
 ap.add_argument('-p','--key-prefix', type=str, default="", help="Set the prefix to prepend to all keys in the cluster. Useful if you do not wish the items to conflict with existing data."
                ) 
 
-ap.add_argument('-s','--random-seed',type=int,default=0,help='Specify random seed').hide()
+ap.add_argument('-s','--random-seed',type=int,default=0,help='Specify random seed')
 ap.add_argument('-m','--min-size',type=int,default=50,help='Set minimum payload size')
 ap.add_argument('-M','--max-size',type=int,default=5120,help='Set maximum payload size')
-ap.add_argument('-n','--no-population',type=bool,default=True,help='Skip population')
-ap.add_argument('-E','--pause-at-end',type=bool,default=False,help='Pause at end of run (holding connections open) until user input')
-ap.add_argument('-c','--num-cycles',type=int,default=-1,help='Number of cycles to be run until exiting. Set to -1 to loop infinitely')
 ap.add_argument('--sequential',type=int,default=False,help='Use sequential access (instead of random)')
 ap.add_argument('--start-at',type=int,default=0,help='For sequential access, set the first item')
 ap.add_argument('--rate-limit',type=int,default=0,help='Set operations per second limit (per thread)')
@@ -89,7 +87,7 @@ ap.add_argument('--subdoc',type=bool,default=False,help='Use subdoc instead of f
 ap.add_argument('--noop',type=bool,default=False,help='Use NOOP instead of document operations')
 ap.add_argument('--pathcount',type=int,default=1,help='Number of subdoc paths per command')
 ap.add_argument('--populate-only',type=bool,help='Exit after documents have been populated')
-ap.add_argument('e','--expiry',type=bool,help='Set TTL for items')
+ap.add_argument('-e','--expiry',type=bool,help='Set TTL for items')
 
 
 options = ap.parse_args()
@@ -105,6 +103,11 @@ class Runner(object):
         return self.key_prefix + self.key + str(x)
 
     def __init__(self, cb):
+        #    enum Mode { STORE, GET, SDSTORE, SDGET, NOOP };
+        self.mutops=[self.upsert_next]
+        self.retops=[self.get_next]
+        
+        
         self.cb = cb
         self.delay = options.delay
         self.key = 'K' * options.ksize
@@ -117,9 +120,27 @@ class Runner(object):
         self.end_time = time() + options.duration
         self._do_stop = False
         self.start()
+        
+        
+
+    def upsert_next(self):
+        return self.cb.upsert_multi(self.kv, format=FMT_BYTES)
+
+    def get_next(self):
+        return self.cb.get_multi(self.kv, format=FMT_BYTES)
+    
+    def subdoc_store_next(self):
+        specs=[]
+        return self.cb.mutate_in(random.choice(self.kv.keys()),specs)
+
+    def subdoc_get_next(self):
+        specs=[]
+        return self.cb.retrieve_in(random.choice(self.kv.keys()),specs)
 
     def _schedule_raw(self, *args):
-        opres = self.cb.upsert_multi(self.kv, format=FMT_BYTES)
+        operations = self.mutops if random.random()<(options.set_pct/100) else self.retops 
+        opres=operations[random.randint(1,len(self.operations))-1]()
+        
         opres.callback = self._schedule_raw
         self.opcount += 1
 
@@ -156,6 +177,7 @@ for _ in range(options.clients):
     d = cb.connect()
 
     def _on_connected(unused, client):
+        logging.log("connected")
         for _ in range(options.threads):
             r = Runner(client)
             runners.append(r)
