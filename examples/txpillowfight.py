@@ -31,7 +31,7 @@ print "test2"
 ap = argparse.ArgumentParser()
 
     
-ap.add_argument('-t','--num-threads',type=int,default=1,help='The number of threads to use')
+ap.add_argument('-t','--num-threads',type=int,default=4,help='The number of threads to use')
 
 ap.add_argument('-d', '--delay', default=0, type=float,
                 help="Number of seconds to wait between each op. "
@@ -64,7 +64,7 @@ ap.add_argument('-B','--batch-size', type=int, default=100, help="Batch size to 
 
 ap.add_argument('-I', '--num-items', type=int, default=1000, help="Set the total number of items the"
                 "workload will access within the cluster. This will also determine the working set size at the server and may affect disk latencies if set to a high number.")
-ap.add_argument('-r', '--set-pct', type=int, help="The percentage of operations which should be mutations. A value of 100 means only mutations while a value of 0 means only retrievals.")
+ap.add_argument('-r', '--set-pct', type=int, default = 33, help="The percentage of operations which should be mutations. A value of 100 means only mutations while a value of 0 means only retrievals.")
 ap.add_argument('-n', '--no-population', type=bool, default=True, help="By default cbc-pillowfight will load all the items (see --num-items) into the cluster and then begin performing the normal workload. Specifying this option bypasses this stage. Useful if the items have already been loaded in a previous run.")
 
 
@@ -91,7 +91,7 @@ ap.add_argument('-e','--expiry',type=bool,help='Set TTL for items')
 
 
 options = ap.parse_args()
-
+print str(options)
 class Runner(object):
 
     def generate_value(self, x):
@@ -100,10 +100,11 @@ class Runner(object):
 
 
     def generate_key(self, x):
-        return self.key_prefix + self.key + str(x)
+        return options.key_prefix + self.key + str(x)
 
     def __init__(self, cb):
         #    enum Mode { STORE, GET, SDSTORE, SDGET, NOOP };
+        print "initialising"+str(cb)
         self.mutops=[self.upsert_next]
         self.retops=[self.get_next]
         
@@ -114,7 +115,10 @@ class Runner(object):
         self.kv = {}
         
         for x in range(options.batch_size):
-            self.kv[self.generate_key(x)] =  self.generate_value(x)
+            print "adding "+str(x)
+            gen_key = self.generate_key(x)
+            gen_value = self.generate_value(x)
+            self.kv[gen_key] =  gen_value
         self.wait_time = 0
         self.opcount = 0
         self.end_time = time() + options.duration
@@ -127,7 +131,7 @@ class Runner(object):
         return self.cb.upsert_multi(self.kv, format=FMT_BYTES)
 
     def get_next(self):
-        return self.cb.get_multi(self.kv, format=FMT_BYTES)
+        return self.cb.get_multi(self.kv.keys())
     
     def subdoc_store_next(self):
         specs=[]
@@ -138,13 +142,20 @@ class Runner(object):
         return self.cb.retrieve_in(random.choice(self.kv.keys()),specs)
 
     def _schedule_raw(self, *args):
-        operations = self.mutops if random.random()<(options.set_pct/100) else self.retops 
-        opres=operations[random.randint(1,len(self.operations))-1]()
-        
-        opres.callback = self._schedule_raw
-        self.opcount += 1
+        try:
+            
+            print "schedule_raw "+str(args)
+            operations = self.mutops if random.random()<(options.set_pct/100) else self.retops 
+            opres=random.choice(operations)()
+            
+            opres.callback = self._schedule_raw
+            self.opcount += 1
+        except Exception as e:
+            print e
+            raise
 
     def _schedule_deferred(self, *args):
+        print "schedule_deferred "+str(args)
         rv = self.cb.upsertMulti(self.kv, format=FMT_BYTES)
         rv.addCallback(self._schedule_deferred)
         self.opcount += options.batch_size
@@ -177,8 +188,10 @@ for _ in range(options.clients):
     d = cb.connect()
 
     def _on_connected(unused, client):
-        logging.log("connected")
-        for _ in range(options.threads):
+        print "connected"+str(client)
+        print "adding threads"
+        for _ in range(0,options.num_threads):
+            print "adding thread "+str(_)
             r = Runner(client)
             runners.append(r)
     d.addCallback(_on_connected, cb)
