@@ -52,12 +52,19 @@ class ClusterTest(CouchbaseTestCase):
 
         # Open a bucket
         cb = cluster.open_bucket(bucket_name)
-        row = cluster.n1ql_query('select mockrow').get_single_result()
-
+        temp_query = cluster.n1ql_query('select mockrow')
+        print "about to test "+str(temp_query)
+        row = temp_query.get_single_result()
+        del row
+        del temp_query
+        referrers= gc.get_referrers(cb)
         # Should fail again once the bucket has been GC'd
+        print str(referrers)
+        del referrers
         del cb
+        
+        
         gc.collect()
-
         self.assertRaises(NoBucketError, cluster.n1ql_query, 'select mockrow')
 
     def test_no_mixed_auth(self):

@@ -67,20 +67,37 @@ enum {
     RESTYPE_VARCOUNT = 1 << 4
 };
 
-/* Returns true if an error has been added... */
 static int
 maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
     int check_enoent)
 {
-    if (err == LCB_SUCCESS || mres->errop) {
-        return 0;
-    }
+	 if (err == LCB_SUCCESS || mres->errop) {
+	        return 0;
+	    }
 
-    if (check_enoent &&
-            (mres->mropts & PYCBC_MRES_F_QUIET) &&
-            (err == LCB_KEY_ENOENT || err == LCB_SUBDOC_PATH_ENOENT)) {
-        return 0;
-    }
+	    if (check_enoent &&
+	            (mres->mropts & PYCBC_MRES_F_QUIET) &&
+	            (err == LCB_KEY_ENOENT || err == LCB_SUBDOC_PATH_ENOENT)) {
+	        return 0;
+	    }
+
+	    mres->errop = (PyObject*)res;
+	    Py_INCREF(mres->errop);
+	    return 1;
+}
+
+/* Returns true if an error has been added... */
+static int
+maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, int cbtype, const lcb_RESPBASE
+* respbase,
+    int check_enoent)
+{
+	int err = respbase->rc;
+	maybe_push_operr(mres,res,respbase->rc, check_enoent);
+
+    const char* context=lcb_resp_get_error_context(cbtype,respbase);
+    const char* ref=lcb_resp_get_error_ref(cbtype,respbase);
+
 
     mres->errop = (PyObject*)res;
     Py_INCREF(mres->errop);
@@ -126,7 +143,7 @@ operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
  */
 static int
 get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
-    pycbc_Result **res, int restype, pycbc_MultiResult **mres)
+    pycbc_Result **res, int restype, pycbc_MultiResult **mres, int cbtype)
 
 {
     PyObject *hkey;
@@ -142,7 +159,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     rv = pycbc_tc_decode_key(*conn, resp->key, resp->nkey, &hkey);
 
     if (rv < 0) {
-        pycbc_multiresult_adderr(*mres);
+        PyObject* etuple=pycbc_multiresult_adderr(*mres);
         return -1;
     }
 
@@ -601,7 +618,9 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     }
 
     if (resp_base->rc != LCB_SUCCESS) {
-        maybe_push_operr(mres, (pycbc_Result*)vres, resp_base->rc, 0);
+
+
+        maybe_push_operr(mres, (pycbc_Result*)vres, cbtype, resp_base, 0);
         goto GT_DONE;
     }
 
