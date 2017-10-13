@@ -128,32 +128,18 @@ class Cluster(object):
             query = N1QLQuery(query)
 
         query.cross_bucket = True
-        import sys, gc
+
         to_purge = []
-        result=None
         for k, v in self._buckets.items():
             bucket = v()
             if bucket:
-                refcount = sys.getrefcount(v())
-                referers = gc.get_referrers(v())
-                #sys.stdout.writelines([str(referers)])
-                print "v refcount"+str(refcount)+", referers, "+str(referers)
-                del referers, refcount
-                gc.collect()
-                #sys.stdout.flush()
-                #sys.stderr.flush()
-                result= bucket.n1ql_query(query, *args, **kwargs)
+                return bucket.n1ql_query(query, *args, **kwargs)
             else:
                 to_purge.append(k)
-            
+
         for k in to_purge:
             del self._buckets[k]
-        
-        if result:
-            return result
-        
-        del query
-        gc.collect()
+
         raise NoBucketError('Must have at least one active bucket for query')
 
 

@@ -321,7 +321,7 @@ class N1QLQuery(object):
             cls=self.__class__.__name__,
             stmt=repr(self._body),
             oid=id(self)))
-import weakref
+
 
 class N1QLRequest(object):
     def __init__(self, params, parent, row_factory=lambda x: x):
@@ -348,7 +348,7 @@ class N1QLRequest(object):
             params = N1QLQuery(params)
 
         self._params = params
-        self._parent = parent #weakref.ref(parent)
+        self._parent = parent
         self.row_factory = row_factory
         self.errors = []
         self._mres = None
@@ -446,7 +446,6 @@ class N1QLRequest(object):
         """
         for r in self:
             return r
-        #self._clear()
 
     def __iter__(self):
         if not self._do_iter:
@@ -457,4 +456,3 @@ class N1QLRequest(object):
             raw_rows = self.raw.fetch(self._mres)
             for row in self._process_payload(raw_rows):
                 yield row
-        #self._clear()
