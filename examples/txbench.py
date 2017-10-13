@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+print "test1"
 import argparse
 from time import time
 
@@ -24,7 +25,7 @@ from twisted.internet import reactor
 from txcouchbase.bucket import RawBucket, Bucket
 from couchbase import FMT_BYTES
 from couchbase.transcoder import Transcoder
-
+print "test2"
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-t', '--threads', default=4, type=int,
