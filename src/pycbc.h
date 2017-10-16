@@ -861,7 +861,8 @@ void pycbc_Result_dealloc(pycbc_Result *self);
  * This calls pycbc_exc_mktuple(), so the constrains there apply to this
  * function as well.
  */
-void pycbc_multiresult_adderr(pycbc_MultiResult* mres);
+PyObject* pycbc_multiresult_adderr3(pycbc_MultiResult* mres, const char* context , const char* ref);
+PyObject* pycbc_multiresult_adderr(pycbc_MultiResult* mres);
 
 /**
  * Raise an exception from a multi result. This will raise an exception if:

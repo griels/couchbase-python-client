@@ -68,25 +68,20 @@ enum {
 };
 
 /* Returns true if an error has been added... */
-static int
-maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
-    int check_enoent)
-{
-    if (err == LCB_SUCCESS || mres->errop) {
-        return 0;
-    }
+static int maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res,
+		lcb_error_t err, int check_enoent) {
+	if (err == LCB_SUCCESS || mres->errop) {
+		return 0;
+	}
 
-    if (check_enoent &&
-            (mres->mropts & PYCBC_MRES_F_QUIET) &&
-            (err == LCB_KEY_ENOENT || err == LCB_SUBDOC_PATH_ENOENT)) {
-        return 0;
-    }
-
-    mres->errop = (PyObject*)res;
-    Py_INCREF(mres->errop);
-    return 1;
+	if (check_enoent && (mres->mropts & PYCBC_MRES_F_QUIET)
+			&& (err == LCB_KEY_ENOENT || err == LCB_SUBDOC_PATH_ENOENT)) {
+		return 0;
+	}
+	mres->errop = (PyObject*) res;
+	Py_INCREF(mres->errop);
+	return 1;
 }
-
 
 static void
 operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
@@ -126,7 +121,7 @@ operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
  */
 static int
 get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
-    pycbc_Result **res, int restype, pycbc_MultiResult **mres)
+    pycbc_Result **res, int restype, pycbc_MultiResult **mres, int cbtype)
 
 {
     PyObject *hkey;
@@ -142,7 +137,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     rv = pycbc_tc_decode_key(*conn, resp->key, resp->nkey, &hkey);
 
     if (rv < 0) {
-        pycbc_multiresult_adderr(*mres);
+    		const char* context=cb_resp_get_error_context(cbtype, resp);
+    		const char* ref=cb_resp_get_error_ref(cbtype, resp);
+        pycbc_multiresult_adderr3(*mres,context,ref);
         return -1;
     }
 
@@ -327,7 +324,7 @@ durability_chain_common(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         restype |= RESTYPE_OPERATION;
     }
 
-    if (get_common_objects(resp, &conn, (pycbc_Result**)&res, restype, &mres) != 0) {
+    if (get_common_objects(resp, &conn, (pycbc_Result**)&res, restype, &mres,cbtype) != 0) {
         operation_completed(conn, mres);
         CB_THR_BEGIN(conn);
         return;
@@ -345,7 +342,7 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     pycbc_MultiResult *mres = NULL;
 
     rv = get_common_objects(resp, &conn, (pycbc_Result**)&res, RESTYPE_VALUE,
-        &mres);
+        &mres, cbtype);
 
     if (rv < 0) {
         goto GT_DONE;
@@ -435,7 +432,7 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     const lcb_RESPSUBDOC *resp = (const lcb_RESPSUBDOC *)rb;
 
     rv = get_common_objects(rb, &conn,
-        (pycbc_Result**)&res, RESTYPE_EXISTS_OK, &mres);
+        (pycbc_Result**)&res, RESTYPE_EXISTS_OK, &mres, cbtype);
     if (rv < 0) {
         goto GT_ERROR;
     }
@@ -497,7 +494,7 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         optflags |= RESTYPE_EXISTS_OK;
     }
 
-    rv = get_common_objects(resp, &conn, (pycbc_Result**)&res, optflags, &mres);
+    rv = get_common_objects(resp, &conn, (pycbc_Result**)&res, optflags, &mres, cbtype);
 
     if (rv == 0) {
         res->rc = resp->rc;
@@ -595,7 +592,7 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     }
 
     rv = get_common_objects(resp_base, &conn, (pycbc_Result**)&vres,
-        RESTYPE_VALUE|RESTYPE_EXISTS_OK|RESTYPE_VARCOUNT, &mres);
+        RESTYPE_VALUE|RESTYPE_EXISTS_OK|RESTYPE_VARCOUNT, &mres, cbtype);
     if (rv < 0) {
         goto GT_DONE;
     }
