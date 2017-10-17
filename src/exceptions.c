@@ -37,6 +37,13 @@ int pycbc_handle_assert(const char *msg, const char* file, int line)
     return 0;
 }
 
+PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value) {
+	PyObject* valstr = pycbc_SimpleStringZ(value);
+	PyDict_SetItemString(dict, key, valstr);
+	Py_DECREF(valstr);
+	return dict;
+}
+
 void
 pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 {
@@ -80,6 +87,12 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 
     if (p->objextra) {
         PyDict_SetItemString(excparams, "objextra", p->objextra);
+    }
+
+    if (p->err_info)
+    {
+		pycbc_add_cstring_to_dict(excparams, "err_context",lcb_resp_get_error_context(p->err_info->cbtype,p->err_info->respbase) );
+		pycbc_add_cstring_to_dict(excparams, "err_ref",lcb_resp_get_error_ref(p->err_info->cbtype,p->err_info->respbase) );
     }
 
     {

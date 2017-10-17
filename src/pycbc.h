@@ -455,6 +455,19 @@ enum {
     PYCBC_MRES_F_VIEWS = 1 << 7
 };
 /**
+ * Contextual info for enhanced error logging
+ */
+
+typedef struct enhanced_err_info_st
+{
+    /** Callback structure for misc use including enhanced error logging - NULL if not applicable */
+    const lcb_RESPBASE *respbase;
+
+    /** Callback type if applicable */
+    int cbtype;
+} enhanced_err_info;
+
+/**
  * Object containing the result of a 'Multi' operation. It's the same as a
  * normal dict, except we add an 'all_ok' field, so a user doesn't need to
  * skim through all the pairs to determine if something failed.
@@ -483,6 +496,7 @@ typedef struct pycbc_MultiResult_st {
 
     /** Options for 'MultiResult' */
     int mropts;
+
 } pycbc_MultiResult;
 
 typedef struct {
@@ -496,6 +510,8 @@ typedef struct {
 
     /* Object to be invoked with errors */
     PyObject *errback;
+
+
 } pycbc_AsyncResult;
 
 
@@ -535,6 +551,11 @@ struct pycbc_exception_params {
      * bad parameter.
      */
     PyObject *objextra;
+
+    /**
+     * Enhanced error info if required.
+     */
+    const enhanced_err_info* err_info;
 };
 
 /**
@@ -885,7 +906,7 @@ PyObject* pycbc_multiresult_get_result(pycbc_MultiResult *self);
  * invoke the operation's "error callback" or the operation's "result callback"
  * depending on the state.
  */
-void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres);
+void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres, const enhanced_err_info* err_info);
 
 /**
  * Initialize the callbacks for the lcb_t
@@ -930,7 +951,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
  * @param e_key the key during the handling of which the error occurred
  * @param e_objextra the problematic object which actually caused the errror
  */
-#define PYCBC_EXC_WRAP_EX(e_mode, e_err, e_msg, e_key, e_objextra) { \
+#define PYCBC_EXC_WRAP_EX(e_mode, e_err, e_msg, e_key, e_objextra, e_err_info) { \
     struct pycbc_exception_params __pycbc_ep = {0}; \
     __pycbc_ep.file = __FILE__; \
     __pycbc_ep.line = __LINE__; \
@@ -938,17 +959,21 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
     __pycbc_ep.msg = e_msg; \
     __pycbc_ep.key = e_key; \
     __pycbc_ep.objextra = e_objextra; \
+    __pycbc_ep.err_info = e_err_info; \
     pycbc_exc_wrap_REAL(e_mode, &__pycbc_ep); \
 }
 
 #define PYCBC_EXC_WRAP(mode, err, msg) \
-        PYCBC_EXC_WRAP_EX(mode, err, msg, NULL, NULL)
+        PYCBC_EXC_WRAP_EX(mode, err, msg, NULL, NULL, NULL)
 
 #define PYCBC_EXC_WRAP_OBJ(mode, err, msg, obj) \
-    PYCBC_EXC_WRAP_EX(mode, err, msg, NULL, obj)
+    PYCBC_EXC_WRAP_EX(mode, err, msg, NULL, obj, NULL)
 
 #define PYCBC_EXC_WRAP_KEY(mode, err, msg, key) \
-    PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL)
+    PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL, NULL)
+
+#define PYCBC_EXC_WRAP_KEY_ERR_INFO(mode, err, msg, key, err_info) \
+    PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL, err_info)
 
 #define PYCBC_EXC_WRAP_VALUE PYCBC_EXC_WRAP_KEY
 
