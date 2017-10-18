@@ -83,3 +83,4 @@ class ExceptionsTest(ConnectionTestCase):
         str(exc)
         repr(exc)
         del exc
+        

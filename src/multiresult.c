@@ -362,6 +362,7 @@ pycbc_multiresult_get_result(pycbc_MultiResult *self)
     return value;
 }
 
+void
 pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, const enhanced_err_info *err_info)
 {
     PyObject *argtuple;
