@@ -32,3 +32,4 @@ _trial*
 *.dSYM
 .idea/
 CouchbaseMock.jar
+/cmake-build-debug/

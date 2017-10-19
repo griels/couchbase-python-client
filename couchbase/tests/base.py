@@ -68,7 +68,8 @@ class ClusterInformation(object):
         return ret
 
     def make_connection(self, conncls, **kwargs):
-        return conncls(**self.make_connargs(**kwargs))
+        final_args = self.make_connargs(**kwargs)
+        return conncls(**final_args)
 
     def make_admin_connection(self):
         return Admin(self.admin_username, self.admin_password,

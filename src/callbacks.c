@@ -119,6 +119,8 @@ operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, i
     enhanced_err_info err_info;
     err_info.cbtype=cbtype;
     err_info.respbase=resp;
+	printf("err_info %0x",&err_info);
+
 	operation_completed3(self,mres,&err_info);
 }
 
@@ -313,9 +315,11 @@ dur_chain2(pycbc_Bucket *conn,
     if (mctx) {
         mctx->fail(mctx);
     }
+
     if (err != LCB_SUCCESS) {
         res->rc = err;
         maybe_push_operr(mres, (pycbc_Result*)res, err, 0);
+
         operation_completed_with_err_info(conn, mres, cbtype, resp);
     }
 

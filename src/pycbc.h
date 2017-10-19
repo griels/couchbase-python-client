@@ -952,6 +952,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
  * @param e_objextra the problematic object which actually caused the errror
  */
 #define PYCBC_EXC_WRAP_EX(e_mode, e_err, e_msg, e_key, e_objextra, e_err_info) { \
+    	printf("wrap err_info %0x at %s, line %d",e_err_info,__FILE__,__LINE__);\
     struct pycbc_exception_params __pycbc_ep = {0}; \
     __pycbc_ep.file = __FILE__; \
     __pycbc_ep.line = __LINE__; \

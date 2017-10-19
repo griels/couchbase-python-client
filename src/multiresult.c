@@ -283,6 +283,8 @@ pycbc_multiresult_adderr(pycbc_MultiResult* mres)
 int
 pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info* err_info)
 {
+	printf("pycbc_multiresult_maybe_raise2 %0x\n",err_info);
+
     PyObject *type = NULL, *value = NULL, *traceback = NULL;
 
     if (self->errop == NULL && self->exceptions == NULL) {
@@ -336,6 +338,8 @@ pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info*
 int
 pycbc_multiresult_maybe_raise(pycbc_MultiResult *self)
 {
+	printf("pycbc_multiresult_maybe_raise\n");
+
 	return pycbc_multiresult_maybe_raise2(self,NULL);
 }
 
