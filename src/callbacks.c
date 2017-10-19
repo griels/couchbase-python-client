@@ -119,14 +119,14 @@ operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, i
     enhanced_err_info err_info;
     err_info.cbtype=cbtype;
     err_info.respbase=resp;
-	printf("err_info %0x",&err_info);
+	printf("completed with err_info %llu\n",&err_info);
 
 	operation_completed3(self,mres,&err_info);
 }
 
 /**
  * Call this function for each callback. Note that even if this function
- * returns nonzero, CB_THR_BEGIN() must still be called, and the `conn`
+ * returns nonzero, CB_THR_BEGIN() must still be called, and the `conn`-
  * and `mres` out parameters are considered valid
  * @param resp base response object
  * @param[out] conn the bucket object

@@ -58,7 +58,6 @@ int import_call_execute(int argc, const char *argv[]) {
     PyObject *pModule   = NULL;
     PyObject *pFunc     = NULL;
     PyObject *pResult   = NULL;
-
     if (argc != 4) {
         fprintf(stderr,
                 "Wrong arguments!"
@@ -66,7 +65,7 @@ int import_call_execute(int argc, const char *argv[]) {
         return_value = -1;
         goto except;
     }
-    Py_SetProgramName((wchar_t*)argv[0]);
+    Py_SetProgramName((wchar_t*)"/Users/ellis_breen/root/virtualenvs/2.7/default/bin/python2.7");
     Py_Initialize();
     if (add_path_to_sys_module(argv[1])) {
         return_value = -2;

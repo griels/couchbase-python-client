@@ -337,7 +337,7 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     if (rv < 0) {
         goto GT_DONE;
     }
-
+    printf("set_common\n");
     if (-1 == pycbc_common_vars_wait(&cv, self)) {
         goto GT_DONE;
     }

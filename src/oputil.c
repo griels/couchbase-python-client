@@ -64,7 +64,7 @@ pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self)
         fprintf(stderr, "Remaining count != 0. Adjusting");
         self->nremaining = 0;
     }
-
+    printf("pycbc_common_vars_wait\n");
     if (pycbc_multiresult_maybe_raise(cv->mres)) {
         return -1;
     }
