@@ -462,7 +462,7 @@ pycbc_tc_encode_value(pycbc_Bucket *conn, PyObject *srcbuf, PyObject *srcflags,
     if (!PyTuple_Check(result_tuple) || PyTuple_GET_SIZE(result_tuple) != 2) {
         PYCBC_EXC_WRAP_EX(PYCBC_EXC_ENCODING, 0,
                           "Expected return of (bytes, flags)",
-                          srcbuf, result_tuple);
+                          srcbuf, result_tuple, NULL);
 
         Py_XDECREF(result_tuple);
         return -1;
