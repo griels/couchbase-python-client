@@ -118,11 +118,12 @@ operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
 }
 
 PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value) {
+	PyObject* valstr;
 	if (!value)
 	{
 		return dict;
 	}
-	PyObject* valstr = pycbc_SimpleStringZ(value);
+	valstr = pycbc_SimpleStringZ(value);
 	PyDict_SetItemString(dict, key, valstr);
 	Py_DECREF(valstr);
 	return dict;
@@ -130,11 +131,11 @@ PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char*
 
 void enhanced_err_info_store(  enhanced_err_info** err_info, const lcb_RESPBASE *respbase, int cbtype)
 {
-	*err_info=PyDict_New();
 	const char* lcbRespGetErrorRef = lcb_resp_get_error_ref(cbtype, respbase);
-	if (lcbRespGetErrorRef) {pycbc_add_cstring_to_dict(*err_info, "ref", lcbRespGetErrorRef);}
 	const char* lcbRespGetErrorContext = lcb_resp_get_error_context(cbtype,
-			respbase);
+				respbase);
+	*err_info=PyDict_New();
+	if (lcbRespGetErrorRef) {pycbc_add_cstring_to_dict(*err_info, "ref", lcbRespGetErrorRef);}
 	if (lcbRespGetErrorContext) {pycbc_add_cstring_to_dict(*err_info, "context",
 			lcbRespGetErrorContext);}
 
