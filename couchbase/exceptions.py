@@ -222,6 +222,12 @@ class CouchbaseError(Exception):
         if self.objextra:
             details.append("OBJ={0}".format(repr(self.objextra)))
 
+        if self.context:
+            details.append("Context={0}".format(self.context))
+
+        if self.ref:
+            details.append("Ref={0}".format(self.ref))
+
         s = "<{0}>".format(", ".join(details))
         return s
 
