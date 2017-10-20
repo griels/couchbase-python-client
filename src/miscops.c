@@ -120,6 +120,8 @@ static PyObject *
 keyop_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts)
 {
+	printf("keyop_common\n");
+
     int rv;
     Py_ssize_t ncmds = 0;
     pycbc_seqtype_t seqtype;
@@ -204,6 +206,7 @@ keyop_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
 PyObject *
 pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+	printf("pycbc_Bucket_endure_multi\n");
     int rv;
     Py_ssize_t ncmds;
     pycbc_seqtype_t seqtype;
@@ -288,6 +291,8 @@ DECLFUNC(unlock_multi, PYCBC_CMD_UNLOCK, PYCBC_ARGOPT_MULTI)
 PyObject *
 pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+	printf("pycbc_Bucket__stats\n");
+
     int rv;
     int ii;
     Py_ssize_t ncmds;

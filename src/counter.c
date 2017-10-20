@@ -98,6 +98,8 @@ PyObject *
 arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     int optype, int argopts)
 {
+
+	printf("arithmetic_common\n");
     int rv;
     Py_ssize_t ncmds;
     struct arithmetic_common_vars global_params = { 0 };

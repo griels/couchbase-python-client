@@ -200,6 +200,7 @@ static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts)
 {
+	printf("get_common\n");
     int rv;
     Py_ssize_t ncmds = 0;
     pycbc_seqtype_t seqtype;

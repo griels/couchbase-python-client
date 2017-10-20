@@ -458,15 +458,12 @@ enum {
  * Contextual info for enhanced error logging
  */
 
-typedef struct enhanced_err_info_st
-{
-    /** Callback structure for misc use including enhanced error logging - NULL if not applicable */
-    const lcb_RESPBASE *respbase;
-
-    /** Callback type if applicable */
-    int cbtype;
-} enhanced_err_info;
-
+typedef PyObject enhanced_err_info;
+PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value);
+void enhanced_err_info_log(  enhanced_err_info* err_info);
+void enhanced_err_info_store( enhanced_err_info** err_info, const lcb_RESPBASE *respbase, int cbtype);
+const char* enhanced_err_get_ref(  enhanced_err_info* err_info );
+const char* enhanced_err_get_context(  enhanced_err_info* err_info );
 /**
  * Object containing the result of a 'Multi' operation. It's the same as a
  * normal dict, except we add an 'all_ok' field, so a user doesn't need to
@@ -496,6 +493,8 @@ typedef struct pycbc_MultiResult_st {
 
     /** Options for 'MultiResult' */
     int mropts;
+
+    enhanced_err_info* err_info;
 
 } pycbc_MultiResult;
 
@@ -555,7 +554,7 @@ struct pycbc_exception_params {
     /**
      * Enhanced error info if required.
      */
-    const enhanced_err_info* err_info;
+    enhanced_err_info* err_info;
 };
 
 /**
@@ -906,7 +905,7 @@ PyObject* pycbc_multiresult_get_result(pycbc_MultiResult *self);
  * invoke the operation's "error callback" or the operation's "result callback"
  * depending on the state.
  */
-void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres, const enhanced_err_info* err_info);
+void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres, enhanced_err_info* err_info);
 
 /**
  * Initialize the callbacks for the lcb_t
@@ -952,7 +951,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
  * @param e_objextra the problematic object which actually caused the errror
  */
 #define PYCBC_EXC_WRAP_EX(e_mode, e_err, e_msg, e_key, e_objextra, e_err_info) { \
-    	printf("wrap err_info %0x at %s, line %d",e_err_info,__FILE__,__LINE__);\
+    	printf("wrap err_info %llu at %s, line %d",(unsigned long long)e_err_info,__FILE__,__LINE__);\
     struct pycbc_exception_params __pycbc_ep = {0}; \
     __pycbc_ep.file = __FILE__; \
     __pycbc_ep.line = __LINE__; \
@@ -960,7 +959,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
     __pycbc_ep.msg = e_msg; \
     __pycbc_ep.key = e_key; \
     __pycbc_ep.objextra = e_objextra; \
-    __pycbc_ep.err_info = e_err_info; \
+    __pycbc_ep.err_info  = e_err_info; \
     pycbc_exc_wrap_REAL(e_mode, &__pycbc_ep); \
 }
 

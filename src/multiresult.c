@@ -266,6 +266,7 @@ pycbc_multiresult_new(pycbc_Bucket *parent)
 PyObject*
 pycbc_multiresult_adderr(pycbc_MultiResult* mres)
 {
+	printf("pycbc_multiresult_adderr\n");
     PyObject *etuple;
     mres->all_ok = 0;
     if (!mres->exceptions) {
@@ -283,7 +284,7 @@ pycbc_multiresult_adderr(pycbc_MultiResult* mres)
 int
 pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info* err_info)
 {
-	printf("pycbc_multiresult_maybe_raise2 %0x\n",err_info);
+	printf("pycbc_multiresult_maybe_raise2 %llu\n",(unsigned long long)err_info);
 
     PyObject *type = NULL, *value = NULL, *traceback = NULL;
 
@@ -306,9 +307,8 @@ pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info*
         Py_XINCREF(traceback);
     } else {
         pycbc_Result *res = (pycbc_Result*)self->errop;
-
         /** Craft an exception based on the operation */
-        PYCBC_EXC_WRAP_KEY_ERR_INFO(PYCBC_EXC_LCBERR, res->rc, "Operational Error", res->key, err_info);
+        PYCBC_EXC_WRAP_KEY_ERR_INFO(PYCBC_EXC_LCBERR, res->rc, "Operational Error", res->key, self->err_info);
 
         /** Now we have an exception. Let's fetch it back */
         PyErr_Fetch(&type, &value, &traceback);
@@ -367,11 +367,12 @@ pycbc_multiresult_get_result(pycbc_MultiResult *self)
 }
 
 void
-pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, const enhanced_err_info *err_info)
+pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, enhanced_err_info *err_info)
 {
     PyObject *argtuple;
     PyObject *cbmeth;
-
+    printf("pycbc_asyncresult_invoke\n");
+	enhanced_err_info_log(err_info);
     if (!pycbc_multiresult_maybe_raise2(&ares->base, err_info)) {
         /** All OK */
         PyObject *eres = pycbc_multiresult_get_result(&ares->base);
@@ -380,6 +381,7 @@ pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, const enhanced_err_info *err_i
         PyTuple_SET_ITEM(argtuple, 0, (PyObject *)eres);
 
     } else {
+    		printf("problem maybe raising multiresult\n");
         PyObject *ex_value, *ex_type, *ex_tb;
 
         PyErr_Fetch(&ex_type, &ex_value, &ex_tb);
@@ -406,8 +408,11 @@ pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, const enhanced_err_info *err_i
     }
 
     if (!cbmeth) {
-        PYCBC_EXC_WRAP(PYCBC_EXC_INTERNAL, 0, "No callbacks provided");
+		printf("no callback\n");
+
+    		PYCBC_EXC_WRAP(PYCBC_EXC_INTERNAL, 0, "No callbacks provided");
     } else {
+    		printf("calling back %llu\n",(unsigned long long)cbmeth);
         PyObject *res =  PyObject_CallObject(cbmeth, argtuple);
         if (res) {
             Py_XDECREF(res);

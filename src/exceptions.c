@@ -37,14 +37,6 @@ int pycbc_handle_assert(const char *msg, const char* file, int line)
     return 0;
 }
 
-PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value) {
-	printf("adding %s to %s\n",value,key);
-	PyObject* valstr = pycbc_SimpleStringZ(value);
-	PyDict_SetItemString(dict, key, valstr);
-	Py_DECREF(valstr);
-	return dict;
-}
-
 void
 pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 {
@@ -92,12 +84,13 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 
 
 
-	printf("exception %s,%s:err_info %llu",PyString_AsString(PyObject_Str(type)),PyString_AsString(PyObject_Str(value)),p->err_info);
+	printf("exception %s,%s:err_info %llu",PyString_AsString(PyObject_Str(type)),PyString_AsString(PyObject_Str(value)),(unsigned long long)p->err_info);
     if (p->err_info)
     {
-		pycbc_add_cstring_to_dict(excparams, "err_context",lcb_resp_get_error_context(p->err_info->cbtype,p->err_info->respbase) );
-		pycbc_add_cstring_to_dict(excparams, "err_ref",lcb_resp_get_error_ref(p->err_info->cbtype,p->err_info->respbase) );
-    }
+
+		pycbc_add_cstring_to_dict(excparams, "err_context",enhanced_err_get_context(p->err_info) );
+		pycbc_add_cstring_to_dict(excparams, "err_ref",enhanced_err_get_ref(p->err_info ));
+	}
 
     {
         PyObject *csrc_info = Py_BuildValue("(s,i)", p->file, p->line);

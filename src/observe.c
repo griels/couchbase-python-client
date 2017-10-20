@@ -121,6 +121,7 @@ handle_single_observe(pycbc_Bucket *self, PyObject *curkey, int master_only,
 static PyObject *
 observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts)
 {
+	printf("observe_common\n");
     int rv;
     int ii;
     Py_ssize_t ncmds;
