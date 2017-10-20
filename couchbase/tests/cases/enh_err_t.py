@@ -52,8 +52,9 @@ class EnhancedErrorTest(CouchbaseTestCase):
                 if userid=="writer":
                     raise e
                 else:
-                    print str(e)
-                    self.assertRegexpMatches(e.context,".*auth*","doesn't match")
+                    self.assertRegexpMatches(e.context,r".*Authorization failure.*","doesn't have correct Context field")
+                    self.assertRegexpMatches(e.ref,r"(.*?)-(.*?)-.*","doesn't have correct Ref field")
+                    self.assertRegexpMatches(str(e),r".*Context=Authorization failure.*,.*Ref=.*","exception as string doesn't contain both fields")
             finally:
                 pass
             #remove user
