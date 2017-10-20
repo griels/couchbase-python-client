@@ -84,12 +84,12 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 
 
 
-	printf("exception %s,%s:err_info %llu",PyString_AsString(PyObject_Str(type)),PyString_AsString(PyObject_Str(value)),(unsigned long long)p->err_info);
+	//printf("exception %s,%s:err_info %llu",PyString_AsString(PyObject_Str(type)),PyString_AsString(PyObject_Str(value)),(unsigned long long)p->err_info);
     if (p->err_info)
     {
-
-		pycbc_add_cstring_to_dict(excparams, "err_context",enhanced_err_get_context(p->err_info) );
-		pycbc_add_cstring_to_dict(excparams, "err_ref",enhanced_err_get_ref(p->err_info ));
+    	PyDict_Update(excparams,p->err_info);
+//		pycbc_add_cstring_to_dict(excparams, "err_context",enhanced_err_get_context(p->err_info) );
+//		pycbc_add_cstring_to_dict(excparams, "err_ref",enhanced_err_get_ref(p->err_info ));
 	}
 
     {

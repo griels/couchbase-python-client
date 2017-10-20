@@ -149,8 +149,18 @@ void enhanced_err_info_store(  enhanced_err_info** err_info, const lcb_RESPBASE 
 			lcbRespGetErrorContext);}
 
 }
-
+/*
 const char* somethingOrEmpty(PyObject* inputStr) {
+	if (PyUnicode_Check(inputStr)) {
+    // Convert string to bytes.
+    // strdup() bytes into my_result.
+} else if (PyBytes_Check(result)) {
+    // strdup() bytes into my_result.
+} else {
+    // Convert into your favorite string representation.
+    // Convert string to bytes if it is not already.
+    // strdup() bytes into my_result.
+}
 	return inputStr ? PyString_AsString(inputStr) : "";
 }
 
@@ -162,13 +172,13 @@ const char* enhanced_err_get_context(  enhanced_err_info* err_info )
 {
 	return somethingOrEmpty(PyDict_GetItemString(err_info,"context"));
 }
-
+*/
 void enhanced_err_info_log(  enhanced_err_info* err_info)
 {
 	printf("logging %llu\n",(unsigned long long)err_info);
 	if (err_info)
 	{
-		printf("retrieved err_info %llu: %s, %s\n",(unsigned long long)err_info,enhanced_err_get_context(err_info),enhanced_err_get_ref(err_info));
+		//printf("retrieved err_info %llu: %s, %s\n",(unsigned long long)err_info,enhanced_err_get_context(err_info),enhanced_err_get_ref(err_info));
 	}
 	else
 	{
