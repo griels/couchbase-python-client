@@ -30,10 +30,10 @@ class EnhancedErrorTest(CouchbaseTestCase):
 
         del self.admin
 
-
     def test_enhanced_err_present_authorisation(self):
+        import couchbase.subdocument as SD
         #users=[('writer',('s3cr3t',[('data_reader', 'default'), ('data_writer', 'default')])),
-        users=[       ('reader',('s3cr3t',[('data_reader', 'default')]))]
+        users=[      ('reader',('s3cr3t',[('data_reader', 'default')]))]
         #self.mockclient._do_request("SET_ENHANCED_ERRORS",{"enabled":True})
         for user in users:
             print str(user)
@@ -42,7 +42,11 @@ class EnhancedErrorTest(CouchbaseTestCase):
             self.admin.user_upsert(AuthDomain.Local, userid, password, roles)
             try:
                 connection = self.make_connection(username=userid,password=password)
-                rv = connection.upsert(self.gen_key(), 'value1')
+                
+                key = self.gen_key('create_doc')
+                connection.mutate_in(key, SD.upsert('new.path', 'newval'), upsert_doc=True)
+                #connection
+                #rv = connection.upsert(self.gen_key(), 'value1')
                 # get all users
             except CouchbaseError as e:
                 if userid=="writer":

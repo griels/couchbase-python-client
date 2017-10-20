@@ -360,7 +360,7 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
     if (pycbc_maybe_set_quiet(cv.mres, quiet_key) != 0) {
         goto GT_DONE;
     }
-
+    printf("sdlookup_common\n");
     pycbc_common_vars_wait(&cv, self);
 
     GT_DONE:

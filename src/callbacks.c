@@ -119,7 +119,10 @@ operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, i
     enhanced_err_info err_info;
     err_info.cbtype=cbtype;
     err_info.respbase=resp;
-	printf("completed with err_info %llu\n",&err_info);
+
+	const char* err_context=lcb_resp_get_error_context(err_info.cbtype,err_info.respbase);
+	const char* err_ref=lcb_resp_get_error_ref(err_info.cbtype,err_info.respbase);
+	printf("completed with err_info %llu: %s, %s\n",&err_info,err_context,err_ref);
 
 	operation_completed3(self,mres,&err_info);
 }
@@ -319,7 +322,7 @@ dur_chain2(pycbc_Bucket *conn,
     if (err != LCB_SUCCESS) {
         res->rc = err;
         maybe_push_operr(mres, (pycbc_Result*)res, err, 0);
-
+        printf("got err_info\n");
         operation_completed_with_err_info(conn, mres, cbtype, resp);
     }
 
