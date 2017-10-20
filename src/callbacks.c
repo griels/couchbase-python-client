@@ -126,6 +126,10 @@ operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
 }
 
 PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value) {
+	if (!value)
+	{
+		return dict;
+	}
 	printf("adding %s to %s\n",value,key);
 	PyObject* valstr = pycbc_SimpleStringZ(value);
 	PyDict_SetItemString(dict, key, valstr);
@@ -138,21 +142,25 @@ void enhanced_err_info_store(  enhanced_err_info** err_info, const lcb_RESPBASE 
 	printf("clearing dict\n");
 	*err_info=PyDict_New();
 	const char* lcbRespGetErrorRef = lcb_resp_get_error_ref(cbtype, respbase);
-	pycbc_add_cstring_to_dict(*err_info, "ref", lcbRespGetErrorRef);
+	if (lcbRespGetErrorRef) {pycbc_add_cstring_to_dict(*err_info, "ref", lcbRespGetErrorRef);}
 	const char* lcbRespGetErrorContext = lcb_resp_get_error_context(cbtype,
 			respbase);
-	pycbc_add_cstring_to_dict(*err_info, "context",
-			lcbRespGetErrorContext);
+	if (lcbRespGetErrorContext) {pycbc_add_cstring_to_dict(*err_info, "context",
+			lcbRespGetErrorContext);}
 
+}
+
+const char* somethingOrEmpty(PyObject* inputStr) {
+	return inputStr ? PyString_AsString(inputStr) : "";
 }
 
 const char* enhanced_err_get_ref(  enhanced_err_info* err_info )
 {
-	return PyString_AsString(PyDict_GetItemString(err_info,"ref"));
+	return somethingOrEmpty(PyDict_GetItemString(err_info, "ref"));
 }
 const char* enhanced_err_get_context(  enhanced_err_info* err_info )
 {
-	return PyString_AsString(PyDict_GetItemString(err_info,"context"));
+	return somethingOrEmpty(PyDict_GetItemString(err_info,"context"));
 }
 
 void enhanced_err_info_log(  enhanced_err_info* err_info)
@@ -520,11 +528,11 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     if (rb->rc == LCB_SUCCESS || rb->rc == LCB_SUBDOC_MULTI_FAILURE) {
         res->cas = rb->cas;
     } else {
-    		printf("storing err_info\n");
-    		enhanced_err_info_store(&mres->err_info, rb, cbtype);
-        	printf("stored err_info\n");
+    		//printf("storing err_info\n");
+    		//enhanced_err_info_store(&mres->err_info, rb, cbtype);
+        	//printf("stored err_info\n");
 
-    		enhanced_err_info_log(mres->err_info);
+    		//enhanced_err_info_log(mres->err_info);
     		printf("pushing operr\n");
         maybe_push_operr(mres, (pycbc_Result*)res, rb->rc, 0);
         goto GT_ERROR;

@@ -140,6 +140,7 @@ MultiResultType__init__(pycbc_MultiResult *self, PyObject *args, PyObject *kwarg
     self->exceptions = NULL;
     self->errop = NULL;
     self->mropts = 0;
+    self->err_info=NULL;
 
     return 0;
 }
@@ -150,6 +151,7 @@ MultiResult_dealloc(pycbc_MultiResult *self)
     Py_XDECREF(self->parent);
     Py_XDECREF(self->exceptions);
     Py_XDECREF(self->errop);
+    Py_XDECREF(self->err_info);
     pycbc_multiresult_destroy_dict(self);
 }
 
@@ -201,6 +203,7 @@ AsyncResult__init__(pycbc_AsyncResult *self, PyObject *args, PyObject *kwargs)
     self->callback = NULL;
     self->errback = NULL;
     self->base.mropts |= PYCBC_MRES_F_ASYNC;
+    self->base.err_info=NULL;
     return 0;
 }
 
@@ -282,7 +285,7 @@ pycbc_multiresult_adderr(pycbc_MultiResult* mres)
  * This function raises exceptions from the MultiResult object, as required
  */
 int
-pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info* err_info)
+pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, enhanced_err_info* err_info)
 {
 	printf("pycbc_multiresult_maybe_raise2 %llu\n",(unsigned long long)err_info);
 
@@ -308,7 +311,7 @@ pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, const enhanced_err_info*
     } else {
         pycbc_Result *res = (pycbc_Result*)self->errop;
         /** Craft an exception based on the operation */
-        PYCBC_EXC_WRAP_KEY_ERR_INFO(PYCBC_EXC_LCBERR, res->rc, "Operational Error", res->key, self->err_info);
+        PYCBC_EXC_WRAP_KEY_ERR_INFO(PYCBC_EXC_LCBERR, res->rc, "Operational Error", res->key, err_info?err_info:self->err_info);
 
         /** Now we have an exception. Let's fetch it back */
         PyErr_Fetch(&type, &value, &traceback);
