@@ -95,7 +95,7 @@ operation_completed3(pycbc_Bucket *self, pycbc_MultiResult *mres, enhanced_err_i
     --self->nremaining;
     if (mres)
     {
-    		mres->err_info=err_info;
+        mres->err_info=err_info;
     }
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         if (!self->nremaining) {
@@ -117,29 +117,33 @@ operation_completed3(pycbc_Bucket *self, pycbc_MultiResult *mres, enhanced_err_i
 static void
 operation_completed(pycbc_Bucket *self, pycbc_MultiResult *mres)
 {
-	operation_completed3(self,mres,NULL);
+    operation_completed3(self,mres,NULL);
 }
 
-PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value) {
-	if (!value)
-	{
-		return dict;
-	}
-	PyObject* valstr = pycbc_SimpleStringZ(value);
-	PyDict_SetItemString(dict, key, valstr);
-	Py_DECREF(valstr);
-	return dict;
-}
-
-void enhanced_err_info_store(  enhanced_err_info** err_info, const lcb_RESPBASE *respbase, int cbtype)
+PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value)
 {
-	*err_info=PyDict_New();
-	const char* lcbRespGetErrorRef = lcb_resp_get_error_ref(cbtype, respbase);
-	if (lcbRespGetErrorRef) {pycbc_add_cstring_to_dict(*err_info, "ref", lcbRespGetErrorRef);}
-	const char* lcbRespGetErrorContext = lcb_resp_get_error_context(cbtype,
-			respbase);
-	if (lcbRespGetErrorContext) {pycbc_add_cstring_to_dict(*err_info, "context",
-			lcbRespGetErrorContext);}
+    PyObject* valstr;
+    if (!value)
+    {
+        return dict;
+    }
+    valstr = pycbc_SimpleStringZ(value);
+    PyDict_SetItemString(dict, key, valstr);
+    Py_DECREF(valstr);
+    return dict;
+}
+
+void enhanced_err_info_store(enhanced_err_info** err_info, const lcb_RESPBASE *respbase, int cbtype)
+{
+    const char* ref = lcb_resp_get_error_ref(cbtype, respbase);
+    const char* context = lcb_resp_get_error_context(cbtype, respbase);
+    *err_info = PyDict_New();
+    if (ref) {
+        pycbc_add_cstring_to_dict(*err_info, "ref", ref);
+    }
+    if (context) {
+        pycbc_add_cstring_to_dict(*err_info, "context", context);
+    }
 
 }
 static void
@@ -147,7 +151,7 @@ operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, i
 {
     enhanced_err_info* err_info;
     enhanced_err_info_store(&err_info,resp,cbtype);
-	operation_completed3(self,mres,err_info);
+    operation_completed3(self,mres,err_info);
 }
 /**
  * Call this function for each callback. Note that even if this function

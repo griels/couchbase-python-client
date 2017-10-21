@@ -66,7 +66,7 @@ class EnhancedErrorTest(CouchbaseTestCase):
                     self.assertRegexpMatches(e.ref,r"(.*?)-(.*?)-.*","doesn't have correct Ref field")
                     self.assertRegexpMatches(str(e),r".*Context=Authorization failure.*,.*Ref=.*","exception as string doesn't contain both fields")
             finally:
-            	#remove user
+                #remove user
                 self.admin.user_remove(AuthDomain.Local, userid)
             
     
