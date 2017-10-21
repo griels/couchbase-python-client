@@ -339,7 +339,7 @@ pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, enhanced_err_info* err_i
 int
 pycbc_multiresult_maybe_raise(pycbc_MultiResult *self)
 {
-	return pycbc_multiresult_maybe_raise2(self,NULL);
+    return pycbc_multiresult_maybe_raise2(self,NULL);
 }
 
 PyObject *

@@ -86,8 +86,8 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 
     if (p->err_info)
     {
-    	PyDict_Update(excparams,p->err_info);
-	}
+        PyDict_Update(excparams,p->err_info);
+    }
 
     {
         PyObject *csrc_info = Py_BuildValue("(s,i)", p->file, p->line);
