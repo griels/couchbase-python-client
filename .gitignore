@@ -32,3 +32,6 @@ _trial*
 *.dSYM
 .idea/
 CouchbaseMock.jar
+.cproject
+.project
+.pydevproject
