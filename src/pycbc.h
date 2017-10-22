@@ -491,7 +491,7 @@ typedef struct pycbc_MultiResult_st {
     /** Options for 'MultiResult' */
     int mropts;
 
-    enhanced_err_info* err_info;
+    //enhanced_err_info* err_info;
 
 } pycbc_MultiResult;
 
@@ -549,7 +549,7 @@ struct pycbc_exception_params {
     /**
      * Enhanced error info if required.
      */
-    enhanced_err_info* err_info;
+   // enhanced_err_info* err_info;
 };
 
 /**
@@ -952,7 +952,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
     __pycbc_ep.msg = e_msg; \
     __pycbc_ep.key = e_key; \
     __pycbc_ep.objextra = e_objextra; \
-    __pycbc_ep.err_info  = e_err_info; \
+    /*__pycbc_ep.err_info  = e_err_info;*/ \
     pycbc_exc_wrap_REAL(e_mode, &__pycbc_ep); \
 }
 
@@ -966,7 +966,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
     PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL, NULL)
 
 #define PYCBC_EXC_WRAP_KEY_ERR_INFO(mode, err, msg, key, err_info) \
-    PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL, err_info)
+    PYCBC_EXC_WRAP_EX(mode, err, msg, key, NULL, NULL)
 
 #define PYCBC_EXC_WRAP_VALUE PYCBC_EXC_WRAP_KEY
 

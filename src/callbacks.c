@@ -95,7 +95,8 @@ operation_completed3(pycbc_Bucket *self, pycbc_MultiResult *mres, enhanced_err_i
     --self->nremaining;
     if (mres)
     {
-        mres->err_info=err_info;
+       // mres->err_info=err_info;
+       // Py_XINCREF(err_info);
     }
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         if (!self->nremaining) {
@@ -150,7 +151,14 @@ static void
 operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, int cbtype, const lcb_RESPBASE* resp)
 {
     enhanced_err_info* err_info;
-    enhanced_err_info_store(&err_info,resp,cbtype);
+    if (resp->rc)
+    {
+       // enhanced_err_info_store(&err_info,resp,cbtype);
+    }
+    else
+    {
+        err_info = NULL;
+    }
     operation_completed3(self,mres,err_info);
 }
 /**
