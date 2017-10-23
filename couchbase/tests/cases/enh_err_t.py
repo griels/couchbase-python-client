@@ -14,7 +14,6 @@ import couchbase
 import logging
 import time
 from nose import SkipTest
-couchbase.enable_logging()
 
 class EnhancedErrorTest(CouchbaseTestCase):
     def setUp(self):
@@ -44,7 +43,7 @@ class EnhancedErrorTest(CouchbaseTestCase):
               ('reader',('s3cr3t',[('data_reader', 'default')]))]
         #self.mockclient._do_request("SET_ENHANCED_ERRORS",{"enabled":True})
         for user in users:
-            print str(user)
+            print(str(user))
             (userid, password, roles) = user[0],user[1][0],user[1][1]
             # add user
             self.admin.user_upsert(AuthDomain.Local, userid, password, roles)
@@ -58,7 +57,7 @@ class EnhancedErrorTest(CouchbaseTestCase):
                 #rv = connection.upsert(self.gen_key(), 'value1')
                 # get all users
             except CouchbaseError as e:
-                print str(e)
+                print(str(e))
                 if userid=="writer":
                     raise e
                 else:

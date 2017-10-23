@@ -87,12 +87,15 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
     if (p->err_info)
     {
         PyDict_Update(excparams,p->err_info);
+		Py_XDECREF(p->err_info);
+		p->err_info = NULL;
+		
     }
 
     {
         PyObject *csrc_info = Py_BuildValue("(s,i)", p->file, p->line);
         PyDict_SetItemString(excparams, "csrc_info", csrc_info);
-        //Py_DECREF(csrc_info);
+        Py_DECREF(csrc_info);
     }
 
     ctor_args = Py_BuildValue("(O)", excparams);
