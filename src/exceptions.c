@@ -87,7 +87,9 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
     if (p->err_info)
     {
         PyDict_Update(excparams,p->err_info);
+		Py_XDECREF(p->err_info);
 		p->err_info = NULL;
+		
     }
 
     {
