@@ -14,7 +14,6 @@ import couchbase
 import logging
 import time
 from nose import SkipTest
-couchbase.enable_logging()
 
 class EnhancedErrorTest(CouchbaseTestCase):
     def setUp(self):
