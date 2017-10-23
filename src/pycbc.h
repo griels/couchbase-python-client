@@ -953,6 +953,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
     __pycbc_ep.key = e_key; \
     __pycbc_ep.objextra = e_objextra; \
     __pycbc_ep.err_info  = e_err_info; \
+    Py_XINCREF(e_err_info); \
     pycbc_exc_wrap_REAL(e_mode, &__pycbc_ep); \
 }
 
