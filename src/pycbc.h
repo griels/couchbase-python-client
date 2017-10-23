@@ -458,9 +458,8 @@ enum {
  * Contextual info for enhanced error logging
  */
 
-typedef PyObject enhanced_err_info;
+typedef PyObject pycbc_enhanced_err_info;
 PyObject* pycbc_add_cstring_to_dict(PyObject* dict, const char* key, const char* value);
-void enhanced_err_info_store( enhanced_err_info** err_info, const lcb_RESPBASE *respbase, int cbtype);
 /**
  * Object containing the result of a 'Multi' operation. It's the same as a
  * normal dict, except we add an 'all_ok' field, so a user doesn't need to
@@ -491,7 +490,7 @@ typedef struct pycbc_MultiResult_st {
     /** Options for 'MultiResult' */
     int mropts;
 
-    enhanced_err_info* err_info;
+    pycbc_enhanced_err_info* err_info;
 
 } pycbc_MultiResult;
 
@@ -549,7 +548,7 @@ struct pycbc_exception_params {
     /**
      * Enhanced error info if required.
      */
-    enhanced_err_info* err_info;
+    pycbc_enhanced_err_info* err_info;
 };
 
 /**
@@ -899,7 +898,7 @@ PyObject* pycbc_multiresult_get_result(pycbc_MultiResult *self);
  * invoke the operation's "error callback" or the operation's "result callback"
  * depending on the state.
  */
-void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres, enhanced_err_info* err_info);
+void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres, pycbc_enhanced_err_info* err_info);
 
 /**
  * Initialize the callbacks for the lcb_t

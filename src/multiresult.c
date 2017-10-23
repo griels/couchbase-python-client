@@ -284,7 +284,7 @@ pycbc_multiresult_adderr(pycbc_MultiResult* mres)
  * This function raises exceptions from the MultiResult object, as required
  */
 int
-pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, enhanced_err_info* err_info)
+pycbc_multiresult_maybe_raise2(pycbc_MultiResult *self, pycbc_enhanced_err_info* err_info)
 {
     PyObject *type = NULL, *value = NULL, *traceback = NULL;
 
@@ -366,7 +366,7 @@ pycbc_multiresult_get_result(pycbc_MultiResult *self)
 }
 
 void
-pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, enhanced_err_info *err_info)
+pycbc_asyncresult_invoke(pycbc_AsyncResult *ares, pycbc_enhanced_err_info *err_info)
 {
     PyObject *argtuple;
     PyObject *cbmeth;
