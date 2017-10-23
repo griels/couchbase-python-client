@@ -96,7 +96,7 @@ operation_completed3(pycbc_Bucket *self, pycbc_MultiResult *mres, pycbc_enhanced
     if (mres)
     {
         mres->err_info=err_info;
-		Py_XINCREF(err_info);
+        Py_XINCREF(err_info);
     }
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         if (!self->nremaining) {
@@ -153,7 +153,7 @@ operation_completed_with_err_info(pycbc_Bucket *self, pycbc_MultiResult *mres, i
     pycbc_enhanced_err_info* err_info;
     pycbc_enhanced_err_info_store(&err_info,resp,cbtype);
     operation_completed3(self,mres,err_info);
-	Py_XDECREF(err_info);
+    Py_XDECREF(err_info);
 }
 /**
  * Call this function for each callback. Note that even if this function
