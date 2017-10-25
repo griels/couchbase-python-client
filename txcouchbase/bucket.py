@@ -25,6 +25,7 @@ from twisted.python.failure import Failure
 from couchbase.async.bucket import AsyncBucket
 from couchbase.async.view import AsyncViewBase
 from couchbase.async.n1ql import AsyncN1QLRequest
+from couchbase.async.fulltext import AsyncSearchRequest
 from couchbase.async.events import EventQueue
 from couchbase.exceptions import CouchbaseError
 from txcouchbase.iops import v0Iops
@@ -94,6 +95,12 @@ class BatchedView(BatchedRowMixin, AsyncViewBase):
 class BatchedN1QLRequest(BatchedRowMixin, AsyncN1QLRequest):
     def __init__(self, *args, **kwargs):
         AsyncN1QLRequest.__init__(self, *args, **kwargs)
+        BatchedRowMixin.__init__(self, *args, **kwargs)
+
+
+class BatchedSearchRequest(BatchedRowMixin, AsyncSearchRequest):
+    def __init__(self, *args, **kwargs):
+        AsyncSearchRequest.__init__(self, *args, **kwargs)
         BatchedRowMixin.__init__(self, *args, **kwargs)
 
 
@@ -334,6 +341,34 @@ class RawBucket(AsyncBucket):
 
         kwargs['itercls'] = BatchedN1QLRequest
         o = super(RawBucket, self).n1ql_query(*args, **kwargs)
+        o.start()
+        return o._getDeferred()
+
+    def searchQueryEx(self, cls, *args, **kwargs):
+        """
+
+        :return:
+        """
+        kwargs['itercls'] = cls
+        o = super(AsyncBucket, self).search(*args, **kwargs)
+        if not self.connected:
+            self.connect().addCallback(lambda x: o.start())
+        else:
+            o.start()
+        return o
+
+    def serarchQueryAll(self, *args, **kwargs):
+        """
+
+        :return:
+        """
+
+        if not self.connected:
+            cb = lambda x: self.serarchQueryAll(*args, **kwargs)
+            return self.connect().addCallback(cb)
+
+        kwargs['itercls'] = BatchedSearchRequest
+        o = super(AsyncBucket, self).search(*args, **kwargs)
         o.start()
         return o._getDeferred()
 
