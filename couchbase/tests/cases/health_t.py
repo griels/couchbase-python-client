@@ -28,7 +28,12 @@ except NameError:
 class HealthTest(ConnectionTestCase):
 
     def test_health(self):
-        self.cb.get_health()
+        import pprint
+        result=self.cb.get_health()
+        pprint.pprint(result)
+        #self.assertDictContainsSubset(subset, dictionary, msg)
+        
+        sys.exit()
 
 
 

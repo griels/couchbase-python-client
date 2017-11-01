@@ -704,6 +704,24 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     end_global_callback(instance, self);
 }
 
+#define FOR_ALL_TYPES(X)\
+        X(KV)\
+        X(VIEWS)\
+        X(N1QL)\
+        X(FTS)
+
+#define GET_TYPE_S(X) \
+    case LCB_PINGSVC_##X: return #X;
+const char* get_type_s(lcb_PINGSVCTYPE type) {
+    switch (type) {
+    FOR_ALL_TYPES(GET_TYPE_S)
+    default:
+        break;
+    }
+    return "Unknown type";
+}
+#undef GET_TYPE_S
+#undef FOR_ALL_TYPES
 
 static void
 ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
@@ -727,28 +745,39 @@ ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         }
     }
 
-    PyObject* mrdict = pycbc_multiresult_dict(mres);
+    PyObject* parentdict = pycbc_multiresult_dict(mres);
+
     int ii;
     for (ii = 0; ii < resp->nservices; ii++) {
         lcb_PINGSVC* svc=&resp->services[ii];
-        pycbc_dict_add_text_kv(mrdict,"type", svc->type==LCB_PINGSVC_KV ? "KV" : "N1QL");
+        const char* type_s = get_type_s(svc->type);
+        PyObject* typedict=PyDict_GetItemString(parentdict, type_s);
+        if (!typedict) {
+            typedict = PyDict_New();
+            PyDict_SetItemString(parentdict, type_s, typedict);
+        }
+        PyObject* mrdict = PyDict_New();
+        PyDict_SetItemString(typedict, svc->server, mrdict);
+
         PyDict_SetItemString(mrdict, "status", PyLong_FromLong((long)svc->status));
-        pycbc_dict_add_text_kv(mrdict, "server", svc->server);
         PyDict_SetItemString(mrdict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
         printf("service: %s, status: %d, host: %s, latency: %lu nanoseconds\n",
             resp->services[ii].type == LCB_PINGSVC_KV ? "KV" : "N1QL",
             resp->services[ii].status,
             resp->services[ii].server,
             (unsigned long)resp->services[ii].latency);
+        Py_DECREF(mrdict);
     }
+
     if (resp->njson) {
+        pycbc_dict_add_text_kv(parentdict,"json",resp->json);
                 printf("%.*s", (int) resp->njson, resp->json);
             }
-/*    if (resp->rflags & LCB_RESP_F_FINAL) {
-        /* Note this can happen in both success and error cases!
+    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases!*/
         do_return = 1;
         operation_completed_with_err_info(parent, mres, cbtype, resp_base);
-    }*/
+    }
     CB_THR_BEGIN(parent);
 
 }

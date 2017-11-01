@@ -908,7 +908,13 @@ class Bucket(_Base):
         return self._stats(keys, keystats=keystats)
 
     def get_health(self, keys=None):
-        return self._get_health(keys)
+        import json
+        decoder=json.JSONDecoder()
+        resultdict=self._get_health(keys)
+        decoded=(decoder.decode(resultdict['json']))
+        del resultdict['json']
+        resultdict['json']=decoded
+        return resultdict
     def observe(self, key, master_only=False):
         """Return storage information for a key.
 
