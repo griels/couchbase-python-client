@@ -744,11 +744,12 @@ ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     if (resp->njson) {
                 printf("%.*s", (int) resp->njson, resp->json);
             }
-    if (resp->rflags & LCB_RESP_F_FINAL) {
-        /* Note this can happen in both success and error cases! */
+/*    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases!
         do_return = 1;
         operation_completed_with_err_info(parent, mres, cbtype, resp_base);
-    }
+    }*/
+    CB_THR_BEGIN(parent);
 
 }
 
