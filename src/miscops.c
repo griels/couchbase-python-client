@@ -360,3 +360,62 @@ pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
+/*
+
+PyObject*
+pycbc_Bucket_get_health(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *result=NULL;
+    lcb_CMDPING cmd = { 0 };
+    lcb_error_t err;
+    cmd.services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS | LCB_PINGSVC_F_FTS;
+    cmd.options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
+    if (1) {
+        cmd.options |= LCB_PINGOPT_F_JSONDETAILS;
+    }
+    lcb_sched_enter(self->instance);
+    err = lcb_ping3(self->instance, NULL, &cmd);
+    if (err != LCB_SUCCESS) {
+        PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err, "Problem getting health-check data");
+    }
+    lcb_sched_leave(self->instance);
+    lcb_wait(self->instance);
+    struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
+
+}*/
+
+PyObject *
+pycbc_Bucket__get_health(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
+{
+    int rv;
+    Py_ssize_t ncmds = 1;
+    lcb_error_t err = LCB_ERROR;
+    PyObject *keys = NULL, *is_keystats = NULL;
+    struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
+    lcb_CMDPING cmd = { 0 };
+    cmd.services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS | LCB_PINGSVC_F_FTS;
+    cmd.options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
+    if (1) {
+        cmd.options |= LCB_PINGOPT_F_JSONDETAILS;
+    }
+
+    rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
+    if (rv < 0) {
+        return NULL;
+    }
+    err = lcb_ping3(self->instance, cv.mres, &cmd);
+
+    if (err != LCB_SUCCESS) {
+        PYCBC_EXCTHROW_SCHED(err);
+        goto GT_DONE;
+    }
+
+    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+        goto GT_DONE;
+    }
+
+    GT_DONE:
+    pycbc_common_vars_finalize(&cv, self);
+    return cv.ret;
+}
+

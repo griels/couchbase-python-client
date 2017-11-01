@@ -907,6 +907,8 @@ class Bucket(_Base):
             keys = (keys,)
         return self._stats(keys, keystats=keystats)
 
+    def get_health(self, keys=None):
+        return self._get_health(keys)
     def observe(self, key, master_only=False):
         """Return storage information for a key.
 

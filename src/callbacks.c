@@ -114,20 +114,23 @@ static void operation_completed3(pycbc_Bucket *self,
     }
 }
 
-void pycbc_enhanced_err_register_entry(pycbc_enhanced_err_info **dict,
+void pycbc_dict_add_text_kv(PyObject* dict, const char* key, const char* value) {
+    PyObject* valstr = pycbc_SimpleStringZ(value);
+    PyDict_SetItemString(dict, key, valstr);
+    Py_DECREF(valstr);
+}
+
+void pycbc_enhanced_err_register_entry(PyObject **dict,
                                        const char *key,
                                        const char *value)
 {
-    PyObject *valstr;
     if (!value) {
         return;
     }
     if (!*dict) {
         *dict = PyDict_New();
     }
-    valstr = pycbc_SimpleStringZ(value);
-    PyDict_SetItemString(*dict, key, valstr);
-    Py_DECREF(valstr);
+    pycbc_dict_add_text_kv(*dict, key, value);
 }
 
 static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
@@ -701,6 +704,54 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     end_global_callback(instance, self);
 }
 
+
+static void
+ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
+{
+    pycbc_MultiResult *mres;
+    pycbc_Bucket *parent;
+    const lcb_RESPPING *resp = (const lcb_RESPPING *) resp_base;
+    int do_return = 0;
+    mres = (pycbc_MultiResult*) resp->cookie;
+    parent = mres->parent;
+    CB_THR_END(parent);
+
+    if (resp->rc != LCB_SUCCESS) {
+        do_return = 1;
+        if (mres->errop == NULL) {
+            pycbc_Result *res = (pycbc_Result*) pycbc_result_new(parent);
+            res->rc = resp->rc;
+            res->key = Py_None;
+            Py_INCREF(res->key);
+            maybe_push_operr(mres, res, resp->rc, 0);
+        }
+    }
+
+    PyObject* mrdict = pycbc_multiresult_dict(mres);
+    int ii;
+    for (ii = 0; ii < resp->nservices; ii++) {
+        lcb_PINGSVC* svc=&resp->services[ii];
+        pycbc_dict_add_text_kv(mrdict,"type", svc->type==LCB_PINGSVC_KV ? "KV" : "N1QL");
+        PyDict_SetItemString(mrdict, "status", PyLong_FromLong((long)svc->status));
+        pycbc_dict_add_text_kv(mrdict, "server", svc->server);
+        PyDict_SetItemString(mrdict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
+        printf("service: %s, status: %d, host: %s, latency: %lu nanoseconds\n",
+            resp->services[ii].type == LCB_PINGSVC_KV ? "KV" : "N1QL",
+            resp->services[ii].status,
+            resp->services[ii].server,
+            (unsigned long)resp->services[ii].latency);
+    }
+    if (resp->njson) {
+                printf("%.*s", (int) resp->njson, resp->json);
+            }
+    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases! */
+        do_return = 1;
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+    }
+
+}
+
 void
 pycbc_callbacks_init(lcb_t instance)
 {
@@ -718,6 +769,8 @@ pycbc_callbacks_init(lcb_t instance)
     /* Subdoc */
     lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, subdoc_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_SDMUTATE, subdoc_callback);
+
+    lcb_install_callback3(instance, LCB_CALLBACK_PING, (lcb_RESPCALLBACK)ping_callback);
 
     lcb_set_bootstrap_callback(instance, bootstrap_callback);
 
