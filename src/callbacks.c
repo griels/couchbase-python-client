@@ -751,14 +751,15 @@ ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     for (ii = 0; ii < resp->nservices; ii++) {
         lcb_PINGSVC* svc=&resp->services[ii];
         const char* type_s = get_type_s(svc->type);
-        PyObject* typedict=PyDict_GetItemString(parentdict, type_s);
-        if (!typedict) {
-            typedict = PyDict_New();
-            PyDict_SetItemString(parentdict, type_s, typedict);
+        PyObject* typelist=PyDict_GetItemString(parentdict, type_s);
+        if (!typelist) {
+            typelist = PyList_New(0);
+            PyDict_SetItemString(parentdict, type_s, typelist);
         }
         PyObject* mrdict = PyDict_New();
-        PyDict_SetItemString(typedict, svc->server, mrdict);
-
+        PyList_Append(typelist, mrdict);
+        pycbc_dict_add_text_kv(mrdict,"details",lcb_strerror(NULL, svc->status));
+        pycbc_dict_add_text_kv(mrdict, "server", svc->server);
         PyDict_SetItemString(mrdict, "status", PyLong_FromLong((long)svc->status));
         PyDict_SetItemString(mrdict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
         printf("service: %s, status: %d, host: %s, latency: %lu nanoseconds\n",

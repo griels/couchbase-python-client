@@ -908,6 +908,29 @@ class Bucket(_Base):
         return self._stats(keys, keystats=keystats)
 
     def get_health(self, keys=None):
+        """Request cluster health information.
+
+        Fetches health information from each node in the cluster. 
+        It returns the a `dict` with 'type' keys
+        and server summary lists as a value.
+
+        :param keys: One or several stats to query
+        :type keys: string or list of string
+        :raise: :exc:`.CouchbaseNetworkError`
+        :return: `dict` where keys are stat keys and values are
+            host-value pairs
+
+        Find out how many items are in the bucket::
+
+            total = 0
+            for key, value in cb.stats()['total_items'].items():
+                total += value
+
+        Get memory stats (works on couchbase buckets)::
+
+            cb.stats('memory')
+            # {'mem_used': {...}, ...}
+        """
         import json
         decoder=json.JSONDecoder()
         resultdict=self._get_health(keys)
