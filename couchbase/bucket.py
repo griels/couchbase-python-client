@@ -34,7 +34,7 @@ from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
 
-
+import couchbase._libcouchbase as C
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
 

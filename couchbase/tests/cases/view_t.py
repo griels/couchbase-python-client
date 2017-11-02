@@ -19,7 +19,7 @@ import json
 from couchbase.tests.base import ViewTestCase
 from couchbase.user_constants import FMT_JSON
 from couchbase.exceptions import HTTPError
-
+from couchbase.bucket import Bucket
 DESIGN_JSON = {
     'language' : 'javascript',
     'views' : {
@@ -123,3 +123,23 @@ class ViewTest(ViewTestCase):
         self.assertRaises(HTTPError,
                           self.cb._view,
                           "nonexist", "designdoc")
+        
+    def test_reject_ephemeral_attempt(self):
+        admin=self.make_admin_connection()
+        bucket_name = 'ephemeral'
+        password = 'letmein'
+
+        # create ephemeral test bucket
+        admin.bucket_create(name=bucket_name,
+                                 bucket_type='ephemeral',
+                                 ram_quota=100,
+                                 bucket_password=password)
+        admin.wait_ready(bucket_name, timeout=10)
+
+        # connect to bucket to ensure we can use it
+        conn_str = "http://{0}:{1}/{2}".format(self.cluster_info.host, self.cluster_info.port, bucket_name)
+        bucket = Bucket(connection_string=conn_str, password=password)
+        self.assertIsNotNone(bucket)
+
+        ret = bucket.query("beer", "brewery_beers", streaming=True, limit=100)
+      
