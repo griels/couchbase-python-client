@@ -762,12 +762,8 @@ ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         pycbc_dict_add_text_kv(mrdict, "server", svc->server);
         PyDict_SetItemString(mrdict, "status", PyLong_FromLong((long)svc->status));
         PyDict_SetItemString(mrdict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
-        printf("service: %s, status: %d, host: %s, latency: %lu nanoseconds\n",
-            resp->services[ii].type == LCB_PINGSVC_KV ? "KV" : "N1QL",
-            resp->services[ii].status,
-            resp->services[ii].server,
-            (unsigned long)resp->services[ii].latency);
         Py_DECREF(mrdict);
+        Py_DECREF(typelist);
     }
 
     if (resp->njson) {
