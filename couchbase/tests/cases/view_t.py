@@ -20,6 +20,8 @@ from couchbase.tests.base import ViewTestCase
 from couchbase.user_constants import FMT_JSON
 from couchbase.exceptions import HTTPError
 from couchbase.bucket import Bucket
+
+from couchbase.auth_domain import AuthDomain
 DESIGN_JSON = {
     'language' : 'javascript',
     'views' : {
@@ -126,16 +128,20 @@ class ViewTest(ViewTestCase):
         
     def test_reject_ephemeral_attempt(self):
         admin=self.make_admin_connection()
+        bucket_user = 'ephemeral'
         bucket_name = 'ephemeral'
         password = 'letmein'
-
-        # create ephemeral test bucket
+        users=[('writer',('s3cr3t',[('data_reader', 'ephemeral'), ('data_writer', 'ephemeral')])),
+               ('reader',('s3cr3t',[('data_reader', 'ephemeral')]))]
+        user=users[0]
+        (userid, password, roles) = user[0],user[1][0],user[1][1]
+        # add user
+        admin.user_upsert(AuthDomain.Local, userid, password, roles)
         admin.bucket_create(name=bucket_name,
                                  bucket_type='ephemeral',
                                  ram_quota=100,
                                  bucket_password=password)
         admin.wait_ready(bucket_name, timeout=10)
-
         # connect to bucket to ensure we can use it
         conn_str = "http://{0}:{1}/{2}".format(self.cluster_info.host, self.cluster_info.port, bucket_name)
         bucket = Bucket(connection_string=conn_str, password=password)
