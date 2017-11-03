@@ -114,20 +114,23 @@ static void operation_completed3(pycbc_Bucket *self,
     }
 }
 
-void pycbc_enhanced_err_register_entry(pycbc_enhanced_err_info **dict,
+void pycbc_dict_add_text_kv(PyObject* dict, const char* key, const char* value) {
+    PyObject* valstr = pycbc_SimpleStringZ(value);
+    PyDict_SetItemString(dict, key, valstr);
+    Py_DECREF(valstr);
+}
+
+void pycbc_enhanced_err_register_entry(PyObject **dict,
                                        const char *key,
                                        const char *value)
 {
-    PyObject *valstr;
     if (!value) {
         return;
     }
     if (!*dict) {
         *dict = PyDict_New();
     }
-    valstr = pycbc_SimpleStringZ(value);
-    PyDict_SetItemString(*dict, key, valstr);
-    Py_DECREF(valstr);
+    pycbc_dict_add_text_kv(*dict, key, value);
 }
 
 static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
@@ -170,7 +173,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
 {
     PyObject *hkey;
-    PyObject *mrdict;
+    PyObject *struct_server_dict;
     int rv;
 
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
@@ -186,9 +189,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         return -1;
     }
 
-    mrdict = pycbc_multiresult_dict(*mres);
+    struct_server_dict = pycbc_multiresult_dict(*mres);
 
-    *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+    *res = (pycbc_Result*)PyDict_GetItem(struct_server_dict, hkey);
 
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
@@ -210,7 +213,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
             /**
              * We need to destroy the existing object and re-create it.
              */
-            PyDict_DelItem(mrdict, hkey);
+            PyDict_DelItem(struct_server_dict, hkey);
             *res = NULL;
 
         } else {
@@ -236,7 +239,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
             abort();
         }
 
-        PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
+        PyDict_SetItem(struct_server_dict, hkey, (PyObject*)*res);
 
         (*res)->key = hkey;
         Py_DECREF(*res);
@@ -558,7 +561,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     pycbc_MultiResult *mres;
     PyObject *value;
     PyObject *skey, *knodes;
-    PyObject *mrdict;
+    PyObject *struct_server_dict;
     pycbc_Bucket *parent;
     const lcb_RESPSTATS *resp = (const lcb_RESPSTATS *)resp_base;
     int do_return = 0;
@@ -599,11 +602,11 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         }
     }
 
-    mrdict = pycbc_multiresult_dict(mres);
-    knodes = PyDict_GetItem(mrdict, skey);
+    struct_server_dict = pycbc_multiresult_dict(mres);
+    knodes = PyDict_GetItem(struct_server_dict, skey);
     if (!knodes) {
         knodes = PyDict_New();
-        PyDict_SetItem(mrdict, skey, knodes);
+        PyDict_SetItem(struct_server_dict, skey, knodes);
     }
 
     PyDict_SetItemString(knodes, resp->server, value);
@@ -701,6 +704,83 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     end_global_callback(instance, self);
 }
 
+#define FOR_ALL_TYPES(X)\
+        X(KV,kv)\
+        X(VIEWS,views)\
+        X(N1QL,n1ql)\
+        X(FTS,fts)
+
+#define GET_TYPE_S(X,Y) \
+    case LCB_PINGSVC_##X: return #Y;
+const char* get_type_s(lcb_PINGSVCTYPE type) {
+    switch (type) {
+    FOR_ALL_TYPES(GET_TYPE_S)
+    default:
+        break;
+    }
+    return "Unknown type";
+}
+#undef GET_TYPE_S
+#undef FOR_ALL_TYPES
+
+static void
+ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
+{
+    pycbc_MultiResult *mres;
+    pycbc_Bucket *parent;
+    const lcb_RESPPING *resp = (const lcb_RESPPING *) resp_base;
+    int do_return = 0;
+    mres = (pycbc_MultiResult*) resp->cookie;
+    parent = mres->parent;
+    CB_THR_END(parent);
+
+    if (resp->rc != LCB_SUCCESS) {
+        do_return = 1;
+        if (mres->errop == NULL) {
+            pycbc_Result *res = (pycbc_Result*) pycbc_result_new(parent);
+            res->rc = resp->rc;
+            res->key = Py_None;
+            Py_INCREF(res->key);
+            maybe_push_operr(mres, res, resp->rc, 0);
+        }
+    }
+
+    PyObject* resultdict = pycbc_multiresult_dict(mres);
+
+    PyObject* struct_services_dict = PyDict_New();
+
+    int ii;
+    for (ii = 0; ii < resp->nservices; ii++) {
+        lcb_PINGSVC* svc=&resp->services[ii];
+        const char* type_s = get_type_s(svc->type);
+        PyObject* struct_server_list=PyDict_GetItemString(struct_services_dict, type_s);
+        if (!struct_server_list) {
+            struct_server_list = PyList_New(0);
+            PyDict_SetItemString(struct_services_dict, type_s, struct_server_list);
+            Py_DECREF(struct_server_list);
+        }
+        PyObject* struct_server_dict = PyDict_New();
+        PyList_Append(struct_server_list, struct_server_dict);
+        pycbc_dict_add_text_kv(struct_server_dict,"details",lcb_strerror(NULL, svc->status));
+        pycbc_dict_add_text_kv(struct_server_dict, "server", svc->server);
+        PyDict_SetItemString(struct_server_dict, "status", PyLong_FromLong((long)svc->status));
+        PyDict_SetItemString(struct_server_dict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
+        Py_DECREF(struct_server_dict);
+    }
+    PyDict_SetItemString(resultdict, "services_struct", struct_services_dict);
+    Py_DECREF(struct_services_dict);
+    if (resp->njson) {
+        pycbc_dict_add_text_kv(resultdict,"services_json",resp->json);
+    }
+    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases!*/
+        do_return = 1;
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+    }
+    CB_THR_BEGIN(parent);
+
+}
+
 void
 pycbc_callbacks_init(lcb_t instance)
 {
@@ -718,6 +798,8 @@ pycbc_callbacks_init(lcb_t instance)
     /* Subdoc */
     lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, subdoc_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_SDMUTATE, subdoc_callback);
+
+    lcb_install_callback3(instance, LCB_CALLBACK_PING, (lcb_RESPCALLBACK)ping_callback);
 
     lcb_set_bootstrap_callback(instance, bootstrap_callback);
 
