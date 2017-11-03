@@ -128,28 +128,29 @@ class ViewTest(ViewTestCase):
         
     def test_reject_ephemeral_attempt(self):
         admin=self.make_admin_connection()
-        bucket_user = 'ephemeral'
         bucket_name = 'ephemeral'
-        password = 'letmein'
         users=[('writer',('s3cr3t',[('data_reader', 'ephemeral'), ('data_writer', 'ephemeral')])),
                ('reader',('s3cr3t',[('data_reader', 'ephemeral')])),
                ('viewer',('s3cr3t',[('views_reader', 'ephemeral'), ('views_admin', 'ephemeral')]))]
         user=users[2]
         (userid, password, roles) = user[0],user[1][0],user[1][1]
         # add user
-        #admin.user_upsert(AuthDomain.Local, userid, password, roles)
-        #admin.bucket_delete(name=bucket_name)
-        #admin.bucket_create(name=bucket_name,
-        #                         bucket_type='ephemeral',
-        #                         ram_quota=100)
         try:
+            admin.bucket_delete(bucket_name)
+        except:
+            pass
+        admin.bucket_create(name=bucket_name,
+                                 bucket_type='ephemeral',
+                                 ram_quota=100)
+        try:
+            admin.user_upsert(AuthDomain.Local, userid, password, roles)
             admin.wait_ready(bucket_name, timeout=10)
-        # connect to bucket to ensure we can use it
+            import time
+            time.sleep(5)
             conn_str = "couchbase://{0}/{1}".format(self.cluster_info.host, bucket_name)
-            #print(str(conn_str))
-            bucket = Bucket(connection_string=conn_str,username="viewer",password="s3cr3t")
+            bucket = Bucket(connection_string=conn_str,username=userid,password=password)
             self.assertIsNotNone(bucket)
-            bucket.query("beer", "brewery_beers", streaming=True, limit=100)
             self.assertRaisesRegex(NotMyVbucketError, "", lambda: bucket.query("beer", "brewery_beers", streaming=True, limit=100))
         finally:
-            pass#admin.bucket_delete(bucket_name)
+            admin.bucket_delete(bucket_name)
+            admin.user_remove(AuthDomain.Local, userid)
