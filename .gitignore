@@ -36,3 +36,4 @@ CouchbaseMock.jar
 /.eclipse-pmd
 /.project
 /.pydevproject
+/cmake-build-debug/

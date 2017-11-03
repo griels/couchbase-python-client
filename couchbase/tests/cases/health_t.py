@@ -26,7 +26,9 @@ except NameError:
 
 
 class HealthTest(ConnectionTestCase):
-
+    def setUp(self):
+        super(HealthTest,self).setUp()
+        self.skipUnlessMock()
     def test_health(self):
         import pprint
         result=self.cb.get_health()
