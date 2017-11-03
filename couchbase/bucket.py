@@ -149,6 +149,8 @@ class Bucket(_Base):
             certificate could not be trusted.
 
             See :ref:`connopts` for additional connection options.
+   
+        :param string username: username to connect to bucket with 
 
         :param string password: the password of the bucket
 
@@ -175,10 +177,10 @@ class Bucket(_Base):
             subclass). This can be either a class type to instantiate,
             or an initialized instance.
         :type transcoder: :class:`.Transcoder`
-
+  
         :param lockmode: The *lockmode* for threaded access.
             See :ref:`multiple_threads` for more information.
-
+ 
         :raise: :exc:`.BucketNotFoundError` or :exc:`.AuthError` if
             there is no such bucket to connect to, or if invalid
             credentials were supplied.
