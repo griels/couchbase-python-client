@@ -20,8 +20,6 @@ import couchbase._bootstrap
 import couchbase._libcouchbase as _LCB
 from couchbase._libcouchbase import Bucket as _Base
 
-from couchbase.exceptions import *
-from couchbase.user_constants import *
 from couchbase.result import *
 from couchbase.bucketmanager import BucketManager
 
@@ -30,9 +28,9 @@ from couchbase.views.params import make_dvpath, make_options_string
 from couchbase.views.iterator import View
 from couchbase.n1ql import N1QLQuery, N1QLRequest
 import couchbase.fulltext as _FTS
-from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
+import json
 
 
 ### Private constants. This is to avoid imposing a dependency requirement
@@ -906,6 +904,28 @@ class Bucket(_Base):
         if keys and not isinstance(keys, (tuple, list)):
             keys = (keys,)
         return self._stats(keys, keystats=keystats)
+
+    def get_health(self):
+        """Request cluster health information.
+
+        Fetches health information from each node in the cluster. 
+        It returns a `dict` with 'type' keys
+        and server summary lists as a value.
+
+
+        :raise: :exc:`.CouchbaseNetworkError`
+        :return: `dict` where keys are stat keys and values are
+            host-value pairs
+
+        Get health info (works on couchbase buckets)::
+
+            cb.get_health()
+            # {'services': {...}, ...}
+        """
+        
+        resultdict=self._get_health()
+
+        return resultdict['services_struct']
 
     def observe(self, key, master_only=False):
         """Return storage information for a key.
