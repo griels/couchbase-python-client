@@ -114,20 +114,23 @@ static void operation_completed3(pycbc_Bucket *self,
     }
 }
 
-void pycbc_enhanced_err_register_entry(pycbc_enhanced_err_info **dict,
+void pycbc_dict_add_text_kv(PyObject* dict, const char* key, const char* value) {
+    PyObject* valstr = pycbc_SimpleStringZ(value);
+    PyDict_SetItemString(dict, key, valstr);
+    Py_DECREF(valstr);
+}
+
+void pycbc_enhanced_err_register_entry(PyObject **dict,
                                        const char *key,
                                        const char *value)
 {
-    PyObject *valstr;
     if (!value) {
         return;
     }
     if (!*dict) {
         *dict = PyDict_New();
     }
-    valstr = pycbc_SimpleStringZ(value);
-    PyDict_SetItemString(*dict, key, valstr);
-    Py_DECREF(valstr);
+    pycbc_dict_add_text_kv(*dict, key, value);
 }
 
 static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
@@ -701,6 +704,81 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     end_global_callback(instance, self);
 }
 
+#define FOR_ALL_TYPES(X)\
+        X(KV)\
+        X(VIEWS)\
+        X(N1QL)\
+        X(FTS)
+
+#define GET_TYPE_S(X) \
+    case LCB_PINGSVC_##X: return #X;
+const char* get_type_s(lcb_PINGSVCTYPE type) {
+    switch (type) {
+    FOR_ALL_TYPES(GET_TYPE_S)
+    default:
+        break;
+    }
+    return "Unknown type";
+}
+#undef GET_TYPE_S
+#undef FOR_ALL_TYPES
+
+static void
+ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
+{
+    pycbc_MultiResult *mres;
+    pycbc_Bucket *parent;
+    const lcb_RESPPING *resp = (const lcb_RESPPING *) resp_base;
+    int do_return = 0;
+    mres = (pycbc_MultiResult*) resp->cookie;
+    parent = mres->parent;
+    CB_THR_END(parent);
+
+    if (resp->rc != LCB_SUCCESS) {
+        do_return = 1;
+        if (mres->errop == NULL) {
+            pycbc_Result *res = (pycbc_Result*) pycbc_result_new(parent);
+            res->rc = resp->rc;
+            res->key = Py_None;
+            Py_INCREF(res->key);
+            maybe_push_operr(mres, res, resp->rc, 0);
+        }
+    }
+
+    PyObject* parentdict = pycbc_multiresult_dict(mres);
+
+    int ii;
+    for (ii = 0; ii < resp->nservices; ii++) {
+        lcb_PINGSVC* svc=&resp->services[ii];
+        const char* type_s = get_type_s(svc->type);
+        PyObject* typelist=PyDict_GetItemString(parentdict, type_s);
+        if (!typelist) {
+            typelist = PyList_New(0);
+            PyDict_SetItemString(parentdict, type_s, typelist);
+        }
+        PyObject* mrdict = PyDict_New();
+        PyList_Append(typelist, mrdict);
+        pycbc_dict_add_text_kv(mrdict,"details",lcb_strerror(NULL, svc->status));
+        pycbc_dict_add_text_kv(mrdict, "server", svc->server);
+        PyDict_SetItemString(mrdict, "status", PyLong_FromLong((long)svc->status));
+        PyDict_SetItemString(mrdict, "latency", PyLong_FromUnsignedLong((unsigned long)svc->latency));
+        Py_DECREF(mrdict);
+        Py_DECREF(typelist);
+    }
+
+    if (resp->njson) {
+        pycbc_dict_add_text_kv(parentdict,"json",resp->json);
+                printf("%.*s", (int) resp->njson, resp->json);
+            }
+    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases!*/
+        do_return = 1;
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+    }
+    CB_THR_BEGIN(parent);
+
+}
+
 void
 pycbc_callbacks_init(lcb_t instance)
 {
@@ -718,6 +796,8 @@ pycbc_callbacks_init(lcb_t instance)
     /* Subdoc */
     lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, subdoc_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_SDMUTATE, subdoc_callback);
+
+    lcb_install_callback3(instance, LCB_CALLBACK_PING, (lcb_RESPCALLBACK)ping_callback);
 
     lcb_set_bootstrap_callback(instance, bootstrap_callback);
 

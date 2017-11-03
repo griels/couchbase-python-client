@@ -33,7 +33,7 @@ import couchbase.fulltext as _FTS
 from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
-
+import functools
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -906,7 +906,41 @@ class Bucket(_Base):
         if keys and not isinstance(keys, (tuple, list)):
             keys = (keys,)
         return self._stats(keys, keystats=keystats)
+    @functools.lru_cache()
+    def _get_decoder(self):
+        import json
+        decoder=json.JSONDecoder()
+        return decoder
+    def get_health(self, keys=None):
+        """Request cluster health information.
 
+        Fetches health information from each node in the cluster. 
+        It returns the a `dict` with 'type' keys
+        and server summary lists as a value.
+
+        :param keys: One or several stats to query
+        :type keys: string or list of string
+        :raise: :exc:`.CouchbaseNetworkError`
+        :return: `dict` where keys are stat keys and values are
+            host-value pairs
+
+        Find out how many items are in the bucket::
+
+            total = 0
+            for key, value in cb.stats()['total_items'].items():
+                total += value
+
+        Get memory stats (works on couchbase buckets)::
+
+            cb.stats('memory')
+            # {'mem_used': {...}, ...}
+        """
+        
+        resultdict=self._get_health(keys)
+        decoded=self._get_decoder().decode(resultdict['json'])
+        del resultdict['json']
+        resultdict['json']=decoded
+        return resultdict
     def observe(self, key, master_only=False):
         """Return storage information for a key.
 
