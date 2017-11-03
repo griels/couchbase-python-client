@@ -149,7 +149,7 @@ class ViewTest(ViewTestCase):
             #print(str(conn_str))
             bucket = Bucket(connection_string=conn_str,username="viewer",password="s3cr3t")
             self.assertIsNotNone(bucket)
-    
+            bucket.query("beer", "brewery_beers", streaming=True, limit=100)
             self.assertRaisesRegex(NotMyVbucketError, "", lambda: bucket.query("beer", "brewery_beers", streaming=True, limit=100))
         finally:
             pass#admin.bucket_delete(bucket_name)

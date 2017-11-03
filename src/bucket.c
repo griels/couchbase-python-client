@@ -763,14 +763,7 @@ Bucket__init__(pycbc_Bucket *self,
         }
     }
 
-    lcb_BTYPE btype;
-    err=lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_BUCKETTYPE,&btype);
-    if (err != LCB_SUCCESS )
-    {
-        PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err, "Problems getting bucket type");
-    }
-    printf("Buckettype %d",btype);
-    self->btype = pycbc_IntFromL(btype);
+
     return 0;
 }
 
@@ -800,6 +793,14 @@ Bucket__connect(pycbc_Bucket *self)
             return NULL;
         }
     }
+    lcb_BTYPE btype;
+    err=lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_BUCKETTYPE,&btype);
+    if (err != LCB_SUCCESS )
+    {
+        PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err, "Problems getting bucket type");
+    }
+    printf("Buckettype %d",btype);
+    self->btype = pycbc_IntFromL(btype);
     Py_RETURN_NONE;
 }
 
