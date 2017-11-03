@@ -763,7 +763,7 @@ Bucket__init__(pycbc_Bucket *self,
         }
     }
 
-
+    self->btype = pycbc_IntFromL(LCB_BTYPE_UNSPEC);
     return 0;
 }
 
@@ -799,7 +799,6 @@ Bucket__connect(pycbc_Bucket *self)
     {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err, "Problems getting bucket type");
     }
-    printf("Buckettype %d",btype);
     self->btype = pycbc_IntFromL(btype);
     Py_RETURN_NONE;
 }

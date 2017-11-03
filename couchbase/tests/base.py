@@ -70,7 +70,6 @@ class ClusterInformation(object):
 
     def make_connection(self, conncls, **kwargs):
         connargs = self.make_connargs(**kwargs)
-        #print("calling conncls "+str(conncls)+" with args: "+str(connargs))
         return conncls(**connargs)
 
     def make_admin_connection(self):
