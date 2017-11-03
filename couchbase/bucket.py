@@ -33,7 +33,7 @@ import couchbase.fulltext as _FTS
 from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
-
+import functools
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -906,7 +906,11 @@ class Bucket(_Base):
         if keys and not isinstance(keys, (tuple, list)):
             keys = (keys,)
         return self._stats(keys, keystats=keystats)
-
+    @functools.lru_cache()
+    def _get_decoder(self):
+        import json
+        decoder=json.JSONDecoder()
+        return decoder
     def get_health(self, keys=None):
         """Request cluster health information.
 
@@ -931,10 +935,9 @@ class Bucket(_Base):
             cb.stats('memory')
             # {'mem_used': {...}, ...}
         """
-        import json
-        decoder=json.JSONDecoder()
+        
         resultdict=self._get_health(keys)
-        decoded=(decoder.decode(resultdict['json']))
+        decoded=self._get_decoder().decode(resultdict['json'])
         del resultdict['json']
         resultdict['json']=decoded
         return resultdict

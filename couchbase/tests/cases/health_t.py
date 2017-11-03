@@ -16,14 +16,14 @@
 #
 
 from couchbase.tests.base import ConnectionTestCase, RealServerTestCase
-
-
+from _functools import reduce
+import jsonschema
+import pprint
 # For Python 2/3 compatibility
 try:
     basestring
 except NameError:
     basestring = str
-
 
 class HealthTest(ConnectionTestCase):
     def setUp(self):
@@ -32,10 +32,23 @@ class HealthTest(ConnectionTestCase):
     def test_health(self):
         import pprint
         result=self.cb.get_health()
-        pprint.pprint(result)
-        #self.assertDictContainsSubset(subset, dictionary, msg)
-        
-        sys.exit()
+        server_schema = { "type": "object",
+                         "properties": { "details" : { "type": "string"},
+                                        "latency" : { "type": "string"},
+                                        "server" : { "type": "string"},
+                                        "status" : { "type": "number"}
+                             },
+                         "required": ["details","latency","server","status"] }
+        servers_schema = { "type" : "array",
+                          "items": server_schema}
+        health_schema = { "anyOf":[{
+            "type" : "object",
+            "properties" : {
+                "n1ql" : servers_schema,
+                "views" :servers_schema,
+                "kv" :servers_schema }
+            }]}
+        jsonschema.validate(result['json']['services'],health_schema)
 
 
 
