@@ -19,37 +19,56 @@ from couchbase.tests.base import ConnectionTestCase, RealServerTestCase
 from _functools import reduce
 import jsonschema
 import pprint
+
 # For Python 2/3 compatibility
 try:
     basestring
 except NameError:
     basestring = str
 
+
 class HealthTest(ConnectionTestCase):
     def setUp(self):
-        super(HealthTest,self).setUp()
+        super(HealthTest, self).setUp()
         self.skipUnlessMock()
+    server_schema = {"type": "object",
+                     "properties": {"details": {"type": "string"},
+                                    "latency": {"anyOf":[{"type": "number"},{"type": "string"}]},
+                                    "server": {"type": "string"},
+                                    "status": {"type": "number"}
+                                    },
+                     "required": ["details", "latency", "server", "status"]}
+
+    servers_schema = {"type": "array",
+                      "items": server_schema}
+    @staticmethod
+    def gen_schema(name):
+
+        return {"type": "object",
+                "properties": {name: HealthTest.servers_schema},
+                "required": [name]
+        }
+
     def test_health(self):
         import pprint
-        result=self.cb.get_health()
-        server_schema = { "type": "object",
-                         "properties": { "details" : { "type": "string"},
-                                        "latency" : { "type": "string"},
-                                        "server" : { "type": "string"},
-                                        "status" : { "type": "number"}
-                             },
-                         "required": ["details","latency","server","status"] }
-        servers_schema = { "type" : "array",
-                          "items": server_schema}
-        health_schema = { "anyOf":[{
-            "type" : "object",
-            "properties" : {
-                "n1ql" : servers_schema,
-                "views" :servers_schema,
-                "kv" :servers_schema }
-            }]}
-        jsonschema.validate(result['json']['services'],health_schema)
+        result = self.cb.get_health()
 
+        services_schema = {"anyOf":
+                [HealthTest.gen_schema(name) for name in ["n1ql", "views", "fts", "kv"] ]
+            }
+
+        health_schema = {"anyOf": [{
+            "type": "object",
+            "properties": {
+                "services": services_schema
+            },
+            "required": ["services"]
+        }]}
+        pprint.pprint(result)
+        #pprint.pprint(services_schema)
+        import sys
+        #sys.exit()
+        jsonschema.validate(result,  services_schema)
 
 
 if __name__ == '__main__':
