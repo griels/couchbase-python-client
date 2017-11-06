@@ -761,13 +761,16 @@ ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
                 PyDict_SetItemString(struct_services_dict, type_s, struct_server_list);
                 Py_DECREF(struct_server_list);
             }
-            PyObject * struct_server_dict = PyDict_New();
-            PyList_Append(struct_server_list, struct_server_dict);
-            pycbc_dict_add_text_kv(struct_server_dict, "details", lcb_strerror(NULL, svc->status));
-            pycbc_dict_add_text_kv(struct_server_dict, "server", svc->server);
-            PyDict_SetItemString(struct_server_dict, "status", PyLong_FromLong((long) svc->status));
-            PyDict_SetItemString(struct_server_dict, "latency", PyLong_FromUnsignedLong((unsigned long) svc->latency));
-            Py_DECREF(struct_server_dict);
+            {
+                PyObject * struct_server_dict = PyDict_New();
+                PyList_Append(struct_server_list, struct_server_dict);
+                pycbc_dict_add_text_kv(struct_server_dict, "details", lcb_strerror(NULL, svc->status));
+                pycbc_dict_add_text_kv(struct_server_dict, "server", svc->server);
+                PyDict_SetItemString(struct_server_dict, "status", PyLong_FromLong((long) svc->status));
+                PyDict_SetItemString(struct_server_dict, "latency",
+                                     PyLong_FromUnsignedLong((unsigned long) svc->latency));
+                Py_DECREF(struct_server_dict);
+            }
         }
         PyDict_SetItemString(resultdict, "services_struct", struct_services_dict);
         Py_DECREF(struct_services_dict);
