@@ -726,13 +726,12 @@ const char* get_type_s(lcb_PINGSVCTYPE type) {
 static void
 ping_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
 {
-    pycbc_MultiResult *mres;
     pycbc_Bucket *parent;
     const lcb_RESPPING *resp = (const lcb_RESPPING *) resp_base;
     int do_return = 0;
-    PyObject *resultdict = pycbc_multiresult_dict(mres);
 
-    mres = (pycbc_MultiResult*) resp->cookie;
+    pycbc_MultiResult *mres= (pycbc_MultiResult*) resp->cookie;
+    PyObject *resultdict = pycbc_multiresult_dict(mres);
     parent = mres->parent;
     CB_THR_END(parent);
 
