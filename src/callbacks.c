@@ -705,7 +705,7 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     end_global_callback(instance, self);
 }
 
-#define FOR_ALL_TYPES(X) \
+#define LCB_PING_FOR_ALL_TYPES(X) \
     X(KV, kv)            \
     X(VIEWS, views)      \
     X(N1QL, n1ql)        \
@@ -714,10 +714,11 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
 #define GET_TYPE_S(X, Y)  \
     case LCB_PINGSVC_##X: \
         return #Y;
+
 const char *get_type_s(lcb_PINGSVCTYPE type)
 {
     switch (type) {
-        FOR_ALL_TYPES(GET_TYPE_S)
+        LCB_PING_FOR_ALL_TYPES(GET_TYPE_S)
     default:
         break;
     }
@@ -811,12 +812,11 @@ pycbc_callbacks_init(lcb_t instance)
     lcb_install_callback3(instance, LCB_CALLBACK_COUNTER, value_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_OBSERVE, observe_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_STATS, stats_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_PING, ping_callback);
 
     /* Subdoc */
     lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, subdoc_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_SDMUTATE, subdoc_callback);
-
-    lcb_install_callback3(instance, LCB_CALLBACK_PING, ping_callback);
 
     lcb_set_bootstrap_callback(instance, bootstrap_callback);
 

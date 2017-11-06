@@ -1,5 +1,5 @@
 #
-# Copyright 2013, Couchbase, Inc.
+# Copyright 2017, Couchbase, Inc.
 # All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License")
@@ -15,10 +15,8 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase, RealServerTestCase
-from _functools import reduce
+from couchbase.tests.base import ConnectionTestCase
 import jsonschema
-import pprint
 
 # For Python 2/3 compatibility
 try:
@@ -31,9 +29,10 @@ class HealthTest(ConnectionTestCase):
     def setUp(self):
         super(HealthTest, self).setUp()
         self.skipUnlessMock()
+
     server_schema = {"type": "object",
                      "properties": {"details": {"type": "string"},
-                                    "latency": {"anyOf":[{"type": "number"},{"type": "string"}]},
+                                    "latency": {"anyOf": [{"type": "number"}, {"type": "string"}]},
                                     "server": {"type": "string"},
                                     "status": {"type": "number"}
                                     },
@@ -41,21 +40,20 @@ class HealthTest(ConnectionTestCase):
 
     servers_schema = {"type": "array",
                       "items": server_schema}
+
     @staticmethod
     def gen_schema(name):
-
         return {"type": "object",
                 "properties": {name: HealthTest.servers_schema},
                 "required": [name]
-        }
+                }
 
     def test_health(self):
-        import pprint
         result = self.cb.get_health()
 
         services_schema = {"anyOf":
-                [HealthTest.gen_schema(name) for name in ["n1ql", "views", "fts", "kv"] ]
-            }
+                               [HealthTest.gen_schema(name) for name in ["n1ql", "views", "fts", "kv"]]
+                           }
 
         health_schema = {"anyOf": [{
             "type": "object",
@@ -64,11 +62,8 @@ class HealthTest(ConnectionTestCase):
             },
             "required": ["services"]
         }]}
-        pprint.pprint(result)
-        #pprint.pprint(services_schema)
-        import sys
-        #sys.exit()
-        jsonschema.validate(result,  services_schema)
+
+        jsonschema.validate(result, services_schema)
 
 
 if __name__ == '__main__':

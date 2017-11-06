@@ -922,9 +922,7 @@ class Bucket(_Base):
             cb.get_health()
             # {'services': {...}, ...}
         """
-        
-        resultdict=self._get_health()
-
+        resultdict = self._get_health()
         return resultdict['services_struct']
 
     def observe(self, key, master_only=False):
