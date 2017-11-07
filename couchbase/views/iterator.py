@@ -19,7 +19,7 @@ from collections import namedtuple
 from copy import deepcopy
 from warnings import warn
 
-from couchbase.exceptions import ArgumentError, CouchbaseError, ViewEngineError, NotMyVbucketError
+from couchbase.exceptions import ArgumentError, CouchbaseError, ViewEngineError, NotSupportedError
 from couchbase.views.params import ViewQuery, SpatialQuery, QueryBase
 from couchbase._pyport import basestring
 import couchbase._libcouchbase as C
@@ -233,9 +233,8 @@ class View(object):
                     result.key, result.doc.value))
         """
 
-        print(parent.btype)
         if parent.btype == C.LCB_BTYPE_EPHEMERAL:
-            raise NotMyVbucketError("Ephemeral bucket")
+            raise NotSupportedError("Ephemeral bucket")
         self._parent = parent
         self.design = design
         self.view = view
