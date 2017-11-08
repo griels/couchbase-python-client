@@ -20,8 +20,9 @@ from couchbase.tests.base import ViewTestCase
 from couchbase.user_constants import FMT_JSON
 from couchbase.exceptions import HTTPError, NotSupportedError
 from couchbase.bucket import Bucket
-
 from couchbase.auth_domain import AuthDomain
+from nose import SkipTest
+
 DESIGN_JSON = {
     'language' : 'javascript',
     'views' : {
@@ -127,6 +128,8 @@ class ViewTest(ViewTestCase):
                           "nonexist", "designdoc")
 
     def test_reject_ephemeral_attempt(self):
+        if not self._realserver_info:
+            raise SkipTest("Need real server")
         admin=self.make_admin_connection()
         bucket_name = 'ephemeral'
         users=[('writer',('s3cr3t',[('data_reader', 'ephemeral'), ('data_writer', 'ephemeral')])),
