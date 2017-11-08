@@ -48,7 +48,7 @@ class ClusterInformation(object):
         self.admin_username = "Administrator"
         self.admin_password = "password"
         self.bucket_name = "default"
-        self.bucket_password = "s3cr3t"
+        self.bucket_password = ""
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
