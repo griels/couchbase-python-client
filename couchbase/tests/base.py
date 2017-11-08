@@ -61,7 +61,6 @@ class ClusterInformation(object):
             connstr += str(overrides.pop('config_cache'))
 
         ret = {
-            'username':'default',
             'password': self.bucket_password,
             'connection_string': connstr
         }
