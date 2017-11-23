@@ -1506,7 +1506,8 @@ class Bucket(_Base):
     def __repr__(self):
         return ('<{modname}.{cls} bucket={bucket}, nodes={nodes} at 0x{oid:x}>'
                 ).format(modname=__name__, cls=self.__class__.__name__,
-                         nodes=self.server_nodes, bucket=self.bucket,
+                         nodes=None,#self.server_nodes,
+                         bucket=self.bucket,
                          oid=id(self))
 
     # "items" interface

@@ -33,6 +33,9 @@ if sys.platform != 'win32':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
+
+    extoptions['extra_compile_args'] = ['-O0']
+    extoptions['extra_link_args'] = ['-O0']
 else:
     warnings.warn("I'm detecting you're running windows."
                   "You might want to modify "
@@ -54,8 +57,8 @@ else:
 
     extoptions['libraries'] = ['libcouchbase']
     ## Enable these lines for debug builds
-    #extoptions['extra_compile_args'] = ['/Zi']
-    #extoptions['extra_link_args'] = ['/DEBUG']
+    extoptions['extra_compile_args'] = ['-O0']
+    extoptions['extra_link_args'] = ['-O0']
     extoptions['library_dirs'] = [os.path.join(lcb_root, 'lib')]
     extoptions['include_dirs'] = [os.path.join(lcb_root, 'include')]
     extoptions['define_macros'] = [('_CRT_SECURE_NO_WARNINGS', 1)]

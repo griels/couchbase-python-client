@@ -53,6 +53,7 @@ class EnhancedErrorTest(CouchbaseTestCase):
         users=[('writer',('s3cr3t',[('data_reader', 'default'), ('data_writer', 'default')])),
               ('reader',('s3cr3t',[('data_reader', 'default')]))]
         #self.mockclient._do_request("SET_ENHANCED_ERRORS",{"enabled":True})
+        couchbase.enable_logging()
         for user in users:
             print(str(user))
             (userid, password, roles) = user[0],user[1][0],user[1][1]
