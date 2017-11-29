@@ -81,7 +81,7 @@ class Admin(LCB.Bucket):
 
         bucket = kwargs.pop('bucket', 'default')
         connection_string += "/{0}?".format(bucket)
-        connection_string+= "ipv6=allow"
+        connection_string+= "ipv6=allow"##&username=Administrator&password=password"
         kwargs.update({
             'username': username,
             'password': password,
