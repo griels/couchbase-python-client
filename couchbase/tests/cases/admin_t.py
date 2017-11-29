@@ -157,6 +157,9 @@ class AdminSimpleTest(CouchbaseTestCase):
         # create ephemeral test bucket
         try:
             self.admin.bucket_remove("default")
+        except:
+            pass
+        try:
             self.admin.bucket_create(name=bucket_name,
                                      bucket_type='ephemeral',
                                      ram_quota=100,
