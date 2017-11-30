@@ -150,31 +150,26 @@ class AdminSimpleTest(CouchbaseTestCase):
         self.admin.bucket_remove('dummy')
         self.assertRaises(CouchbaseError, self.factory, connstr)
 
+    #@SkipTest
     def test_create_ephemeral_bucket_and_use(self):
+        import time
         bucket_name = 'ephemeral'
         password = 'letmein'
 
         # create ephemeral test bucket
         try:
             self.admin.bucket_remove("default")
-        except:
-            pass
-        try:
             self.admin.bucket_create(name=bucket_name,
                                      bucket_type='ephemeral',
                                      ram_quota=100,
                                      bucket_password=password)
-        except:
-            pass
-        try:
-            import time
-            #time.sleep(10)
+            time.sleep(10)
             self.admin.user_upsert(AuthDomain.Local, bucket_name, password,
                                    [('data_reader', bucket_name),
                                     ('data_writer', bucket_name)])
 
             self.admin.wait_ready(bucket_name, timeout=10)
-            #time.sleep(10)
+            time.sleep(10)
             # connect to bucket to ensure we can use it
             conn_str = "http://{0}:{1}/{2}".format(self.cluster_info.host, self.cluster_info.port, bucket_name)+"?ipv6=allow"#&username=Administrator&password=password"
             bucket = Bucket(connection_string=conn_str, password=password)
@@ -192,20 +187,15 @@ class AdminSimpleTest(CouchbaseTestCase):
             raise e
         finally:
             try:
-                self.admin.bucket_create(name="default",
-                                         bucket_type='couchbase',
-                                         ram_quota=100,
-                                         bucket_password=password)
-                pass
-            #    self.admin.bucket_delete(bucket_name)
+                self.admin.bucket_delete(bucket_name)
+                time.sleep(10)
             except:
                 pass
-            finally:
-                try:
-                    pass
-                    #self.admin.user_remove(AuthDomain.Local, bucket_name)
-                except:
-                    pass
+            self.admin.bucket_create(name="default",
+                                     bucket_type='couchbase',
+                                     ram_quota=100,
+                                     bucket_password=password)
+            self.admin.wait_ready("default", timeout=100)
 
     def test_build_user_management_path(self):
 
