@@ -29,6 +29,7 @@ from couchbase.tests.base import CouchbaseTestCase, SkipTest
 from couchbase.auth_domain import AuthDomain
 
 import couchbase
+import time
 
 
 class AdminSimpleTest(CouchbaseTestCase):
@@ -150,52 +151,60 @@ class AdminSimpleTest(CouchbaseTestCase):
         self.admin.bucket_remove('dummy')
         self.assertRaises(CouchbaseError, self.factory, connstr)
 
-    #@SkipTest
     def test_create_ephemeral_bucket_and_use(self):
-        import time
         bucket_name = 'ephemeral'
         password = 'letmein'
 
-        # create ephemeral test bucket
-        try:
-            self.admin.bucket_remove("default")
-            self.admin.bucket_create(name=bucket_name,
-                                     bucket_type='ephemeral',
-                                     ram_quota=100,
-                                     bucket_password=password)
-            time.sleep(10)
-            self.admin.user_upsert(AuthDomain.Local, bucket_name, password,
-                                   [('data_reader', bucket_name),
-                                    ('data_writer', bucket_name)])
-
-            self.admin.wait_ready(bucket_name, timeout=10)
-            time.sleep(10)
-            # connect to bucket to ensure we can use it
-            conn_str = "http://{0}:{1}/{2}".format(self.cluster_info.host, self.cluster_info.port, bucket_name)+"?ipv6=allow"#&username=Administrator&password=password"
-            bucket = Bucket(connection_string=conn_str, password=password)
-            self.assertIsNotNone(bucket)
+        def basic_upsert_test(bucket):
 
             # create a doc then read it back
             key = 'mike'
             doc = {'name': 'mike'}
             bucket.upsert(key, doc)
             result = bucket.get(key)
-
             # original and result should be the same
             self.assertEqual(doc, result.value)
-        except Exception as e:
-            raise e
+
+        # create ephemeral test bucket
+        self.act_on_special_bucket(bucket_name, password,
+                                   basic_upsert_test)
+
+    def act_on_special_bucket(self, bucket_name, password, action, perm_generator=None):
+        try:
+            self.admin.bucket_remove("default")
+            time.sleep(10)
+            self.admin.bucket_create(name=bucket_name,
+                                     bucket_type='ephemeral',
+                                     ram_quota=100,
+                                     bucket_password=password)
+            self.admin.wait_ready(bucket_name, timeout=100)
+
+            if perm_generator:
+                roles = perm_generator(bucket_name)
+            else:
+                roles = [('data_reader', bucket_name), ('data_writer', bucket_name)]
+
+            self.admin.user_upsert(AuthDomain.Local, bucket_name, password, roles)
+            # connect to bucket to ensure we can use it
+            conn_str = "http://{0}:{1}/{2}".format(self.cluster_info.host, self.cluster_info.port,
+                                                   bucket_name) + "?ipv6=allow"
+            bucket = Bucket(connection_string=conn_str, password=password)
+            self.assertIsNotNone(bucket)
+
+            action(bucket)
         finally:
             try:
                 self.admin.bucket_delete(bucket_name)
                 time.sleep(10)
-            except:
-                pass
-            self.admin.bucket_create(name="default",
-                                     bucket_type='couchbase',
-                                     ram_quota=100,
-                                     bucket_password=password)
-            self.admin.wait_ready("default", timeout=100)
+            finally:
+                self.admin.bucket_create(name="default",
+                                         bucket_type='couchbase',
+                                         ram_quota=100,
+                                         bucket_password=password)
+                self.admin.wait_ready("default", timeout=100)
+
+
+
 
     def test_build_user_management_path(self):
 
