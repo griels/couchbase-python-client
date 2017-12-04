@@ -116,7 +116,7 @@ class IndexManagementTestCase(RealServerTestCase):
         ixname = 'ix_with_condition'
         cond = '((`foo` = "foo") and (`bar` = "bar"))'
         mgr.n1ql_index_create(ixname, fields=['foo'], condition=cond)
-        ll = filter(lambda x: x.name == ixname, mgr.n1ql_index_list())
+        ll = list(filter(lambda x: x.name == ixname, mgr.n1ql_index_list()))
         self.assertTrue(ll)
         self.assertEqual(cond, ll[0].condition)
 

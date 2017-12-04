@@ -1,8 +1,22 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
+include(ExternalProject)
 
+ExternalProject_Add(libcouchbase
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${../libcouchbase}
+        )
 set(CMAKE_CXX_STANDARD 11)
+set(LCB_ROOT ../libcouchbase)
+set(EXTRA_SOURCE_DIRS
+        ${LCB_ROOT}/src
+        ${LCB_ROOT}/include/memcached
+        ${LCB_ROOT}/include/libcouchbase
+        ${LCB_ROOT}/src/http
+        )
+
 aux_source_directory(../libcouchbase/src LCB_CORE)
+aux_source_directory(../libcouchbase/src/http HTTP)
 aux_source_directory(../libcouchbase/include/memcached/ MCD_INC)
 aux_source_directory(../libcouchbase/include/libcouchbase/ LCB_INC)
 set(SOURCE
@@ -10,17 +24,21 @@ set(SOURCE
         ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
+        ${HTTP}
         )
 link_directories(../libcouchbase/lib)
 link_libraries(../libcouchbase/lib/libcouchbase.dylib
         )
-include_directories(../libcouchbase/include/memcached/
-        ../libcouchbase/include/libcouchbase/
-        ../libcouchbase/)
+include_directories(${LCB_CORE}
+        ${LCB_INC}
+        ${MCD_INC}
+        ${HTTP})
 add_executable(couchbase_python_client_2_3_1
+        ${EXTRA_SOURCE_DIRS}
         ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
+  #      ${HTTP}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py
