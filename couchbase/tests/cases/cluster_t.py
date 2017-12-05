@@ -21,6 +21,7 @@ from couchbase.cluster import Cluster, ClassicAuthenticator,\
     PasswordAuthenticator, NoBucketError, MixedAuthError
 import gc
 
+from unittest import SkipTest
 
 class ClusterTest(CouchbaseTestCase):
     def _create_cluster(self):
@@ -41,6 +42,7 @@ class ClusterTest(CouchbaseTestCase):
         cb = cluster.open_bucket(bucket_name)
         key = self.gen_key('cluster_test')
         cb.upsert(key, 'cluster test')
+
 
     def test_query(self):
         self.skipUnlessMock()

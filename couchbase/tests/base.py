@@ -54,13 +54,16 @@ class ClusterInformation(object):
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
-        connstr = 'http://{0}:{1}/{2}?'.format(self.host, self.port, bucket)
+        connstr = 'http://{0}:{1}/{2}'.format(self.host, self.port, bucket)
+        connstr += '?ipv6=allow'#&username=default'
 
         if 'config_cache' in overrides:
-            connstr += 'config_cache='
+            connstr += '&config_cache='
             connstr += str(overrides.pop('config_cache'))
 
+
         ret = {
+            #'username':'default',
             'password': self.bucket_password,
             'connection_string': connstr
         }

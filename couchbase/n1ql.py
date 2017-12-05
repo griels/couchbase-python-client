@@ -37,7 +37,7 @@ REQUEST_PLUS = 'request_plus'
 For use with :attr:`~.N1QLQuery.consistency`, will ensure that query
 results always reflect the latest data in the server
 """
-UNBOUNDED = 'none'
+UNBOUNDED = 'not_bounded'
 """
 For use with :attr:`~.N1QLQuery.consistency`, will allow cached
 values to be returned. This will improve performance but may not
