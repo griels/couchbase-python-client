@@ -24,11 +24,13 @@ from couchbase.exceptions import (KeyExistsError, ValueFormatError,
                                   ArgumentError, NotFoundError,
                                   NotStoredError)
 from couchbase.tests.base import ConnectionTestCase
-
+import couchbase
 
 class UpsertTest(ConnectionTestCase):
 
     def test_trivial_set(self):
+
+        couchbase.enable_logging()
         rv = self.cb.upsert(self.gen_key(), 'value1')
         self.assertTrue(rv)
         self.assertTrue(rv.cas > 0)

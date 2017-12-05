@@ -144,7 +144,7 @@ class MiscTest(ConnectionTestCase):
         # Assume we don't have logging here..
         import couchbase
         import couchbase._libcouchbase as lcb
-
+        couchbase.disable_logging()
         self.assertFalse(lcb.lcb_logging())
 
         logfn = lambda x: x
