@@ -30,7 +30,7 @@ from couchbase.auth_domain import AuthDomain
 
 import couchbase
 import time
-
+from nose.plugins.attrib import attr
 
 class AdminSimpleTest(CouchbaseTestCase):
     def setUp(self):

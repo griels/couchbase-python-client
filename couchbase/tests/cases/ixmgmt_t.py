@@ -17,8 +17,10 @@ from couchbase.tests.base import RealServerTestCase, SkipTest
 from couchbase.bucketmanager import BucketManager
 from couchbase.bucket import Bucket
 import couchbase.exceptions as E
+from nose.plugins.attrib import attr
 
 
+@attr("index")
 class IndexManagementTestCase(RealServerTestCase):
     def _clear_indexes(self):
         # Drop all indexes!

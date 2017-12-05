@@ -77,5 +77,6 @@ class EnhancedErrorTest(CouchbaseTestCase):
                 #remove user
                 self.admin.user_remove(AuthDomain.Local, userid)
 
+
 if __name__ == "__main__":
     unittest.main()
