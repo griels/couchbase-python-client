@@ -253,7 +253,7 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     htcmd.method = method;
     htcmd.reqhandle = &htres->u.htreq;
     htcmd.type = reqtype;
-//printf("%s %s %s\n",htcmd.body,htcmd.content_type, htcmd.method);
+
     err = lcb_http3(self->instance, mres, &htcmd);
 
     if (err != LCB_SUCCESS) {

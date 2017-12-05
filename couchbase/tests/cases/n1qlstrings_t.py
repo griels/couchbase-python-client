@@ -63,7 +63,7 @@ class N1QLStringTest(CouchbaseTestCase):
 
         q.consistency = CONSISTENCY_NONE
         dval = json.loads(q.encoded)
-        self.assertEqual('not_bounded', dval['scan_consistency'])
+        self.assertEqual('none', dval['scan_consistency'])
 
     def test_encode_scanvec(self):
         # The value is a vbucket's sequence number,
