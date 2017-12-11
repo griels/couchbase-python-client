@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
-set(LCB_ROOT /Users/ellis_breen/root/workspaces/couchbase/libcouchbase)
+set(LCB_ROOT ../libcouchbase)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
