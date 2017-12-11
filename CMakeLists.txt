@@ -1,5 +1,16 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
+
+set(LCB_ROOT /Users/ellis_breen/root/workspaces/couchbase/libcouchbase)
+aux_source_directory(${LCB_ROOT}/src LCB_CORE)
+aux_source_directory(${LCB_ROOT}/src/http HTTP)
+aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
+aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
+
+include_directories(BEFORE ${LCB_CORE}
+        BEFORE ${LCB_ROOT}/include
+        ${MCD_INC}
+        ${HTTP})
 include(ExternalProject)
 
 ExternalProject_Add(libcouchbase
@@ -15,11 +26,6 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src/http
         )
 
-aux_source_directory(../libcouchbase/src LCB_CORE)
-aux_source_directory(../libcouchbase/src/http HTTP)
-aux_source_directory(../libcouchbase/include/memcached/ MCD_INC)
-aux_source_directory(../libcouchbase/include/libcouchbase/ LCB_INC)
-
 set(SOURCE
         ${SOURCE}
         ${LCB_CORE}
@@ -30,10 +36,6 @@ set(SOURCE
 link_directories(../libcouchbase/lib)
 link_libraries(../libcouchbase/lib/libcouchbase.dylib
         )
-include_directories(${LCB_CORE}
-        ${LCB_INC}
-        ${MCD_INC}
-        ${HTTP})
 add_executable(couchbase_python_client_2_3_1
         ${EXTRA_SOURCE_DIRS}
         ${LCB_CORE}
