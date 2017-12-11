@@ -513,6 +513,7 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         OPFUNC(counter, "Modify a counter in Couchbase"),
         OPFUNC(counter_multi, "Multi-key variant of counter"),
         OPFUNC(_stats, "Get various server statistics"),
+        OPFUNC(_ping, "Get health info"),
         OPFUNC(_get_health, "Get health info"),
 
         OPFUNC(_http_request, "Internal routine for HTTP requests"),

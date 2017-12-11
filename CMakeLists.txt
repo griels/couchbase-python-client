@@ -2,23 +2,27 @@ cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
 set(LCB_ROOT ../libcouchbase)
+
+set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
+set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 
-include_directories(BEFORE ${LCB_CORE}
-        BEFORE ${LCB_ROOT}/include
+include_directories( ${LCB_CORE}
+         ${LCB_ROOT}/include
         ${MCD_INC}
-        ${HTTP})
+        ${HTTP}
+        ${PYTHON_INCLUDE_DIR}
+        )
 include(ExternalProject)
 
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
-        SOURCE_DIR ${../libcouchbase}
+        SOURCE_DIR ${LCB_ROOT}
         )
 set(CMAKE_CXX_STANDARD 11)
-set(LCB_ROOT ../libcouchbase)
 set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src
         ${LCB_ROOT}/include/memcached
@@ -33,14 +37,14 @@ set(SOURCE
         ${MCD_INC}
         ${HTTP}
         )
-link_directories(../libcouchbase/lib)
-link_libraries(../libcouchbase/lib/libcouchbase.dylib
+link_directories(${LCB_ROOT}/lib)
+link_libraries(${LCB_ROOT}/../lib/
         )
 add_executable(couchbase_python_client_2_3_1
-        ${EXTRA_SOURCE_DIRS}
-        ${LCB_CORE}
-        ${LCB_INC}
-        ${MCD_INC}
+        ##${EXTRA_SOURCE_DIRS}
+        #${LCB_CORE}
+        #${LCB_INC}
+        #${MCD_INC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py
