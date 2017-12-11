@@ -48,8 +48,8 @@ class HealthTest(ConnectionTestCase):
                 "required": [name]
                 }
 
-    def test_health(self):
-        result = self.cb.get_health()
+    def test_ping(self):
+        result = self.cb.ping()
 
         services_schema = {"anyOf":
                                [HealthTest.gen_schema(name) for name in ["n1ql", "views", "fts", "kv"]]
@@ -65,6 +65,22 @@ class HealthTest(ConnectionTestCase):
 
         jsonschema.validate(result, services_schema)
 
+    def test_health(self):
+        result = self.cb.diagnostics()
+
+        services_schema = {"anyOf":
+                               [HealthTest.gen_schema(name) for name in ["n1ql", "views", "fts", "kv"]]
+                           }
+
+        health_schema = {"anyOf": [{
+            "type": "object",
+            "properties": {
+                "services": services_schema
+            },
+            "required": ["services"]
+        }]}
+
+        jsonschema.validate(result, services_schema)
 
 if __name__ == '__main__':
     unittest.main()
