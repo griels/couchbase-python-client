@@ -11,7 +11,7 @@ aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 
 include_directories( ${LCB_CORE}
-         ${LCB_ROOT}/include
+        ${LCB_ROOT}/include
         ${MCD_INC}
         ${HTTP}
         ${PYTHON_INCLUDE_DIR}
@@ -41,10 +41,10 @@ link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
         )
 add_executable(couchbase_python_client_2_3_1
-        ##${EXTRA_SOURCE_DIRS}
-        #${LCB_CORE}
-        #${LCB_INC}
-        #${MCD_INC}
+        ${EXTRA_SOURCE_DIRS}
+        ${LCB_CORE}
+        ${LCB_INC}
+        ${MCD_INC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py

@@ -409,19 +409,15 @@ PyObject *pycbc_Bucket__get_health(pycbc_Bucket *self,
     lcb_error_t err = LCB_ERROR;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     lcb_CMDHEALTH cmd = {0};
-    cmd.cmdflags = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS |
-                   LCB_PINGSVC_F_FTS;
-    cmd.options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
-    if (1) {
-        cmd.options |= LCB_PINGOPT_F_JSONDETAILS;
-    }
+    cmd.options = LCB_PINGOPT_F_JSONPRETTY;
+    cmd.id = "Couchbase Python Client";
 
     rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
     if (rv < 0) {
         return NULL;
     }
     lcb_sched_enter(self->instance);
-    err = lcb_ping3(self->instance, cv.mres, &cmd);
+    err = lcb_health(self->instance, cv.mres, &cmd);
 
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
