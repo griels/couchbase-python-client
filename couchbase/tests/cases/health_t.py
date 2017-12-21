@@ -46,13 +46,58 @@ def gen_schema(name):
 services_schema = {"anyOf":
                        [gen_schema(name) for name in ["n1ql", "views", "fts", "kv"]]
                    }
-health_schema = {"anyOf": [{
+
+ping_schema = {"anyOf": [{
     "type": "object",
     "properties": {
         "services": services_schema
     },
     "required": ["services"]
 }]}
+server_and_port_schema = {"type": "string",
+                          "pattern": "([0-9]{1,3}\.){3,3}[0-9]{1,3}:[0-9]+"}
+connection_status_schema = {"type": "string",
+                            "pattern": "connected"}
+config_schema = {"type": "array",
+                 "items": {"type": "object",
+                 "properties": {
+                     "id": {"type": "string"},
+                     "last_activity_us": {"type": "number"},
+                     "local": server_and_port_schema,
+                     "remote": server_and_port_schema,
+                     "status": connection_status_schema
+                 }}}
+
+python_id="PYCBC"
+
+client_id_schema = {"type": "string",
+                    "pattern": "^0x[a-f0-9]+/"+python_id}
+
+three_part_ver_num = "([0-9]+\.)+[0-9]+"
+version_id="2.3.2.dev4+gd5a6d8c"
+
+import re
+
+sdk_schema = {"type": "string",
+              "pattern": "libcouchbase" +
+                         re.escape("/") + three_part_ver_num + "_[0-9]+_(.*?)" +
+                         re.escape(python_id + "/") +
+                         three_part_ver_num + "\.[^\s]*"}
+
+sdk_schema = {"type": "string",
+              "pattern": "libcouchbase" +
+                         re.escape("/") + three_part_ver_num + "_[0-9]+_(.*?)" +
+                         re.escape(python_id + "/") +
+                         three_part_ver_num + "\.[^\s]*"}
+
+diagnostics_schema = {"type": "object",
+                      "properties": {
+                          "config": config_schema,
+                          "id": client_id_schema,
+                          "sdk": sdk_schema,
+                          "version": {"type": "number"}
+
+                      }}
 
 
 class HealthTest(ConnectionTestCase):
@@ -67,7 +112,8 @@ class HealthTest(ConnectionTestCase):
 
     def test_diagnostics(self):
         result = self.cb.diagnostics()
-        jsonschema.validate(result, services_schema)
+        jsonschema.validate(result, diagnostics_schema)
+
 
 if __name__ == '__main__':
     unittest.main()

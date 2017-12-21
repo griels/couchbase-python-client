@@ -33,6 +33,7 @@ import couchbase.fulltext as _FTS
 from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
+import json
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -945,8 +946,7 @@ class Bucket(_Base):
             cb.get_health()
             # {'services': {...}, ...}
         """
-        resultdict = self._diagnostics()
-        return resultdict['health_json']
+        return json.loads(self._diagnostics()['health_json'])
 
     def observe(self, key, master_only=False):
         """Return storage information for a key.
