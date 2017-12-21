@@ -633,6 +633,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
+    PyObject *collections_O = NULL;
 
     struct lcb_create_st create_opts = { 0 };
 
@@ -654,7 +655,8 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i") \
     X("_flags", &self->flags, "I") \
     X("_conntype", &conntype, "i") \
-    X("_iops", &iops_O, "O")
+    X("_iops", &iops_O, "O") \
+    X("collections", &collections_O, "O")
 
     static char *kwlist[] = {
         #define X(s, target, type) s,
@@ -761,6 +763,12 @@ Bucket__init__(pycbc_Bucket *self,
         if (err == LCB_SUCCESS && bucketstr != NULL) {
             self->bucket = pycbc_SimpleStringZ(bucketstr);
         }
+    }
+
+    if (collections_O && collections_O != Py_None)
+    {
+        const static int TRUE=1;
+        err = lcb_cntl(self->instance, LCB_CNTL_SET, LCB_CNTL_USE_COLLECTIONS, &TRUE);
     }
 
     self->btype = pycbc_IntFromL(LCB_BTYPE_UNSPEC);
