@@ -65,7 +65,7 @@ class HealthTest(ConnectionTestCase):
 
         jsonschema.validate(result, services_schema)
 
-    def test_health(self):
+    def test_diagnostics(self):
         result = self.cb.diagnostics()
 
         services_schema = {"anyOf":

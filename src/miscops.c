@@ -426,14 +426,12 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
     }
+
     if (-1 == pycbc_common_vars_wait(&cv, self)) {
         goto GT_DONE;
     }
-    /*
-    cv.ret = pycbc_multiresult_get_result(cv.mres);
-    Py_DECREF(cv.mres);
-    cv.mres = NULL;*/
     lcb_sched_leave(self->instance);
+
     GT_DONE:
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
