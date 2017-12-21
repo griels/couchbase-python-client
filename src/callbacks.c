@@ -799,6 +799,145 @@ static void ping_callback(lcb_t instance,
     CB_THR_BEGIN(parent);
 }
 
+
+static void diag_callback(lcb_t instance,
+                          int cbtype,
+                          const lcb_RESPBASE *resp_base)
+{
+    pycbc_Bucket *parent;
+    const lcb_RESPDIAG *resp = (const lcb_RESPDIAG *)resp_base;
+    int do_return = 0;
+
+    pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
+    PyObject *resultdict = pycbc_multiresult_dict(mres);
+    parent = mres->parent;
+    CB_THR_END(parent);
+
+    if (resp->rc != LCB_SUCCESS) {
+        do_return = 1;
+        if (mres->errop == NULL) {
+            pycbc_Result *res = (pycbc_Result *)pycbc_result_new(parent);
+            res->rc = resp->rc;
+            res->key = Py_None;
+            Py_INCREF(res->key);
+            maybe_push_operr(mres, res, resp->rc, 0);
+        }
+    }
+
+
+
+
+    if (resp->njson) {
+        pycbc_dict_add_text_kv(resultdict, "health_json", resp->json);
+    }
+    if (resp->rflags & LCB_RESP_F_FINAL) {
+        /* Note this can happen in both success and error cases!*/
+        do_return = 1;
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+
+
+    }
+
+    CB_THR_BEGIN(parent);
+    /*Json::Value root;
+    hrtime_t now = LCB_NS2US(gethrtime());
+
+    root["version"] = 1;
+
+    std::string sdk("libcouchbase/" LCB_VERSION_STRING);
+    if (LCBT_SETTING(instance, client_string)) {
+        sdk.append(" ").append(LCBT_SETTING(instance, client_string));
+    }
+    root["sdk"] = sdk.c_str();
+    {
+        char id[20] = {0};
+        snprintf(id, sizeof(id), "%p", (void *)instance);
+        root["id"] = id;
+        if (cmd->id) {
+            root["id"].append("/").append(cmd->id);
+        }
+    }
+
+    int config_rev = -1;
+    if (instance->cur_configinfo) {
+        lcb::clconfig::ConfigInfo *cfg = instance->cur_configinfo;
+        config_rev = cfg->vbc->revid;
+    }
+    root["config_rev"] = config_rev;
+
+    size_t ii;
+    Json::Value kv;
+    for (ii = 0; ii < instance->cmdq.npipelines; ii++) {
+        lcb::Server *server = static_cast<lcb::Server*>(instance->cmdq.pipelines[ii]);
+        lcbio_CTX *ctx = server->connctx;
+        if (ctx) {
+            Json::Value endpoint;
+            char id[20] = {0};
+            snprintf(id, sizeof(id), "%p", (void *)ctx->sock);
+            endpoint["id"] = id;
+            if (server->curhost->ipv6) {
+                endpoint["remote"] = std::string(server->curhost->host) + ":" + std::string(server->curhost->port);
+            } else {
+                endpoint["remote"] = "[" + std::string(server->curhost->host) + "]:" + std::string(server->curhost->port);
+            }
+            endpoint["local"] = lcbio__inet_ntop(&ctx->sock->info->sa_local);
+            endpoint["last_activity_us"] = (Json::Value::UInt64)(now - ctx->sock->atime);
+            endpoint["status"] = "connected";
+            root[lcbio_svcstr(ctx->sock->service)].append(endpoint);
+        }
+    }
+    instance->memd_sockpool->toJSON(now, root);
+    instance->http_sockpool->toJSON(now, root);
+    {
+        Json::Value cur;
+        lcb_ASPEND_SETTYPE::iterator it;
+        lcb_ASPEND_SETTYPE *pendq;
+        if ((pendq = instance->pendops.items[LCB_PENDTYPE_HTTP])) {
+            for (it = pendq->begin(); it != pendq->end(); ++it) {
+                lcb::http::Request *htreq = reinterpret_cast<lcb::http::Request*>(*it);
+                lcbio_CTX *ctx = htreq->ioctx;
+                if (ctx) {
+                    Json::Value endpoint;
+                    char id[20] = {0};
+                    snprintf(id, sizeof(id), "%p", (void *)ctx->sock);
+                    endpoint["id"] = id;
+                    if (htreq->ipv6) {
+                        endpoint["remote"] = "[" + std::string(htreq->host) + "]:" + std::string(htreq->port);
+                    } else {
+                        endpoint["remote"] = std::string(htreq->host) + ":" + std::string(htreq->port);
+                    }
+                    endpoint["local"] = lcbio__inet_ntop(&ctx->sock->info->sa_local);
+                    endpoint["last_activity_us"] = (Json::Value::UInt64)(now - ctx->sock->atime);
+                    endpoint["status"] = "connected";
+                    root[lcbio_svcstr(ctx->sock->service)].append(endpoint);
+                }
+            }
+        }
+    }
+
+    Json::Writer *w;
+    if (cmd->options & LCB_PINGOPT_F_JSONPRETTY) {
+        w = new Json::StyledWriter();
+    } else {
+        w = new Json::FastWriter();
+    }
+    std::string json = w->write(root);
+    delete w;
+
+    lcb_RESPHEALTH resp = {0};
+    lcb_RESPCALLBACK callback;
+
+    resp.njson = json.size();
+    resp.json = json.c_str();
+
+    callback = lcb_find_callback(instance, LCB_CALLBACK_HEALTH);
+    resp.cookie = const_cast<void*>(cookie);
+    callback(instance, LCB_CALLBACK_HEALTH, (lcb_RESPBASE *)&resp);*/
+
+}
+
+
+
 void
 pycbc_callbacks_init(lcb_t instance)
 {
@@ -813,6 +952,7 @@ pycbc_callbacks_init(lcb_t instance)
     lcb_install_callback3(instance, LCB_CALLBACK_OBSERVE, observe_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_STATS, stats_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_PING, ping_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_DIAG, diag_callback);
 
     /* Subdoc */
     lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, subdoc_callback);
