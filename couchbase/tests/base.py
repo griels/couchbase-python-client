@@ -39,7 +39,6 @@ from couchbase.result import (
     MultiResult, ValueResult, OperationResult, ObserveInfo, Result)
 from couchbase._pyport import basestring
 
-
 CONFIG_FILE = 'tests.ini' # in cwd
 
 
@@ -57,13 +56,22 @@ class ClusterInformation(object):
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
-        connstr = 'http://{0}:{1}/{2}?'.format(self.host, self.port, bucket)
-        connstr += 'ipv6=' + overrides.pop('ipv6', self.ipv6)
+        protocol_map = {'couchbase[s]?': '{0}/{1}'.format(self.host, bucket),
+                        'http':'{0}:{1}/{2}'.format(self.host, self.port, bucket)}
+        connstr = self.protocol+'://'+protocol_map[self.protocol]
+
+        #ssl_opts = {"certpath": self.certpath, "keypath": self.keypath}
+        filtered_opts= {key: value for key,value in
+                        self.__dict__.items() if key in ["certpath", "keypath"] and value}
+        filtered_opts['ipv6']= overrides.pop('ipv6', self.ipv6)
 
         if 'config_cache' in overrides:
-            connstr += '&config_cache='
-            connstr += str(overrides.pop('config_cache'))
+            filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
 
+        conn_options = '&'.join((key + "=" + value) for key,value in filtered_opts.items() )
+        connstr += ("?"+conn_options) if conn_options else ""
+
+        print(connstr)
         ret = {
             'password': self.bucket_password,
             'connection_string': connstr
@@ -97,6 +105,9 @@ class ConnectionConfiguration(object):
         info.bucket_name = config.get('realserver', 'bucket_name')
         info.bucket_password = config.get('realserver', 'bucket_password')
         info.ipv6 = config.get('realserver', 'ipv6', fallback="disabled")
+        info.certpath = config.get('realserver', 'certpath', fallback=None)
+        info.keypath = config.get('realserver', 'keypath', fallback=None)
+        info.protocol = config.get('realserver', 'protocol', fallback="http")
         if config.getboolean('realserver', 'enabled'):
             self.realserver_info = info
         else:

@@ -10,6 +10,7 @@ aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 aux_source_directory(${LCB_ROOT}/contrib/lcb-jsoncpp LCB_JSON)
+aux_source_directory(${LCB_ROOT}/src/ssl LCB_SSL)
 
 include_directories( ${LCB_CORE}
         ${LCB_ROOT}/include
@@ -17,6 +18,8 @@ include_directories( ${LCB_CORE}
         ${HTTP}
         ${PYTHON_INCLUDE_DIR}
         ${LCB_JSON}
+        ${LCB_SSL}
+        ${LCB_ROOT}/src/ssl
         )
 include(ExternalProject)
 
@@ -30,6 +33,7 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/include/memcached
         ${LCB_ROOT}/include/libcouchbase
         ${LCB_ROOT}/src/http
+        ${LCB_ROOT}/src/ssl
         )
 
 set(SOURCE
@@ -38,6 +42,8 @@ set(SOURCE
         ${LCB_INC}
         ${MCD_INC}
         ${HTTP}
+        ${LCB_SSL}
+        ${LCB_ROOT}/src/ssl
         )
 link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
@@ -48,6 +54,8 @@ add_executable(couchbase_python_client_2_3_1
         ${LCB_INC}
         ${MCD_INC}
         ${LCB_JSON}
+        ${LCB_SSL}
+        ${LCB_ROOT}/src/ssl
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py
