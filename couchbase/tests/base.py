@@ -38,7 +38,7 @@ from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
 from couchbase.result import (
     MultiResult, ValueResult, OperationResult, ObserveInfo, Result)
 from couchbase._pyport import basestring
-
+import re
 CONFIG_FILE = 'tests.ini' # in cwd
 
 
@@ -56,11 +56,14 @@ class ClusterInformation(object):
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
-        protocol_map = {'couchbase[s]?': '{0}/{1}'.format(self.host, bucket),
-                        'http':'{0}:{1}/{2}'.format(self.host, self.port, bucket)}
-        connstr = self.protocol+'://'+protocol_map[self.protocol]
+        if self.protocol.startswith('couchbase'):
+            protocol_format = '{0}/{1}'.format(self.host, bucket)
+        elif self.protocol.startswith('http'):
+            protocol_format = '{0}:{1}/{2}'.format(self.host, self.port, bucket)
+        else:
+            raise CouchbaseError('Unrecognised protocol')
+        connstr = self.protocol + '://' + protocol_format
 
-        #ssl_opts = {"certpath": self.certpath, "keypath": self.keypath}
         filtered_opts= {key: value for key,value in
                         self.__dict__.items() if key in ["certpath", "keypath"] and value}
         filtered_opts['ipv6']= overrides.pop('ipv6', self.ipv6)
