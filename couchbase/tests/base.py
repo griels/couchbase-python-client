@@ -76,6 +76,7 @@ class ClusterInformation(object):
 
         print(connstr)
         ret = {
+            #'username' : 'testuser',
             'password': self.bucket_password,
             'connection_string': connstr
         }
@@ -84,6 +85,7 @@ class ClusterInformation(object):
 
     def make_connection(self, conncls, **kwargs):
         connargs = self.make_connargs(**kwargs)
+        print (str(connargs))
         return conncls(**connargs)
 
     def make_admin_connection(self):

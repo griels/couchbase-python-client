@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from time import sleep
 
 from couchbase.tests.base import CouchbaseTestCase
 from couchbase.iops.select import SelectIOPS
@@ -34,7 +35,8 @@ class IopsTest(CouchbaseTestCase):
 
     def test_creation(self):
         #raise SkipTest()
-        self._iops_connection()
+        x=self._iops_connection()
+        sleep(5)
         self.assertTrue(True)
 
     def test_simple_ops(self):
