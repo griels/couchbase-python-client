@@ -32,7 +32,7 @@ except ImportError:
     from fallback import configparser
 
 from testresources import ResourcedTestCase, TestResourceManager
-
+from couchbase.exceptions import CouchbaseError
 from couchbase.admin import Admin
 from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
 from couchbase.result import (
@@ -64,15 +64,15 @@ class ClusterInformation(object):
             raise CouchbaseError('Unrecognised protocol')
         connstr = self.protocol + '://' + protocol_format
 
-        filtered_opts= {key: value for key,value in
-                        self.__dict__.items() if key in ["certpath", "keypath"] and value}
-        filtered_opts['ipv6']= overrides.pop('ipv6', self.ipv6)
+        filtered_opts = {key: value for key, value in
+                         self.__dict__.items() if key in ["certpath", "keypath"] and value}
+        filtered_opts['ipv6'] = overrides.pop('ipv6', self.ipv6)
 
         if 'config_cache' in overrides:
             filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
 
-        conn_options = '&'.join((key + "=" + value) for key,value in filtered_opts.items() )
-        connstr += ("?"+conn_options) if conn_options else ""
+        conn_options = '&'.join((key + "=" + value) for key, value in filtered_opts.items())
+        connstr += ("?" + conn_options) if conn_options else ""
 
         print(connstr)
         ret = {

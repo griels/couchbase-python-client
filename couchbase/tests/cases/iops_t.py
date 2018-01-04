@@ -17,10 +17,14 @@
 
 from couchbase.tests.base import CouchbaseTestCase
 from couchbase.iops.select import SelectIOPS
-
+try:
+    from unittest.case import SkipTest
+except ImportError:
+    from nose.exc import SkipTest
 # For now, this just checks that basic set/get doesn't explode
 # We'll definitely want to add more here before we consider it stable
-
+from couchbase import enable_logging
+enable_logging()
 class IopsTest(CouchbaseTestCase):
     def setUp(self):
         super(IopsTest, self).setUp()
@@ -29,10 +33,12 @@ class IopsTest(CouchbaseTestCase):
         return self.make_connection(_iops=SelectIOPS(), **kwargs)
 
     def test_creation(self):
+        #raise SkipTest()
         self._iops_connection()
         self.assertTrue(True)
 
     def test_simple_ops(self):
+        #raise SkipTest()
         cb = self._iops_connection()
         key = self.gen_key("iops-simple")
         value = "some_value"
