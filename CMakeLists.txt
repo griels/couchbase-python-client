@@ -2,16 +2,38 @@ cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
 set(LCB_ROOT ../libcouchbase)
+set(LCB_ROOT_SRC ${LCB_ROOT}/src)
+set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
+set(LCB_IO ${LCB_ROOT}/src/lcbio)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 aux_source_directory(${LCB_ROOT}/contrib/lcb-jsoncpp LCB_JSON)
 aux_source_directory(${LCB_ROOT}/src/ssl LCB_SSL)
+aux_source_directory(${LCB_ROOT}/src/mcserver LCB_MCSERVER)
+aux_source_directory(${LCB_IO} LCB_IO_A)
+aux_source_directory(${LCB_ROOT_SRC}/sasl LCB_SASL)
+#LCB_IO)
 
+aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
+aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
+aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
+aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
+
+
+ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
+ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
+ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
+ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
+ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
+ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
+ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
 include_directories( ${LCB_CORE}
         ${LCB_ROOT}/include
         ${MCD_INC}
@@ -19,7 +41,15 @@ include_directories( ${LCB_CORE}
         ${PYTHON_INCLUDE_DIR}
         ${LCB_JSON}
         ${LCB_SSL}
-        ${LCB_ROOT}/src/ssl
+        ${LCB_MCSERVER}
+        ${LCB_IO}
+        ${LCB_VBUCKET}
+        ${LCB_SASL}
+        ${LCB_CLI}
+        ${LCB_ROOT_SRC}
+        ${LCB_SASL}
+        ${LCB_SASL}/src
+        ${LCB_ROOT_CONTRIB}
         )
 include(ExternalProject)
 
@@ -34,6 +64,15 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/include/libcouchbase
         ${LCB_ROOT}/src/http
         ${LCB_ROOT}/src/ssl
+
+        ${LCB_MCSERVER}
+        ${LCB_IO}
+
+        ${LCB_VBUCKET}
+        ${LCB_SASL}
+        ${LCB_CLI}
+        ${LCB_ROOT_SRC}
+        ${LCB_ROOT_A}
         )
 
 set(SOURCE
@@ -44,6 +83,14 @@ set(SOURCE
         ${HTTP}
         ${LCB_SSL}
         ${LCB_ROOT}/src/ssl
+
+        ${LCB_MCSERVER}
+        ${LCB_IO}
+
+        ${LCB_VBUCKET}
+        ${LCB_SASL}
+        ${LCB_CLI}
+        ${LCB_ROOT_SRC}
         )
 link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
@@ -56,6 +103,12 @@ add_executable(couchbase_python_client_2_3_1
         ${LCB_JSON}
         ${LCB_SSL}
         ${LCB_ROOT}/src/ssl
+
+        ${LCB_IO}
+        ${LCB_VBUCKET}
+        ${LCB_SASL}
+        ${LCB_CLI}
+        ${LCB_ROOT_SRC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py

@@ -51,6 +51,7 @@ class ClusterInformation(object):
         self.bucket_name = "default"
         self.bucket_password = ""
         self.ipv6 = "disabled"
+        self.protocol = "http"
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
