@@ -66,8 +66,7 @@ class ClusterInformation(object):
         connstr = self.protocol + '://' + protocol_format
 
         filtered_opts = {key: value for key, value in
-                         self.__dict__.items() if key in ["certpath", "keypath"] and value}
-        filtered_opts['ipv6'] = overrides.pop('ipv6', self.ipv6)
+                         self.__dict__.items() if key in ["certpath", "keypath", "ipv6"] and value}
 
         if 'config_cache' in overrides:
             filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
@@ -110,7 +109,7 @@ class ConnectionConfiguration(object):
         info.admin_password = config.get('realserver', 'admin_password')
         info.bucket_name = config.get('realserver', 'bucket_name')
         info.bucket_password = config.get('realserver', 'bucket_password')
-        info.ipv6 = config.get('realserver', 'ipv6', fallback="disabled")
+        info.ipv6 = config.get('realserver', 'ipv6', fallback=None)
         info.certpath = config.get('realserver', 'certpath', fallback=None)
         info.keypath = config.get('realserver', 'keypath', fallback=None)
         info.protocol = config.get('realserver', 'protocol', fallback="http")
