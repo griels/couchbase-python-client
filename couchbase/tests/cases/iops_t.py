@@ -14,13 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from time import sleep
 
 from couchbase.tests.base import CouchbaseTestCase
 from couchbase.iops.select import SelectIOPS
-
+try:
+    from unittest.case import SkipTest
+except ImportError:
+    from nose.exc import SkipTest
 # For now, this just checks that basic set/get doesn't explode
 # We'll definitely want to add more here before we consider it stable
-
+from couchbase import enable_logging
+enable_logging()
 class IopsTest(CouchbaseTestCase):
     def setUp(self):
         super(IopsTest, self).setUp()

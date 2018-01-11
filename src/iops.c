@@ -420,10 +420,14 @@ modify_event_python(pycbc_IOPSWrapper *pio, pycbc_Event *ev,
         evio->flags = flags;
     }
 
+    printf("sent %llu ");
     if (action == PYCBC_EVACTION_WATCH) {
+
         ev->state = PYCBC_EVSTATE_ACTIVE;
+        printf("active\n");
     } else {
         ev->state = PYCBC_EVSTATE_SUSPENDED;
+        printf("suspended\n");
     }
 
     if (!result) {
@@ -490,11 +494,14 @@ destroy_event_common(lcb_io_opt_t io, void *arg)
 {
     pycbc_Event *ev = arg;
     lcb_U32 dummy = 0;
+    printf("checking %llu\n",ev);
     pycbc_assert(ev->state != PYCBC_EVSTATE_ACTIVE);
 
+    printf("destroying event %llu\n",ev);
     modify_event_python(PYCBC_IOW_FROM_IOPS(io), ev, PYCBC_EVACTION_CLEANUP,
                         0, &dummy);
 
+    printf("freeing %llu\n",ev);
     ev->state = PYCBC_EVSTATE_FREED;
     Py_DECREF(ev);
 }
@@ -522,6 +529,7 @@ update_event(lcb_io_opt_t io, lcb_socket_t sock, void *event, short flags,
     if (ev->flags == flags && new_state == ev->state && ev->fd == sock) {
         return 0;
     }
+    printf("updating event %llu\n",ev);
 
     return modify_event_python(PYCBC_IOW_FROM_IOPS(io), (pycbc_Event*)ev,
                                action, sock, &flags);
@@ -533,7 +541,7 @@ delete_event(lcb_io_opt_t io, lcb_socket_t sock, void *event)
     pycbc_Event *ev = (pycbc_Event*)event;
     pycbc_IOPSWrapper *pio = PYCBC_IOW_FROM_IOPS(io);
     short tmp = 0;
-
+    printf("deleting event %llu\n",ev);
     modify_event_python(pio, ev, PYCBC_EVACTION_UNWATCH, sock, &tmp);
 }
 
@@ -542,6 +550,7 @@ delete_timer(lcb_io_opt_t io, void *timer)
 {
     lcb_U32 dummy = 0;
     pycbc_IOPSWrapper *pio = PYCBC_IOW_FROM_IOPS(io);
+    printf("deleting timer %llu\n",timer);
     modify_event_python(pio, (pycbc_Event*)timer, PYCBC_EVACTION_UNWATCH, -1,
                         &dummy);
 }
@@ -553,7 +562,7 @@ update_timer(lcb_io_opt_t io, void *timer, lcb_U32 usec, void *data,
     pycbc_TimerEvent *ev = (pycbc_TimerEvent*)timer;
     ev->cb.data = data;
     ev->cb.handler = handler;
-
+    printf("updating timer %llu\n",ev);
     return modify_event_python(PYCBC_IOW_FROM_IOPS(io), (pycbc_Event*)ev,
                                PYCBC_EVACTION_WATCH, -1, &usec);
 }

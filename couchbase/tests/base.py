@@ -32,15 +32,33 @@ except ImportError:
     from fallback import configparser
 
 from testresources import ResourcedTestCase, TestResourceManager
-
+from couchbase.exceptions import CouchbaseError
 from couchbase.admin import Admin
 from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
 from couchbase.result import (
     MultiResult, ValueResult, OperationResult, ObserveInfo, Result)
 from couchbase._pyport import basestring
-
-
+import re
 CONFIG_FILE = 'tests.ini' # in cwd
+
+
+def build_conn_str(options, protocol, host, port, bucket, overrides):
+    if protocol.startswith('couchbase'):
+        protocol_format = '{0}/{1}'.format(host, bucket)
+    elif protocol.startswith('http'):
+        protocol_format = '{0}:{1}/{2}'.format(host, port, bucket)
+    else:
+        raise CouchbaseError('Unrecognised protocol')
+    connstr = protocol + '://' + protocol_format
+
+    filtered_opts = {key: value for key, value in
+                     options if key in ["certpath", "keypath", "ipv6"] and value}
+    if 'config_cache' in overrides:
+        filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
+
+    conn_options = '&'.join((key + "=" + value) for key, value in filtered_opts.items())
+    connstr += ("?" + conn_options) if conn_options else ""
+    return connstr
 
 
 class ClusterInformation(object):
@@ -52,18 +70,16 @@ class ClusterInformation(object):
         self.bucket_name = "default"
         self.bucket_password = ""
         self.ipv6 = "disabled"
+        self.protocol = "http"
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
-        connstr = 'http://{0}:{1}/{2}?'.format(self.host, self.port, bucket)
-        connstr += 'ipv6=' + overrides.pop('ipv6', self.ipv6)
 
-        if 'config_cache' in overrides:
-            connstr += '&config_cache='
-            connstr += str(overrides.pop('config_cache'))
+        connstr = build_conn_str(self.__dict__.items(), self.protocol, self.host, self.port, bucket, overrides)
 
+        print(connstr)
         ret = {
             'password': self.bucket_password,
             'connection_string': connstr
@@ -73,6 +89,7 @@ class ClusterInformation(object):
 
     def make_connection(self, conncls, **kwargs):
         connargs = self.make_connargs(**kwargs)
+        print (str(connargs))
         return conncls(**connargs)
 
     def make_admin_connection(self):
@@ -96,7 +113,10 @@ class ConnectionConfiguration(object):
         info.admin_password = config.get('realserver', 'admin_password')
         info.bucket_name = config.get('realserver', 'bucket_name')
         info.bucket_password = config.get('realserver', 'bucket_password')
-        info.ipv6 = config.get('realserver', 'ipv6', fallback="disabled")
+        info.ipv6 = config.get('realserver', 'ipv6', fallback='disabled')
+        info.certpath = config.get('realserver', 'certpath', fallback=None)
+        info.keypath = config.get('realserver', 'keypath', fallback=None)
+        info.protocol = config.get('realserver', 'protocol', fallback="http")
         if config.getboolean('realserver', 'enabled'):
             self.realserver_info = info
         else:

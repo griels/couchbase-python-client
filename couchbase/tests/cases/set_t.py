@@ -24,8 +24,9 @@ from couchbase.exceptions import (KeyExistsError, ValueFormatError,
                                   ArgumentError, NotFoundError,
                                   NotStoredError)
 from couchbase.tests.base import ConnectionTestCase
+from couchbase import enable_logging
 
-
+enable_logging()
 class UpsertTest(ConnectionTestCase):
 
     def test_trivial_set(self):
