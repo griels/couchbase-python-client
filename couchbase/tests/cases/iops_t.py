@@ -34,13 +34,10 @@ class IopsTest(CouchbaseTestCase):
         return self.make_connection(_iops=SelectIOPS(), **kwargs)
 
     def test_creation(self):
-        #raise SkipTest()
-        x=self._iops_connection()
-        sleep(5)
+        self._iops_connection()
         self.assertTrue(True)
 
     def test_simple_ops(self):
-        #raise SkipTest()
         cb = self._iops_connection()
         key = self.gen_key("iops-simple")
         value = "some_value"

@@ -42,6 +42,25 @@ import re
 CONFIG_FILE = 'tests.ini' # in cwd
 
 
+def build_conn_str(options, protocol, host, port, bucket, overrides):
+    if protocol.startswith('couchbase'):
+        protocol_format = '{0}/{1}'.format(host, bucket)
+    elif protocol.startswith('http'):
+        protocol_format = '{0}:{1}/{2}'.format(host, port, bucket)
+    else:
+        raise CouchbaseError('Unrecognised protocol')
+    connstr = protocol + '://' + protocol_format
+
+    filtered_opts = {key: value for key, value in
+                     options if key in ["certpath", "keypath", "ipv6"] and value}
+    if 'config_cache' in overrides:
+        filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
+
+    conn_options = '&'.join((key + "=" + value) for key, value in filtered_opts.items())
+    connstr += ("?" + conn_options) if conn_options else ""
+    return connstr
+
+
 class ClusterInformation(object):
     def __init__(self):
         self.host = "localhost"
@@ -57,26 +76,11 @@ class ClusterInformation(object):
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
-        if self.protocol.startswith('couchbase'):
-            protocol_format = '{0}/{1}'.format(self.host, bucket)
-        elif self.protocol.startswith('http'):
-            protocol_format = '{0}:{1}/{2}'.format(self.host, self.port, bucket)
-        else:
-            raise CouchbaseError('Unrecognised protocol')
-        connstr = self.protocol + '://' + protocol_format
 
-        filtered_opts = {key: value for key, value in
-                         self.__dict__.items() if key in ["certpath", "keypath", "ipv6"] and value}
-
-        if 'config_cache' in overrides:
-            filtered_opts['config_cache'] = str(overrides.pop('config_cache'))
-
-        conn_options = '&'.join((key + "=" + value) for key, value in filtered_opts.items())
-        connstr += ("?" + conn_options) if conn_options else ""
+        connstr = build_conn_str(self.__dict__.items(), self.protocol, self.host, self.port, bucket, overrides)
 
         print(connstr)
         ret = {
-            #'username' : 'testuser',
             'password': self.bucket_password,
             'connection_string': connstr
         }
@@ -109,7 +113,7 @@ class ConnectionConfiguration(object):
         info.admin_password = config.get('realserver', 'admin_password')
         info.bucket_name = config.get('realserver', 'bucket_name')
         info.bucket_password = config.get('realserver', 'bucket_password')
-        info.ipv6 = config.get('realserver', 'ipv6', fallback=None)
+        info.ipv6 = config.get('realserver', 'ipv6', fallback='disabled')
         info.certpath = config.get('realserver', 'certpath', fallback=None)
         info.keypath = config.get('realserver', 'keypath', fallback=None)
         info.protocol = config.get('realserver', 'protocol', fallback="http")
