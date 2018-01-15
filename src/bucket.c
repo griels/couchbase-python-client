@@ -824,6 +824,7 @@ Bucket_dtor(pycbc_Bucket *self)
     Py_XDECREF(self->bucket);
     Py_XDECREF(self->conncb);
     Py_XDECREF(self->dur_testhook);
+
     Py_XDECREF(self->iopswrap);
 
     if (self->instance) {

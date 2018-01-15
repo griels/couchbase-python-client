@@ -681,7 +681,7 @@ extern PyObject *pycbc_ExceptionType;
     X(view_path_helper) \
     X(sd_result_type) \
     X(sd_multival_type)
-
+// PYCBC-453 #1 - this is where ioname_mktimer and other ioname_ functions is defined, see iops.c for usage point
 #define PYCBC_XHELPERS_STRS(X) \
     X(tcname_encode_key, PYCBC_TCNAME_ENCODE_KEY) \
     X(tcname_encode_value, PYCBC_TCNAME_ENCODE_VALUE) \

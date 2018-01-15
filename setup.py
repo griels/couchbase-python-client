@@ -31,6 +31,9 @@ if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
+        ## Enable these lines for debug builds
+        extoptions['extra_compile_args'] = ['-g','-O0']
+        #extoptions['extra_link_args'] = ['/DEBUG']
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
 else:

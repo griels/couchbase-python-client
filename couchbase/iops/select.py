@@ -179,6 +179,6 @@ class SelectIOPS(object):
 
     def stop_watching(self):
         self._do_watch = False
-
+# PYCBC-453 #3 - see #2 for usage point, and #1 for where this is
     def timer_event_factory(self):
         return SelectTimer()

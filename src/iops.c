@@ -17,7 +17,15 @@
 #include "pycbc.h"
 #include "iops.h"
 #include "structmember.h"
-
+// PYCBC-453 - #2
+// this is where the table in pycbc.h points to, i.e.:
+/*X(ioname_modevent, "update_event") \
+    X(ioname_modtimer, "update_timer") \
+    X(ioname_startwatch, "start_watching") \
+    X(ioname_stopwatch, "stop_watching") \
+    X(ioname_mkevent, "io_event_factory") \
+    X(ioname_mktimer, "timer_event_factory") \
+*/
 #define XIONAME_CACHENTRIES(X) \
     X(modevent, 0) \
     X(modtimer, 0) \
@@ -25,6 +33,8 @@
     X(stopwatch, 0) \
     X(mkevent, 1) \
     X(mktimer, 1)
+
+
 
 static PyTypeObject pycbc_EventType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
