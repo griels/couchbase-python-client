@@ -500,7 +500,7 @@ destroy_event_common(lcb_io_opt_t io, void *arg)
 {
     pycbc_Event *ev = arg;
     lcb_U32 dummy = 0;
-    pycbc_assert(ev->state != PYCBC_EVSTATE_ACTIVE);
+   // pycbc_assert(ev->state != PYCBC_EVSTATE_ACTIVE);
 
     modify_event_python(PYCBC_IOW_FROM_IOPS(io), ev, PYCBC_EVACTION_CLEANUP,
                         0, &dummy);

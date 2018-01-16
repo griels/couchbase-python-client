@@ -29,7 +29,7 @@ from couchbase._libcouchbase import (
 )
 
 class SelectTimer(TimerEvent):
-    def __init__(self):
+    def __init__(self) -> None:
         super(SelectTimer, self).__init__()
         self.pydata = 0
 
@@ -41,27 +41,27 @@ class SelectTimer(TimerEvent):
     def exptime(self, val):
         self.pydata = val
 
-    def activate(self, usecs):
+    def activate(self, usecs: int) -> None:
         self.exptime = time.time() + usecs / 1000000
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         pass
 
     @property
-    def active(self):
+    def active(self) -> bool:
         return self.state == PYCBC_EVSTATE_ACTIVE
 
     # Rich comparison operators implemented - __cmp__ not used in Py3
-    def __lt__(self, other): return self.exptime < other.exptime
+    def __lt__(self, other: SelectTimer) -> bool: return self.exptime < other.exptime
     def __le__(self, other): return self.exptime <= other.exptime
     def __gt__(self, other): return self.exptime > other.exptime
     def __ge__(self, other): return self.exptime >= other.exptime
     def __ne__(self, other): return self.exptime != other.exptime
-    def __eq__(self, other): return self.exptime == other.exptime
+    def __eq__(self, other: SelectTimer) -> bool: return self.exptime == other.exptime
 
 
 class SelectIOPS(object):
-    def __init__(self):
+    def __init__(self) -> None:
         self._do_watch = False
         self._ioevents = set()
         self._timers = []
@@ -72,7 +72,7 @@ class SelectIOPS(object):
 
 
 
-    def _unregister_timer(self, timer):
+    def _unregister_timer(self, timer: SelectTimer) -> None:
         timer.deactivate()
         if timer in self._timers:
             self._timers.remove(timer)
@@ -91,7 +91,7 @@ class SelectIOPS(object):
         except KeyError:
             pass
 
-    def update_timer(self, timer, action, usecs):
+    def update_timer(self, timer: SelectTimer, action: int, usecs: int) -> None:
         if action == PYCBC_EVACTION_UNWATCH:
             self._unregister_timer(timer)
             return
@@ -123,7 +123,7 @@ class SelectIOPS(object):
                 except KeyError:
                     pass
 
-    def _poll(self):
+    def _poll(self) -> None:
         rin = self._evrd
         win = self._evwr
         ein = list(rin) + list(win)
@@ -169,7 +169,7 @@ class SelectIOPS(object):
 
             timer.ready(0)
 
-    def start_watching(self):
+    def start_watching(self) -> None:
         if self._do_watch:
             return
 
@@ -177,8 +177,8 @@ class SelectIOPS(object):
         while self._do_watch:
             self._poll()
 
-    def stop_watching(self):
+    def stop_watching(self) -> None:
         self._do_watch = False
 # PYCBC-453 #3 - see #2 for usage point, and #1 for where this is
-    def timer_event_factory(self):
+    def timer_event_factory(self) -> SelectTimer:
         return SelectTimer()

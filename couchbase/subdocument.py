@@ -11,6 +11,7 @@ import couchbase.priv_constants as _P
 # on a later version of libcouchbase just for these flags, especially
 # considering that most users will only be using _F_MKDIR_P
 
+from typing import Any, Dict, List, Optional, Type, Union
 _SPECMAP = {}
 for k, v in tuple(globals().items()):
     if not k.startswith('LCB_SDCMD_'):
@@ -20,7 +21,7 @@ for k, v in tuple(globals().items()):
 
 
 class Spec(tuple):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls: Type[Spec], *args, **kwargs) -> Spec:
         return super(Spec, cls).__new__(cls, tuple(args))
 
     def __repr__(self):
@@ -31,7 +32,7 @@ class Spec(tuple):
                                  ', '.join(details))
 
 
-def _gen_3spec(op, path, xattr=False):
+def _gen_3spec(op: int, path: str, xattr: bool = False) -> Spec:
     """
     Returns a Spec tuple suitable for passing to the underlying C extension.
     This variant is called for operations that lack an input value.
@@ -46,8 +47,8 @@ def _gen_3spec(op, path, xattr=False):
     return Spec(op, path, flags)
 
 
-def _gen_4spec(op, path, value,
-               create_path=False, xattr=False, _expand_macros=False):
+def _gen_4spec(op: int, path: str, value: Any,
+               create_path: bool = False, xattr: bool = False, _expand_macros: bool = False) -> Spec:
     """
     Like `_gen_3spec`, but also accepts a mandatory value as its third argument
     :param bool _expand_macros: Whether macros in the value should be expanded.
@@ -64,7 +65,7 @@ def _gen_4spec(op, path, value,
 
 
 class MultiValue(tuple):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls: Type[MultiValue], *args, **kwargs) -> MultiValue:
         return super(MultiValue, cls).__new__(cls, tuple(args))
 
     def __repr__(self):
@@ -74,7 +75,7 @@ class MultiValue(tuple):
 # The following functions return either 2-tuples or 4-tuples for operations
 # which are converted into mutation or lookup specifications
 
-def get(path, **kwargs):
+def get(path: str, **kwargs) -> Spec:
     """
     Retrieve the value from the given path. The value is returned in the result.
     Valid only in :cb_bmeth:`lookup_in`
@@ -85,7 +86,7 @@ def get(path, **kwargs):
     return _gen_3spec(LCB_SDCMD_GET, path, **kwargs)
 
 
-def exists(path, **kwargs):
+def exists(path: str, **kwargs) -> Spec:
     """
     Check if a given path exists. This is the same as :meth:`get()`,
     but the result will not contain the value.
@@ -96,7 +97,7 @@ def exists(path, **kwargs):
     return _gen_3spec(LCB_SDCMD_EXISTS, path, **kwargs)
 
 
-def upsert(path, value, create_parents=False, **kwargs):
+def upsert(path: str, value: Optional[Union[List[str], str, List[int]]], create_parents: bool = False, **kwargs) -> Spec:
     """
     Create or replace a dictionary path.
 
@@ -128,7 +129,7 @@ def upsert(path, value, create_parents=False, **kwargs):
                       create_path=create_parents, **kwargs)
 
 
-def replace(path, value, **kwargs):
+def replace(path: str, value: Union[Dict[str, str], str], **kwargs) -> Spec:
     """
     Replace an existing path. This works on any valid path if the path already
     exists. Valid only in :cb_bmeth:`mutate_in`
@@ -140,7 +141,7 @@ def replace(path, value, **kwargs):
                       create_path=False, **kwargs)
 
 
-def insert(path, value, create_parents=False, **kwargs):
+def insert(path: str, value: str, create_parents: bool = False, **kwargs) -> Spec:
     """
     Create a new path in the document. The final path element points to a
     dictionary key that should be created. Valid only in :cb_bmeth:`mutate_in`
@@ -153,7 +154,7 @@ def insert(path, value, create_parents=False, **kwargs):
                       create_path=create_parents, **kwargs)
 
 
-def array_append(path, *values, **kwargs):
+def array_append(path: str, *values, **kwargs) -> Spec:
     """
     Add new values to the end of an array.
 
@@ -180,7 +181,7 @@ def array_append(path, *values, **kwargs):
                       **kwargs)
 
 
-def array_prepend(path, *values, **kwargs):
+def array_prepend(path: str, *values, **kwargs) -> Spec:
     """
     Add new values to the beginning of an array.
 
@@ -215,7 +216,7 @@ def array_insert(path, *values, **kwargs):
                       MultiValue(*values), **kwargs)
 
 
-def array_addunique(path, value, create_parents=False, **kwargs):
+def array_addunique(path: str, value: int, create_parents: bool = False, **kwargs) -> Spec:
     """
     Add a new value to an array if the value does not exist.
 
@@ -239,7 +240,7 @@ def array_addunique(path, value, create_parents=False, **kwargs):
                       create_path=create_parents, **kwargs)
 
 
-def counter(path, delta, create_parents=False, **kwargs):
+def counter(path: str, delta: Union[int, str], create_parents: bool = False, **kwargs) -> Spec:
     """
     Increment or decrement a counter in a document.
 
@@ -267,7 +268,7 @@ def counter(path, delta, create_parents=False, **kwargs):
                       create_path=create_parents, **kwargs)
 
 
-def remove(path, **kwargs):
+def remove(path: str, **kwargs) -> Spec:
     """
     Remove an existing path in the document.
 
@@ -278,7 +279,7 @@ def remove(path, **kwargs):
     return _gen_3spec(LCB_SDCMD_REMOVE, path, **kwargs)
 
 
-def get_count(path, **kwargs):
+def get_count(path: str, **kwargs) -> Spec:
     """
     Return the number of items in an dictionary or array
     :param path: Path to the dictionary or array to count

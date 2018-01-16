@@ -29,5 +29,4 @@ class TxSearchTests(gen_base(ViewTestCase)):
 
     def test(self):
         cb = self.make_connection()
-        print
         self.assertTrue(True)

@@ -19,10 +19,12 @@ import couchbase.exceptions as E
 import couchbase._libcouchbase as C
 from couchbase import _to_json
 
+from couchbase.bucket import Bucket
+from typing import Dict, Iterator, List, Optional, Union
 N1QL_PRIMARY_INDEX = '#primary'
 
 
-def _genprop(dictkey):
+def _genprop(dictkey: str) -> property:
     def fget(self):
         return self.raw.get(dictkey, None)
 
@@ -39,7 +41,7 @@ def _genprop(dictkey):
 
 
 class N1qlIndex(object):
-    def __init__(self, raw=None):
+    def __init__(self, raw: Optional[Union[Dict[str, str], N1qlIndex, Dict[str, Union[str, bool]], Dict[str, Union[str, List[str]]]]] = None) -> None:
         if not raw:
             self.raw = {}
             return
@@ -48,12 +50,12 @@ class N1qlIndex(object):
             raw = raw.raw
         self.raw = raw.copy()
 
-    name = _genprop('name')  # type: str
-    primary = _genprop('is_primary')  # type: bool
-    keyspace = _genprop('keyspace_id')  # type: str
-    state = _genprop('state')  # type: str
-    condition = _genprop('condition')  # type: str
-    fields = _genprop('index_key')  # type: list[str]
+    name: str = _genprop('name')
+    primary: bool = _genprop('is_primary')
+    keyspace: str = _genprop('keyspace_id')
+    state: str = _genprop('state')
+    condition: str = _genprop('condition')
+    fields: list[str] = _genprop('index_key')
 
     def __repr__(self):
         return ('Index<name={0.name}, primary={0.primary}, raw={0.raw!r}>'
@@ -63,7 +65,7 @@ class N1qlIndex(object):
         return self.name
 
     @classmethod
-    def from_any(cls, obj, bucket):
+    def from_any(cls, obj: Union[str, N1qlIndex], bucket: str) -> N1qlIndex:
         """
         Ensure the current object is an index. Always returns a new object
         :param obj: string or IndexInfo object
@@ -81,7 +83,7 @@ class N1qlIndex(object):
         })
 
 
-def index_to_rawjson(ix):
+def index_to_rawjson(ix: N1qlIndex) -> str:
     """
     :param ix: dict or IndexInfo object
     :return: serialized JSON
@@ -96,7 +98,7 @@ class IxmgmtRequest(object):
     This class has similar functionality as N1QLRequest and View. It
     implements iteration over index management results.
     """
-    def __init__(self, parent, cmd, index, **kwargs):
+    def __init__(self, parent: Bucket, cmd: str, index: Union[List[N1qlIndex], N1qlIndex], **kwargs) -> None:
         """
         :param Bucket parent: parent Bucket object
         :param str cmd: Type of command to execute. Can be `watch`, `drop`,
@@ -120,7 +122,7 @@ class IxmgmtRequest(object):
             self._options['flags'] = (
                 self._options.setdefault('flags', 0) | C.LCB_N1XSPEC_F_DEFER)
 
-    def _start(self):
+    def _start(self) -> None:
         if self._mres:
             return
 
@@ -133,14 +135,14 @@ class IxmgmtRequest(object):
 
         self.__raw = self._mres[None]
 
-    def _process_payload(self, rows):
+    def _process_payload(self, rows: Union[List[Union[Dict[str, Union[str, bool]], Dict[str, Union[str, List[str]]]]], List[Dict[str, Union[str, List[str]]]], List[Dict[str, Union[str, bool]]]]) -> Union[List[Union[Dict[str, Union[str, bool]], Dict[str, Union[str, List[str]]]]], List[Dict[str, Union[str, List[str]]]], List[Dict[str, Union[str, bool]]]]:
         return rows if rows else []
 
     @property
     def raw(self):
         return self.__raw
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[N1qlIndex]:
         self._start()
         while not self.raw.done:
             try:
@@ -156,5 +158,5 @@ class IxmgmtRequest(object):
             for row in self._process_payload(raw_rows):
                 yield N1qlIndex(row)
 
-    def execute(self):
+    def execute(self) -> List[N1qlIndex]:
         return [x for x in self]

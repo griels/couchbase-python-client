@@ -17,6 +17,7 @@
 from __future__ import print_function
 import copy
 
+from typing import Dict, List, Optional
 try:
     from urlparse import urlparse, parse_qs
     from urllib import urlencode
@@ -42,8 +43,8 @@ class ConnectionString(object):
     form of the connection string.
     """
 
-    def __init__(self, bucket='default',
-                 hosts=None, options=None, scheme='couchbase'):
+    def __init__(self, bucket: str = 'default',
+                 hosts: Optional[List[str]] = None, options: Optional[Dict[str, List[str]]] = None, scheme: str = 'couchbase') -> None:
         """
         Create a new ConnectionString object.
 
@@ -73,7 +74,7 @@ class ConnectionString(object):
         self.scheme = scheme
 
     @classmethod
-    def parse(cls, ss):
+    def parse(cls, ss: str) -> ConnectionString:
         """
         Parses an existing connection string
 
@@ -117,13 +118,13 @@ class ConnectionString(object):
         except KeyError:
             return default
 
-    def set_option(self, optname, value):
+    def set_option(self, optname: str, value: str) -> None:
         self.options[optname] = [value]
 
-    def clear_option(self, optname):
+    def clear_option(self, optname: str) -> None:
         self.options.pop(optname, None)
 
-    def encode(self):
+    def encode(self) -> str:
         """
         Encodes the current state of the object into a string.
 
@@ -142,7 +143,7 @@ class ConnectionString(object):
 
         return ss
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.encode()
 
 
