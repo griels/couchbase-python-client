@@ -34,12 +34,25 @@ from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
 import json
+# from typing import Any
+# from typing import Optional
+#from couchbase.items import Item
+# from typing import Union
+# from typing import List
+# from typing import Tuple
+# from typing import Dict
+#from couchbase.subdocument import Spec
+# from typing import Text
+#from couchbase.items import ItemSequence
+#from couchbase.items import ItemOptionDict
+#from gcouchbase.bucket import GView
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
 
 
 def _depr(fn, usage, stacklevel=3):
+    # type: (str, str, int) -> None
     """Internal convenience function for deprecation warnings"""
     warn('{0} is deprecated. Use {1} instead'.format(fn, usage),
          stacklevel=stacklevel, category=DeprecationWarning)
@@ -47,6 +60,7 @@ def _depr(fn, usage, stacklevel=3):
 
 class Pipeline(object):
     def __init__(self, parent):
+        # type: (Bucket) -> None
         """
         .. versionadded:: 1.2.0
 
@@ -57,14 +71,17 @@ class Pipeline(object):
         self._results = None
 
     def __enter__(self):
+        # type: () -> None
         self._parent._pipeline_begin()
 
     def __exit__(self, *args):
+        # type: (*Any) -> Optional[bool]
         self._results = self._parent._pipeline_end()
         return False
 
     @property
     def results(self):
+        # type: () -> Union[List[MultiResult], List[OperationResult], List[Union[OperationResult, ValueResult]]]
         """
         Contains a list of results for each pipelined operation
         executed within the context. The list remains until this
@@ -104,6 +121,7 @@ def _dsop(create_type=None, wrap_missing_path=True):
     def real_decorator(fn):
         @functools.wraps(fn)
         def newfn(self, key, *args, **kwargs):
+            # type: (Any, str, *Any, **Any) -> Union[None, Item, int]
             try:
                 return fn(self, key, *args, **kwargs)
             except E.NotFoundError:
@@ -126,6 +144,7 @@ def _dsop(create_type=None, wrap_missing_path=True):
 
 class Bucket(_Base):
     def __init__(self, *args, **kwargs):
+        # type: (*str, **Any) -> None
         """Connect to a bucket.
 
         :param string connection_string:
@@ -255,12 +274,14 @@ class Bucket(_Base):
                 raise
 
     def _do_ctor_connect(self):
+        # type: () -> None
         """This should be overidden by subclasses which want to use a
         different sort of connection behavior
         """
         self._connect()
 
     def pipeline(self):
+        # type: () -> Pipeline
         """
         Returns a new :class:`Pipeline` context manager. When the
         context manager is active, operations performed will return
@@ -318,8 +339,16 @@ class Bucket(_Base):
     # We have these wrappers so that IDEs can do param tooltips and the
     # like. we might move this directly into C some day
 
-    def upsert(self, key, value, cas=0, ttl=0, format=None,
-               persist_to=0, replicate_to=0):
+    def upsert(self,
+               key,  # type: Union[Tuple[str, ], str]
+               value,  # type: Union[Tuple[str, ], str]
+               cas=0,  # type: int
+               ttl=0,  # type: Union[int, object, str]
+               format=None,  # type: Optional[int]
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> Optional[OperationResult]
         """Unconditionally store the object in Couchbase.
 
         :param key:
@@ -396,7 +425,15 @@ class Bucket(_Base):
                             format=format, persist_to=persist_to,
                             replicate_to=replicate_to)
 
-    def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
+    def insert(self,
+               key,  # type: str
+               value,  # type: Union[Dict, List, str]
+               ttl=0,  # type: int
+               format=None,  # type: Optional[int]
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> Union[AsyncResult, None, OperationResult]
         """Store an object in Couchbase unless it already exists.
 
         Follows the same conventions as :meth:`upsert` but the value is
@@ -414,8 +451,16 @@ class Bucket(_Base):
         return _Base.insert(self, key, value, ttl=ttl, format=format,
                             persist_to=persist_to, replicate_to=replicate_to)
 
-    def replace(self, key, value, cas=0, ttl=0, format=None,
-                persist_to=0, replicate_to=0):
+    def replace(self,
+                key,  # type: str
+                value,  # type: str
+                cas=0,  # type: int
+                ttl=0,  # type: int
+                format=None,  # type: None
+                persist_to=0,  # type: int
+                replicate_to=0  # type: int
+                ):
+        # type: (...) -> Union[AsyncResult, None, OperationResult]
         """Store an object in Couchbase only if it already exists.
 
         Follows the same conventions as :meth:`upsert`, but the value is
@@ -428,8 +473,15 @@ class Bucket(_Base):
         return _Base.replace(self, key, value, ttl=ttl, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def append(self, key, value, cas=0, format=None,
-               persist_to=0, replicate_to=0):
+    def append(self,
+               key,  # type: str
+               value,  # type: Any
+               cas=0,  # type: int
+               format=None,  # type: Optional[int]
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> Optional[OperationResult]
         """Append a string to an existing value in Couchbase.
 
         :param string value: The data to append to the existing value.
@@ -459,8 +511,15 @@ class Bucket(_Base):
         return _Base.append(self, key, value, cas=cas, format=format,
                             persist_to=persist_to, replicate_to=replicate_to)
 
-    def prepend(self, key, value, cas=0, format=None,
-                persist_to=0, replicate_to=0):
+    def prepend(self,
+                key,  # type: str
+                value,  # type: str
+                cas=0,  # type: int
+                format=None,  # type: Optional[int]
+                persist_to=0,  # type: int
+                replicate_to=0  # type: int
+                ):
+        # type: (...) -> Union[AsyncResult, None, OperationResult]
         """Prepend a string to an existing value in Couchbase.
 
         .. seealso:: :meth:`append`, :meth:`prepend_multi`
@@ -468,7 +527,14 @@ class Bucket(_Base):
         return _Base.prepend(self, key, value, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
+    def get(self,
+            key,  # type: Any
+            ttl=0,  # type: Union[int, object, str]
+            quiet=None,  # type: None
+            replica=False,  # type: bool
+            no_format=False  # type: bool
+            ):
+        # type: (...) -> Optional[Any]
         """Obtain an object stored in Couchbase by given key.
 
         :param string key: The key to fetch. The type of key is the same
@@ -541,6 +607,7 @@ class Bucket(_Base):
                          replica=replica, no_format=no_format)
 
     def touch(self, key, ttl=0):
+        # type: (str, Any) -> Union[AsyncResult, None, OperationResult]
         """Update a key's expiration time
 
         :param string key: The key whose expiration time should be
@@ -567,6 +634,7 @@ class Bucket(_Base):
         return _Base.touch(self, key, ttl=ttl)
 
     def lock(self, key, ttl=0):
+        # type: (str, Any) -> Union[AsyncResult, None, ValueResult]
         """Lock and retrieve a key-value entry in Couchbase.
 
         :param key: A string which is the key to lock.
@@ -636,6 +704,7 @@ class Bucket(_Base):
         return _Base.lock(self, key, ttl=ttl)
 
     def unlock(self, key, cas):
+        # type: (str, int) -> Union[AsyncResult, None, OperationResult]
         """Unlock a Locked Key in Couchbase.
 
         This unlocks an item previously locked by :meth:`lock`
@@ -654,7 +723,14 @@ class Bucket(_Base):
         """
         return _Base.unlock(self, key, cas=cas)
 
-    def remove(self, key, cas=0, quiet=None, persist_to=0, replicate_to=0):
+    def remove(self,
+               key,  # type: Any
+               cas=0,  # type: int
+               quiet=None,  # type: Optional[bool]
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> Optional[OperationResult]
         """Remove the key-value entry for a given key in Couchbase.
 
         :param key: A string which is the key to remove. The format and
@@ -714,6 +790,7 @@ class Bucket(_Base):
                             persist_to=persist_to, replicate_to=replicate_to)
 
     def counter(self, key, delta=1, initial=None, ttl=0):
+        # type: (Any, int, None, Union[int, object, str]) -> Optional[Any]
         """Increment or decrement the numeric value of an item.
 
         This method instructs the server to treat the item stored under
@@ -773,6 +850,7 @@ class Bucket(_Base):
         return _Base.counter(self, key, delta=delta, initial=initial, ttl=ttl)
 
     def mutate_in(self, key, *specs, **kwargs):
+        # type: (str, *Spec, **Any) -> Union[AsyncResult, None, SubdocResult]
         """Perform multiple atomic modifications within a document.
 
         :param key: The key of the document to modify
@@ -816,7 +894,12 @@ class Bucket(_Base):
         kwargs['_sd_doc_flags'] = sdflags
         return super(Bucket, self).mutate_in(key, specs, **kwargs)
 
-    def lookup_in(self, key, *specs, **kwargs):
+    def lookup_in(self,
+                  key,  # type: Union[Spec, str]
+                  *specs,  # type: Spec
+                  **kwargs  # type: Any
+                  ):
+        # type: (...) -> Union[AsyncResult, None, SubdocResult]
         """Atomically retrieve one or more paths from a document.
 
         :param key: The key of the document to lookup
@@ -842,6 +925,7 @@ class Bucket(_Base):
         return super(Bucket, self).lookup_in({key: specs}, **kwargs)
 
     def retrieve_in(self, key, *paths, **kwargs):
+        # type: (str, *str, **Any) -> Optional[SubdocResult]
         """Atomically fetch one or more paths from a document.
 
         Convenience method for retrieval operations. This functions
@@ -884,7 +968,11 @@ class Bucket(_Base):
         _depr('decr_multi', 'counter_multi')
         return self.counter_multi(keys, delta=-amount, **kwargs)
 
-    def stats(self, keys=None, keystats=False):
+    def stats(self,
+              keys=None,  # type: Union[List[str], None, str]
+              keystats=False  # type: bool
+              ):
+        # type: (...) -> Union[AsyncResult, MultiResult, None]
         """Request server statistics.
 
         Fetches stats from each node in the cluster. Without a key
@@ -914,6 +1002,7 @@ class Bucket(_Base):
         return self._stats(keys, keystats=keystats)
 
     def ping(self):
+        # type: () -> Optional[Dict[str, List[Dict[str, Any]]]]
         """Ping cluster for latency/status information per-service
 
         Pings each node in the cluster, and
@@ -934,6 +1023,7 @@ class Bucket(_Base):
         return resultdict['services_struct']
 
     def diagnostics(self):
+        # type: () -> Dict[Text, Any]
         """Request diagnostics report about network connections
 
         Generates diagnostics for each node in the cluster.
@@ -964,6 +1054,7 @@ class Bucket(_Base):
         return json.loads(self._diagnostics()['health_json'])
 
     def observe(self, key, master_only=False):
+        # type: (str, bool) -> Union[AsyncResult, None, ValueResult]
         """Return storage information for a key.
 
         It returns a :class:`.ValueResult` object with the ``value``
@@ -1096,6 +1187,7 @@ class Bucket(_Base):
         return DurabilityContext(self, persist_to, replicate_to, timeout)
 
     def upsert_multi(self, keys, ttl=0, format=None, persist_to=0, replicate_to=0):
+        # type: (Any, int, Optional[int], int, int) -> Optional[MultiResult]
         """
         Write multiple items to the cluster. Multi version of :meth:`upsert`
 
@@ -1145,8 +1237,14 @@ class Bucket(_Base):
                                   persist_to=persist_to,
                                   replicate_to=replicate_to)
 
-    def replace_multi(self, keys, ttl=0, format=None,
-                      persist_to=0, replicate_to=0):
+    def replace_multi(self,
+                      keys,  # type: ItemSequence
+                      ttl=0,  # type: int
+                      format=None,  # type: None
+                      persist_to=0,  # type: int
+                      replicate_to=0  # type: int
+                      ):
+        # type: (...) -> Union[AsyncResult, MultiResult]
         """Replace multiple keys. Multi variant of :meth:`replace`
 
         .. seealso:: :meth:`replace`, :meth:`upsert_multi`, :meth:`upsert`
@@ -1155,7 +1253,13 @@ class Bucket(_Base):
                                    persist_to=persist_to,
                                    replicate_to=replicate_to)
 
-    def append_multi(self, keys, format=None, persist_to=0, replicate_to=0):
+    def append_multi(self,
+                     keys,  # type: Union[Dict[str, str], ItemOptionDict, ItemSequence]
+                     format=None,  # type: Optional[int]
+                     persist_to=0,  # type: int
+                     replicate_to=0  # type: int
+                     ):
+        # type: (...) -> Union[AsyncResult, MultiResult, None]
         """Append to multiple keys. Multi variant of :meth:`append`.
 
         .. warning::
@@ -1171,7 +1275,13 @@ class Bucket(_Base):
                                   persist_to=persist_to,
                                   replicate_to=replicate_to)
 
-    def prepend_multi(self, keys, format=None, persist_to=0, replicate_to=0):
+    def prepend_multi(self,
+                      keys,  # type: Union[Dict[str, str], ItemOptionDict]
+                      format=None,  # type: Optional[int]
+                      persist_to=0,  # type: int
+                      replicate_to=0  # type: int
+                      ):
+        # type: (...) -> Union[AsyncResult, MultiResult]
         """Prepend to multiple keys. Multi variant of :meth:`prepend`
 
         .. seealso:: :meth:`prepend`, :meth:`upsert_multi`, :meth:`upsert`
@@ -1181,6 +1291,7 @@ class Bucket(_Base):
                                    replicate_to=replicate_to)
 
     def get_multi(self, keys, ttl=0, quiet=None, replica=False, no_format=False):
+        # type: (Any, int, None, bool, bool) -> Optional[Any]
         """Get multiple keys. Multi variant of :meth:`get`
 
         :param keys: keys the keys to fetch
@@ -1197,7 +1308,11 @@ class Bucket(_Base):
         return _Base.get_multi(self, keys, ttl=ttl, quiet=quiet,
                                replica=replica, no_format=no_format)
 
-    def touch_multi(self, keys, ttl=0):
+    def touch_multi(self,
+                    keys,  # type: Union[Dict[str, int], List[str]]
+                    ttl=0  # type: int
+                    ):
+        # type: (...) -> Union[AsyncResult, MultiResult]
         """Touch multiple keys. Multi variant of :meth:`touch`
 
         :param keys: the keys to touch
@@ -1221,7 +1336,11 @@ class Bucket(_Base):
         """
         return _Base.touch_multi(self, keys, ttl=ttl)
 
-    def lock_multi(self, keys, ttl=0):
+    def lock_multi(self,
+                   keys,  # type: Union[List[str], Tuple[str, str], str]
+                   ttl=0  # type: Any
+                   ):
+        # type: (...) -> Union[AsyncResult, MultiResult, None]
         """Lock multiple keys. Multi variant of :meth:`lock`
 
         :param keys: the keys to lock
@@ -1235,6 +1354,7 @@ class Bucket(_Base):
         return _Base.lock_multi(self, keys, ttl=ttl)
 
     def unlock_multi(self, keys):
+        # type: (Any) -> Union[AsyncResult, MultiResult, None]
         """Unlock multiple keys. Multi variant of :meth:`unlock`
 
         :param dict keys: the keys to unlock
@@ -1256,7 +1376,11 @@ class Bucket(_Base):
         """
         return _Base.unlock_multi(self, keys)
 
-    def observe_multi(self, keys, master_only=False):
+    def observe_multi(self,
+                      keys,  # type: Union[Tuple[str, str], str]
+                      master_only=False  # type: bool
+                      ):
+        # type: (...) -> Union[AsyncResult, MultiResult, None]
         """Multi-variant of :meth:`observe`"""
         return _Base.observe_multi(self, keys, master_only=master_only)
 
@@ -1283,6 +1407,7 @@ class Bucket(_Base):
                                   check_removed=check_removed)
 
     def remove_multi(self, kvs, quiet=None):
+        # type: (Any, Optional[bool]) -> Optional[MultiResult]
         """Remove multiple items from the cluster
 
         :param kvs: Iterable of keys to delete from the cluster. If you wish
@@ -1296,6 +1421,7 @@ class Bucket(_Base):
         return _Base.remove_multi(self, kvs, quiet=quiet)
 
     def counter_multi(self, kvs, initial=None, delta=1, ttl=0):
+        # type: (Any, None, int, Any) -> Optional[Any]
         """Perform counter operations on multiple items
 
         :param kvs: Keys to operate on. See below for more options
@@ -1374,11 +1500,15 @@ class Bucket(_Base):
         else:
             return _Base._rget_multi(self, keys, quiet=quiet)
 
-    def _view(self, ddoc, view,
-              use_devmode=False,
-              params=None,
-              unrecognized_ok=False,
-              passthrough=False):
+    def _view(self,
+              ddoc,  # type: str
+              view,  # type: str
+              use_devmode=False,  # type: bool
+              params=None,  # type: Any
+              unrecognized_ok=False,  # type: bool
+              passthrough=False  # type: bool
+              ):
+        # type: (...) -> Optional[HttpResult]
         """Internal method to Execute a view (MapReduce) query
 
         :param string ddoc: Name of the design document
@@ -1408,11 +1538,13 @@ class Bucket(_Base):
 
     @staticmethod
     def _mk_devmode(n, use_devmode):
+        # type: (str, bool) -> str
         if n.startswith('dev_') or not use_devmode:
             return n
         return 'dev_' + n
 
     def bucket_manager(self):
+        # type: () -> BucketManager
         """
         Returns a :class:`~.BucketManager` object which may be used to
         perform management operations on the current bucket. These
@@ -1422,6 +1554,7 @@ class Bucket(_Base):
         return BucketManager(self)
 
     def query(self, design, view, use_devmode=False, **kwargs):
+        # type: (str, Text, bool, **Any) -> Union[None, View, GView]
         """
         Query a pre-defined MapReduce view, passing parameters.
 
@@ -1466,6 +1599,7 @@ class Bucket(_Base):
         return itercls(self, design, view, **kwargs)
 
     def n1ql_query(self, query, *args, **kwargs):
+        # type: (str, *Any, **Any) -> N1QLRequest
         """
         Execute a N1QL query.
 
@@ -1539,13 +1673,18 @@ class Bucket(_Base):
         return itercls(body, self, **iterargs)
 
     def __repr__(self):
+        # type: () -> str
         return ('<{modname}.{cls} bucket={bucket}, nodes={nodes} at 0x{oid:x}>'
                 ).format(modname=__name__, cls=self.__class__.__name__,
                          nodes=self.server_nodes, bucket=self.bucket,
                          oid=id(self))
 
     # "items" interface
-    def append_items(self, items, **kwargs):
+    def append_items(self,
+                     items,  # type: Union[ItemOptionDict, ItemSequence]
+                     **kwargs  # type: Any
+                     ):
+        # type: (...) -> Union[AsyncResult, MultiResult, None]
         """
         Method to append data to multiple :class:`~.Item` objects.
 
@@ -1573,6 +1712,7 @@ class Bucket(_Base):
         return rv
 
     def prepend_items(self, items, **kwargs):
+        # type: (ItemOptionDict, **Any) -> Union[AsyncResult, MultiResult]
         """Method to prepend data to multiple :class:`~.Item` objects.
         .. seealso:: :meth:`append_items`
         """
@@ -1585,13 +1725,16 @@ class Bucket(_Base):
 
     @property
     def closed(self):
+        # type: () -> int
         """Returns True if the object has been closed with :meth:`_close`"""
         return self._privflags & _LCB.PYCBC_CONN_F_CLOSED
 
     def _get_timeout_common(self, op):
+        # type: (int) -> float
         return self._cntl(op, value_type='timeout')
 
     def _set_timeout_common(self, op, value):
+        # type: (int, Union[None, float, str]) -> None
         value = float(value)
         if value <= 0:
             raise ValueError('Timeout must be greater than 0')
@@ -1600,6 +1743,7 @@ class Bucket(_Base):
 
     @property
     def timeout(self):
+        # type: () -> float
         """
         The timeout for key-value operations, in fractions of a second.
         This timeout affects the :meth:`get` and :meth:`upsert` family
@@ -1616,6 +1760,7 @@ class Bucket(_Base):
 
     @timeout.setter
     def timeout(self, value):
+        # type: (Union[None, float, str]) -> None
         self._set_timeout_common(_LCB.LCB_CNTL_OP_TIMEOUT, value)
 
     @property
@@ -1678,6 +1823,7 @@ class Bucket(_Base):
 
             def mkmeth(oldname, newname, _dst):
                 def _tmpmeth(self, *args, **kwargs):
+                    # type: (Any, *Any, **Any) -> Optional[Any]
                     _depr(oldname, newname)
                     return _dst(self, *args, **kwargs)
                 return _tmpmeth
@@ -1721,6 +1867,7 @@ class Bucket(_Base):
         return d
 
     def _cntl(self, *args, **kwargs):
+        # type: (*Any, **Any) -> Union[None, Text, float]
         """Low-level interface to the underlying C library's settings. via
         ``lcb_cntl()``.
 
@@ -1770,6 +1917,7 @@ class Bucket(_Base):
         return _Base._cntl(self, *args, **kwargs)
 
     def _cntlstr(self, key, value):
+        # type: (str, str) -> Optional[Any]
         """
         Low-level interface to the underlying C library's settings.
         via ``lcb_cntl_string()``.
@@ -1792,6 +1940,7 @@ class Bucket(_Base):
 
     @staticmethod
     def lcb_version():
+        # type: () -> Tuple[str, int]
         return _LCB.lcb_version()
 
     def design_get(self, *args, **kwargs):
@@ -1838,11 +1987,13 @@ class Bucket(_Base):
                                   path=path, method=_LCB.LCB_HTTP_METHOD_POST)
 
     def add_bucket_creds(self, bucket, password):
+        # type: (str, Text) -> Optional[Any]
         if not bucket or not password:
             raise ValueError('Bucket and password must be nonempty')
         return _Base._add_creds(self, bucket, password)
 
     def _wrap_dsop(self, sdres, has_value=False):
+        # type: (SubdocResult, bool) -> Item
         from couchbase.items import Item
         it = Item(sdres.key)
         it.cas = sdres.cas
@@ -1852,6 +2003,7 @@ class Bucket(_Base):
 
     @_dsop(create_type=dict)
     def map_add(self, key, mapkey, value, create=False, **kwargs):
+        # type: (str, str, str, bool, **Any) -> Optional[Item]
         """
         Set a value for a key in a map.
 
@@ -1888,6 +2040,7 @@ class Bucket(_Base):
 
     @_dsop()
     def map_get(self, key, mapkey):
+        # type: (str, str) -> Optional[Item]
         """
         Retrieve a value from a map.
 
@@ -1905,6 +2058,7 @@ class Bucket(_Base):
 
     @_dsop()
     def map_remove(self, key, mapkey, **kwargs):
+        # type: (str, str, **Any) -> Optional[Item]
         """
         Remove an item from a map.
 
@@ -1926,6 +2080,7 @@ class Bucket(_Base):
 
     @_dsop()
     def map_size(self, key):
+        # type: (str) -> int
         """
         Get the number of items in the map.
 
@@ -1944,6 +2099,7 @@ class Bucket(_Base):
 
     @_dsop(create_type=list)
     def list_append(self, key, value, create=False, **kwargs):
+        # type: (str, str, bool, **Any) -> Optional[Item]
         """
         Add an item to the end of a list.
 
@@ -1969,6 +2125,7 @@ class Bucket(_Base):
 
     @_dsop(create_type=list)
     def list_prepend(self, key, value, create=False, **kwargs):
+        # type: (str, Union[int, str], bool, **Any) -> Optional[Item]
         """
         Add an item to the beginning of a list.
 
@@ -1992,6 +2149,7 @@ class Bucket(_Base):
 
     @_dsop()
     def list_set(self, key, index, value, **kwargs):
+        # type: (str, int, str, **Any) -> Item
         """
         Sets an item within a list at a given position.
 
@@ -2017,6 +2175,7 @@ class Bucket(_Base):
 
     @_dsop(create_type=list)
     def set_add(self, key, value, create=False, **kwargs):
+        # type: (str, int, bool, **Any) -> Optional[Item]
         """
         Add an item to a set if the item does not yet exist.
 
@@ -2039,6 +2198,7 @@ class Bucket(_Base):
 
     @_dsop()
     def set_remove(self, key, value, **kwargs):
+        # type: (str, int, **Any) -> Optional[Item]
         """
         Remove an item from a set.
 
@@ -2063,6 +2223,7 @@ class Bucket(_Base):
                 return
 
     def set_size(self, key):
+        # type: (str) -> int
         """
         Get the length of a set.
 
@@ -2074,6 +2235,7 @@ class Bucket(_Base):
         return self.list_size(key)
 
     def set_contains(self, key, value):
+        # type: (str, int) -> bool
         """
         Determine if an item exists in a set
         :param key: The document ID of the set
@@ -2086,6 +2248,7 @@ class Bucket(_Base):
 
     @_dsop()
     def list_get(self, key, index):
+        # type: (str, int) -> Optional[Item]
         """
         Get a specific element within a list.
 
@@ -2099,6 +2262,7 @@ class Bucket(_Base):
 
     @_dsop()
     def list_remove(self, key, index, **kwargs):
+        # type: (str, int, **Any) -> Item
         """
         Remove the element at a specific index from a list.
 
@@ -2113,6 +2277,7 @@ class Bucket(_Base):
 
     @_dsop()
     def list_size(self, key):
+        # type: (str) -> int
         """
         Retrieve the number of elements in the list.
 
@@ -2124,6 +2289,7 @@ class Bucket(_Base):
 
     @_dsop(create_type=list)
     def queue_push(self, key, value, create=False, **kwargs):
+        # type: (str, int, bool, **Any) -> Optional[Item]
         """
         Add an item to the end of a queue.
 
@@ -2147,6 +2313,7 @@ class Bucket(_Base):
 
     @_dsop()
     def queue_pop(self, key, **kwargs):
+        # type: (str, **Any) -> Optional[Item]
         """
         Remove and return the first item queue.
 

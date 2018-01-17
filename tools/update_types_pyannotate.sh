@@ -5,5 +5,5 @@ cat annotations_generated.txt | perl -pe 's|\(generated(.*?)\)||' > annotations.
 subl annotations.txt
 #sed -i.annotations.bak -E 's/\(generated(.*)?\)//' annotations.txt 
 #rm annotations.bak
-pyannotate --type-info annotations.txt couchbase
+pyannotate -w --type-info annotations.txt couchbase
 #find couchbase -name '*.py' | xargs -I% pyannotate --type-info annotations.txt %
