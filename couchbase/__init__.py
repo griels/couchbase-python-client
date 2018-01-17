@@ -15,6 +15,10 @@
 # limitations under the License.
 #
 import warnings
+from typing import Callable
+from typing import Tuple
+from typing import Any
+from typing import Dict
 
 # Pythons > (2.7||3.2) silence deprecation warnings by default.
 # Many folks are not happy about this, as it avoids letting them
@@ -36,6 +40,7 @@ except ImportError:
 
 
 def set_json_converters(encode, decode):
+    # type: (Callable, Callable) -> Tuple[Callable, Callable]
     """
     Modify the default JSON conversion functions. This affects all
     :class:`~couchbase.bucket.Bucket` instances.
@@ -64,6 +69,7 @@ def set_json_converters(encode, decode):
 
 
 def set_pickle_converters(encode, decode):
+    # type: (Callable, Callable) -> Tuple[Callable, Callable]
     """
     Modify the default Pickle conversion functions. This affects all
     :class:`~couchbase.bucket.Bucket` instances.
@@ -91,6 +97,7 @@ def set_pickle_converters(encode, decode):
 
 
 def _to_json(*args):
+    # type: (*Dict[str, Any]) -> str
     """
     Utility function to encode an object to json using the user-defined
     JSON encoder (see :meth:`set_json_converters`).
@@ -113,6 +120,7 @@ def _from_json(*args):
 
 
 def enable_logging():
+    # type: () -> None
     """
     Enables integration with Python's `logging` module.
 
@@ -131,6 +139,7 @@ def enable_logging():
 
 
 def disable_logging():
+    # type: () -> None
     import couchbase._logutil
     couchbase._logutil.configure(False)
 
