@@ -147,7 +147,6 @@ add_executable(couchbase_python_client_2_3_1
         couchbase/tests/cases/flush_t.py
         couchbase/tests/cases/format_t.py
         couchbase/tests/cases/get_t.py
-        couchbase/tests/cases/health_t.py
         couchbase/tests/cases/iops_t.py
         couchbase/tests/cases/itertypes_t.py
         couchbase/tests/cases/itmops_t.py
@@ -272,5 +271,6 @@ add_executable(couchbase_python_client_2_3_1
         txcouchbase/connection.py
         txcouchbase/iops.py
         couchbase_version.py
-        setup.py)
+        setup.py
+        )
 
