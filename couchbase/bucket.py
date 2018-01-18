@@ -468,6 +468,8 @@ class Bucket(_Base):
         return _Base.prepend(self, key, value, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
+    from opentracing_instrumentation import traced_function
+    @traced_function
     def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
         """Obtain an object stored in Couchbase by given key.
 
