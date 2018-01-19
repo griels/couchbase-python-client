@@ -18,6 +18,7 @@
 import pickle
 from time import sleep
 
+from basictracer import BasicTracer
 from nose.plugins.attrib import attr
 
 from couchbase import FMT_JSON, FMT_PICKLE, FMT_UTF8, FMT_BYTES
@@ -26,7 +27,7 @@ from couchbase.exceptions import (
     CouchbaseError, ValueFormatError, NotFoundError)
 from couchbase.result import MultiResult, Result
 from couchbase.tests.base import ConnectionTestCase, SkipTest
-
+import couchbase
 class GetTest(ConnectionTestCase):
 
     def test_trivial_get(self):
@@ -187,6 +188,69 @@ class GetTest(ConnectionTestCase):
             self.assertFalse(v.success)
             self.assertTrue(k in kvs)
             self.assertTrue(NotFoundError._can_derive(v.rc))
+
+
+    def test_get_span(self):
+        couchbase.enable_logging()
+        tracer=couchbase.get_tracer()
+        tracer=BasicTracer()
+        import opentracing_instrumentation
+        span=opentracing_instrumentation.get_current_span()
+        span=tracer.start_span(operation_name="fred")
+        with opentracing_instrumentation.span_in_context(span) as context:
+            print("doobrey{"+str(span)+"}"+str(context))
+            try:
+                self.cb.get('fish')
+            except:
+                pass
+        sampled_spans=str(span.duration)
+        self.assertEquals("fish",sampled_spans)
+        import sys
+        sys.exit()
+
+
+    def test_jaeger(self):
+        import time
+        from jaeger_client import Config
+        import logging
+        couchbase.enable_logging()
+        log_level = logging.DEBUG
+        logging.getLogger('').handlers = []
+        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
+
+        config = Config(
+            config={ # usually read from some yaml config
+                'sampler': {
+                    'type': 'const',
+                    'param': 1,
+                },
+                'logging': True,
+            },
+            service_name='your-app-name',
+        )
+        # this call also sets opentracing.tracer
+        tracer = config.initialize_tracer()
+
+        with tracer.start_span('TestSpan') as span:
+            span.log_event('test message', payload={'life': 42})
+
+            with tracer.start_span('ChildSpan', child_of=span) as child_span:
+                span.log_event('down below')
+
+            import opentracing_instrumentation
+            #span=opentracing_instrumentation.get_current_span()
+            #span=tracer.start_span(operation_name="fred")
+            #with opentracing_instrumentation.span_in_context(span) as context:
+            #print("doobrey{"+str(span)+"}"+str(context))
+            try:
+                self.cb.get('fish')
+            except:
+                pass
+
+
+        time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+
+        tracer.close()  # flush any buffered spans
 
 if __name__ == '__main__':
     unittest.main()

@@ -143,3 +143,41 @@ class Couchbase(object):
         _depr('Couchbase.connect()', 'Bucket()')
         return Connection(bucket, **kwargs)
 
+from basictracer import BasicTracer
+from basictracer.recorder import InMemoryRecorder
+from opentracing.ext import tags
+
+
+recorder = InMemoryRecorder()
+tracer = BasicTracer(recorder=recorder)
+
+def get_tracer():
+    return tracer
+
+def get_recorder():
+    return recorder
+
+
+def get_sampled_spans():
+    return [span for span in recorder.get_spans() if span.context.sampled]
+
+
+
+
+def test_span_log_kv():
+    recorder = InMemoryRecorder()
+    tracer = BasicTracer(recorder=recorder)
+
+    span = tracer.start_span('x')
+    span.log_kv({
+        'foo': 'bar',
+        'baz': 42,
+    })
+    span.finish()
+
+    finished_spans = recorder.get_spans()
+    assert len(finished_spans) == 1
+    assert len(finished_spans[0].logs) == 1
+    assert len(finished_spans[0].logs[0].key_values) == 2
+    assert finished_spans[0].logs[0].key_values['foo'] == 'bar'
+    assert finished_spans[0].logs[0].key_values['baz'] == 42
