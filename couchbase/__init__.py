@@ -181,3 +181,37 @@ def test_span_log_kv():
     assert len(finished_spans[0].logs[0].key_values) == 2
     assert finished_spans[0].logs[0].key_values['foo'] == 'bar'
     assert finished_spans[0].logs[0].key_values['baz'] == 42
+
+
+
+from opentracing_instrumentation import traced_function
+
+import inspect
+import types
+def decorate_class(cls):
+    getmembers = inspect.getmembers(cls, inspect.isfunction)
+    if len(getmembers)==0:
+        getmembers= inspect.getmembers(cls)
+        filter(lambda k, v: k.startswith('_'), cls.__dict__.items())
+    #return class_decorator()(cls)
+    print(str(cls)+":"+str(getmembers))
+    for name, method in getmembers:
+        print(name)
+        print(str(method))
+        #if name.startswith('_'):
+        #f type(method) is type({method_descriptor}):
+            #types.MemberDescriptorType:
+        setattr(cls, name, traced_function(method))
+    return cls
+
+
+class Decorator(object):
+    def __init__(self, arg):
+        self.arg = arg
+    def __call__(self, cls):
+        class Wrapped(cls):
+            pass
+
+        decorate_class(Wrapped)
+        Wrapped.super=cls.super
+        return Wrapped

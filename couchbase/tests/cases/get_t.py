@@ -230,6 +230,10 @@ class GetTest(ConnectionTestCase):
         )
         # this call also sets opentracing.tracer
         tracer = config.initialize_tracer()
+        try:
+            self.cb.get('fish')
+        except:
+            pass
 
         with tracer.start_span('TestSpan') as span:
             span.log_event('test message', payload={'life': 42})

@@ -35,40 +35,10 @@ from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
 import json
+from couchbase import decorate_class
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
-
-from opentracing_instrumentation import traced_function
-#    @traced_function
-import inspect
-def class_decorator(*method_names):
-    def class_rebuilder(cls):
-        "The class decorator example"
-        class NewClass(cls):
-            "This is the overwritten class"
-            def __getattribute__(self, attr_name):
-                obj = super(NewClass, self).__getattribute__(attr_name)
-                if hasattr(obj, '__call__') and attr_name in method_names:
-                    return traced_function(obj)
-                return obj
-
-        return NewClass
-    return class_rebuilder
-
-def decorate_class(cls):
-    try:
-        cls()
-    except:
-        pass
-    getmembers = inspect.getmembers(cls, inspect.isfunction)
-    #return class_decorator()(cls)
-    print(str(getmembers))
-    for name, method in getmembers:
-        print(name)
-        print(str(method))
-        setattr(cls, name, traced_function(method))
-    return cls
 
 
 def _depr(fn, usage, stacklevel=3):
@@ -154,9 +124,13 @@ def _dsop(create_type=None, wrap_missing_path=True):
         return newfn
 
     return real_decorator
-
-
-@decorate_class
+try:
+    x=_Base()
+except:
+    pass
+#_Base=decorate_class(_Base)
+from couchbase import Decorator
+@Decorator
 class Bucket(_Base):
     def __init__(self, *args, **kwargs):
         """Connect to a bucket.
@@ -502,8 +476,6 @@ class Bucket(_Base):
                              persist_to=persist_to, replicate_to=replicate_to)
 
     def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
-        tracer=couchbase.get_tracer()
-        mytracer=BasicTracer()
         """Obtain an object stored in Couchbase by given key.
 
         :param string key: The key to fetch. The type of key is the same
