@@ -51,11 +51,21 @@ include_directories( ${LCB_CORE}
         ${LCB_ROOT_CONTRIB}
         )
 include(ExternalProject)
-
+set(OT_ROOT ../opentracing-cpp)
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
         SOURCE_DIR ${LCB_ROOT}
         )
+ExternalProject_Add(opentracing-cpp
+        PREFIX       ${OT_ROOT}
+        GIT_REPOSITORY          https://github.com/griels/opentracing-cpp/couchbase-c-api.git
+        GIT_BRANCH   couchbase-c-api-3
+        INSTALL_DIR  ${OT_ROOT}
+        SOURCE_DIR   ${OT_ROOT}
+        CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        )
+
 set(CMAKE_CXX_STANDARD 11)
 set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src
@@ -63,15 +73,17 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/include/libcouchbase
         ${LCB_ROOT}/src/http
         ${LCB_ROOT}/src/ssl
-
+        ${OT_ROOT}/include
         ${LCB_MCSERVER}
         ${LCB_IO}
-
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
         ${LCB_ROOT_A}
+        ${OT_ROOT}/test
+        ${OT_ROOT}/src
+
         )
 
 set(SOURCE
@@ -183,7 +195,6 @@ add_executable(couchbase_python_client_2_3_1
         couchbase/__init__.py
         couchbase/_bootstrap.py
         couchbase/_ixmgmt.py
-        couchbase/_libcouchbase.cpython-36m-darwin.so
         couchbase/_logutil.py
         couchbase/_pyport.py
         couchbase/_version.py
