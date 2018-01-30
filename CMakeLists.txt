@@ -76,12 +76,14 @@ set(EXTRA_SOURCE_DIRS
         ${OT_ROOT}/include
         ${LCB_MCSERVER}
         ${LCB_IO}
-
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
         ${LCB_ROOT_A}
+        ${OT_ROOT}/test
+        ${OT_ROOT}/src
+
         )
 
 set(SOURCE
