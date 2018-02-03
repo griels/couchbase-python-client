@@ -1,0 +1,74 @@
+'encoding':
+{
+	'schema': // optional, describes the schema in the meta language selected, defaults to schemaless JSON
+	{
+		'meta': // optional, defaults to JSONschema, describing Protobuf using Kaitai struct here
+		{
+			// using
+			// https://raw.githubusercontent.com/kaitai-io/kaitai_struct_formats/master/serialization/google_protobuf.ksy
+			// as example
+
+			'type': 'kaitai-io', // meta-meta-schema language, '.ksy' extension inherent
+			'repo': //optional, for future expansion, meta-schemas would likely have
+			        // more Couchbase-specific implementations
+				'https://raw.githubusercontent.com/kaitai-io/kaitai_struct_formats/master/',
+			'ref': 'serialization/google_protobuf',
+			'json-mapping':  // how to map JSONpath to reference a field described via the meta-schema
+				'https://github.com/google/protobuf/blob/master/src/google/protobuf/field_mask.proto'
+		}
+
+		//or a reference to the same
+
+		'meta-ref' :
+		{
+			'repo' : 'https://proto-server/',
+			'ref' : 'google_protobuf.json'
+		}
+
+		'repo': 'https://raw.githubusercontent.com/google/protobuf/master/examples' // optional
+		'ref': 'examples/addressbook.proto', // schema address
+		'root': 'Person'
+	}
+
+	// or a reference to the same
+
+	'schema-ref':  {
+		'repo': 'https://schema-server/protobuf/', // optional
+		'ref': 'addressbook_protobuf.json'
+	}
+
+
+	'overlays': // optional, array of modifications to the chosen schema
+	[
+		'fields':['name','email','phones[*]'], // array of JSONpath fields to modify
+		'modification':
+		{
+			'encrypted':
+			{
+				'key':
+				{
+					'hashicorp':
+					{
+						'URI':'http://hashicorp.server:8200/v1/secret/foo',
+						'keyname':'GDPR_key_primary'
+					}
+				}
+			} // key reference
+		}
+		'fields':['id','last_updated'], // array of JSONpath fields to modify
+		'modification':
+		{
+			'encrypted':
+			{
+				'key': // key reference
+				{
+					'hashicorp':
+					{
+						'URI':'http://hashicorp.server:8200/v1/secret/foo',
+						'keyname':'GDPR_key_identifying'
+					}
+				}
+			} 
+		}			
+	]
+}
