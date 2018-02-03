@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
 set(LCB_ROOT ../libcouchbase)
+set(JAEGER_ROOT ../jaeger-cpp-client)
 set(LCB_ROOT_SRC ${LCB_ROOT}/src)
 set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 
@@ -56,6 +57,12 @@ ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
         SOURCE_DIR ${LCB_ROOT}
         )
+
+ExternalProject_Add(jaeger-cpp-client
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${JAEGER_ROOT}
+        )
+
 set(CMAKE_CXX_STANDARD 11)
 set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src
@@ -72,6 +79,7 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
         ${LCB_ROOT_A}
+
         )
 
 set(SOURCE
@@ -95,18 +103,18 @@ link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
         )
 add_executable(couchbase_python_client_2_3_1
-        ${EXTRA_SOURCE_DIRS}
-        ${LCB_CORE}
+#        ${EXTRA_SOURCE_DIRS}
+#        ${LCB_CORE}
         ${LCB_INC}
-        ${MCD_INC}
-        ${LCB_JSON}
-        ${LCB_SSL}
-        ${LCB_ROOT}/src/ssl
-
+#        ${MCD_INC}
+#        ${LCB_JSON}
+#        ${LCB_SSL}
+#        ${LCB_ROOT}/src/ssl
+#
         ${LCB_IO}
-        ${LCB_VBUCKET}
-        ${LCB_SASL}
-        ${LCB_CLI}
+#        ${LCB_VBUCKET}
+#        ${LCB_SASL}
+#        ${LCB_CLI}
         ${LCB_ROOT_SRC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
@@ -147,7 +155,6 @@ add_executable(couchbase_python_client_2_3_1
         couchbase/tests/cases/flush_t.py
         couchbase/tests/cases/format_t.py
         couchbase/tests/cases/get_t.py
-        couchbase/tests/cases/health_t.py
         couchbase/tests/cases/iops_t.py
         couchbase/tests/cases/itertypes_t.py
         couchbase/tests/cases/itmops_t.py

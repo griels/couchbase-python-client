@@ -89,6 +89,7 @@ do_all_constants(PyObject *module,
 {
     #define ADD_MACRO(sym) handler(module, #sym, sym)
     #define ADD_CONSTANT(name, val) handler(module, name, val)
+    #define LCB_CONSTANT(postfix,...) ADD_CONSTANT(#postfix, LCB_##postfix)
 
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
@@ -175,6 +176,7 @@ do_all_constants(PyObject *module,
     ADD_MACRO(LCB_CNTL_SSL_MODE);
     ADD_MACRO(LCB_SSL_ENABLED);
     ADD_MACRO(LCB_CNTL_N1QL_TIMEOUT);
+    ADD_MACRO(LCB_CNTL_COMPRESSION_OPTS);
 
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
@@ -197,6 +199,20 @@ do_all_constants(PyObject *module,
     ADD_MACRO(LCB_BTYPE_COUCHBASE);
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
+#define __NL__
+
+    /* Compression options */
+#define LCB_FOR_EACH_COMPRESS_TYPE(X,DIV)\
+__NL__\
+    X(COMPRESS_NONE)DIV \
+    X(COMPRESS_IN)DIV \
+    X(COMPRESS_OUT)DIV \
+    X(COMPRESS_INOUT)DIV \
+    X(COMPRESS_FORCE)
+LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT,;);
+#undef LCB_FOR_EACH_COMPRESS_TYPE
+#undef LCB_CONSTANT
+
 #ifdef LCB_N1XSPEC_F_DEFER
     ADD_MACRO(LCB_N1XSPEC_F_DEFER);
 #endif
