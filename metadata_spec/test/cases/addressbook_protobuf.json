@@ -37,38 +37,45 @@
 		'ref': 'addressbook_protobuf.json'
 	}
 
+	'field-groups':
+	{
+		'primary':['name','email','phones[*]'], // array of JSONpath fields to modify
+		'identifying':['id','last_updated'], // array of JSONpath fields to modify			
+	}
 
 	'overlays': // optional, array of modifications to the chosen schema
 	[
-		'fields':['name','email','phones[*]'], // array of JSONpath fields to modify
-		'modification':
-		{
-			'encrypted':
+		'sensitive':{
+			'groups': ['primary'],
+			'encrypt': // key reference
 			{
-				'key':
+				'hashicorp':
 				{
-					'hashicorp':
-					{
-						'URI':'http://hashicorp.server:8200/v1/secret/foo',
-						'keyname':'GDPR_key_primary'
-					}
+					'URI':'http://hashicorp.server:8200/v1/secret/foo',
+					'keyname':'GDPR_key_primary'
 				}
-			} // key reference
+			}
+			'expiry':{days:'180'} // default ?
 		}
-		'fields':['id','last_updated'], // array of JSONpath fields to modify
-		'modification':
-		{
-			'encrypted':
+		'sensitive':{
+			'groups': ['identifying'],
+			'encrypt': // key reference
 			{
-				'key': // key reference
+				'hashicorp':
 				{
-					'hashicorp':
-					{
-						'URI':'http://hashicorp.server:8200/v1/secret/foo',
-						'keyname':'GDPR_key_identifying'
-					}
+					'URI':'http://hashicorp.server:8200/v1/secret/foo',
+					'keyname':'GDPR_key_identifying'
 				}
-			} 
-		}			
+			}
+			'expiry':{days:'180'} // default ?
+		}
+
 	]
+
+	// or
+
+	'overlays-ref': {
+		'repo':'https://overlay-server/',
+		'ref':'GDPR_compliance.json'
+	}
 }
