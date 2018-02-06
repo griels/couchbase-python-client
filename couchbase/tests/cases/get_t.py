@@ -56,9 +56,10 @@ class GetTest(ConnectionTestCase):
     def tearDown(self):
         super(GetTest,self).tearDown()
 
-        time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
 
-        self.tracer.close()  # flush any buffered spans
+        if self.tracer:
+            time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+            self.tracer.close()  # flush any buffered spans
 
     def test_trivial_get(self):
         key = self.gen_key('trivial_get')
@@ -234,8 +235,6 @@ class GetTest(ConnectionTestCase):
             except:
                 pass
         sampled_spans=str(span.duration)
-        import sys
-        sys.exit()
 
 
     def test_jaeger(self):
