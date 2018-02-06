@@ -199,10 +199,10 @@ def decorate_class(cls):
         getmembers= inspect.getmembers(cls)
         filter(lambda k, v: k.startswith('_'), cls.__dict__.items())
     #return class_decorator()(cls)
-    print(str(cls)+":"+str(getmembers))
+    #print(str(cls)+":"+str(getmembers))
     for name, method in getmembers:
-        print(name)
-        print(str(method))
+        #print(name)
+        #print(str(method))
     #     #if name.startswith('_'):
              #types.MemberDescriptorType:
         setattr(cls, name, traced_function(getattr(cls,name)))

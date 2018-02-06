@@ -28,7 +28,37 @@ from couchbase.exceptions import (
 from couchbase.result import MultiResult, Result
 from couchbase.tests.base import ConnectionTestCase, SkipTest
 import couchbase
+import time
+
 class GetTest(ConnectionTestCase):
+    def setUp(self):
+        super(GetTest, self).setUp()
+        from jaeger_client import Config
+        import logging
+        couchbase.enable_logging()
+        log_level = logging.DEBUG
+        logging.getLogger('').handlers = []
+        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
+
+        config = Config(
+            config={ # usually read from some yaml config
+                'sampler': {
+                    'type': 'const',
+                    'param': 1,
+                },
+                'logging': True,
+            },
+            service_name='your-app-name',
+        )
+        # this call also sets opentracing.tracer
+        self.tracer = config.initialize_tracer()
+
+    def tearDown(self):
+        super(GetTest,self).tearDown()
+
+        time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+
+        self.tracer.close()  # flush any buffered spans
 
     def test_trivial_get(self):
         key = self.gen_key('trivial_get')
@@ -204,32 +234,12 @@ class GetTest(ConnectionTestCase):
             except:
                 pass
         sampled_spans=str(span.duration)
-        self.assertEquals("fish",sampled_spans)
         import sys
         sys.exit()
 
 
     def test_jaeger(self):
-        import time
-        from jaeger_client import Config
-        import logging
-        couchbase.enable_logging()
-        log_level = logging.DEBUG
-        logging.getLogger('').handlers = []
-        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
 
-        config = Config(
-            config={ # usually read from some yaml config
-                'sampler': {
-                    'type': 'const',
-                    'param': 1,
-                },
-                'logging': True,
-            },
-            service_name='your-app-name',
-        )
-        # this call also sets opentracing.tracer
-        tracer = config.initialize_tracer()
         try:
             self.cb.get('fish')
         except:
@@ -251,10 +261,6 @@ class GetTest(ConnectionTestCase):
         #     except:
         #         pass
 
-
-        time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
-
-        tracer.close()  # flush any buffered spans
 
 if __name__ == '__main__':
     unittest.main()
