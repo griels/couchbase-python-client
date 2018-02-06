@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 from basictracer import BasicTracer
+from opentracing_instrumentation import traced_function
 from warnings import warn
 
 import couchbase._bootstrap
@@ -129,8 +130,7 @@ try:
 except:
     pass
 #_Base=decorate_class(_Base)
-from couchbase import Decorator
-@Decorator
+@decorate_class
 class Bucket(_Base):
     def __init__(self, *args, **kwargs):
         """Connect to a bucket.
@@ -474,7 +474,7 @@ class Bucket(_Base):
         """
         return _Base.prepend(self, key, value, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
-
+    #@traced_function
     def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
         """Obtain an object stored in Couchbase by given key.
 

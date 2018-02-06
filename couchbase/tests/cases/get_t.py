@@ -234,22 +234,22 @@ class GetTest(ConnectionTestCase):
             self.cb.get('fish')
         except:
             pass
-
-        with tracer.start_span('TestSpan') as span:
-            span.log_event('test message', payload={'life': 42})
-
-            with tracer.start_span('ChildSpan', child_of=span) as child_span:
-                span.log_event('down below')
-
-            import opentracing_instrumentation
-            #span=opentracing_instrumentation.get_current_span()
-            #span=tracer.start_span(operation_name="fred")
-            #with opentracing_instrumentation.span_in_context(span) as context:
-            #print("doobrey{"+str(span)+"}"+str(context))
-            try:
-                self.cb.get('fish')
-            except:
-                pass
+        #
+        # with tracer.start_span('TestSpan') as span:
+        #     span.log_event('test message', payload={'life': 42})
+        #
+        #     with tracer.start_span('ChildSpan', child_of=span) as child_span:
+        #         span.log_event('down below')
+        #
+        #     import opentracing_instrumentation
+        #     #span=opentracing_instrumentation.get_current_span()
+        #     #span=tracer.start_span(operation_name="fred")
+        #     #with opentracing_instrumentation.span_in_context(span) as context:
+        #     #print("doobrey{"+str(span)+"}"+str(context))
+        #     try:
+        #         self.cb.get('fish')
+        #     except:
+        #         pass
 
 
         time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50

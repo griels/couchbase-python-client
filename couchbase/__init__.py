@@ -188,6 +188,11 @@ from opentracing_instrumentation import traced_function
 
 import inspect
 import types
+def fiddle(orig):
+    def fiddler(*args,**kwargs):
+        return orig(*args,**kwargs)
+    return fiddler
+
 def decorate_class(cls):
     getmembers = inspect.getmembers(cls, inspect.isfunction)
     if len(getmembers)==0:
@@ -198,20 +203,11 @@ def decorate_class(cls):
     for name, method in getmembers:
         print(name)
         print(str(method))
-        #if name.startswith('_'):
-        #f type(method) is type({method_descriptor}):
-            #types.MemberDescriptorType:
-        setattr(cls, name, traced_function(method))
+    #     #if name.startswith('_'):
+             #types.MemberDescriptorType:
+        setattr(cls, name, traced_function(getattr(cls,name)))
+    #for attr in cls.__dict__:
+        #if callable(getattr(cls,attr)):
+            #setattr(cls, attr, fiddle(getattr(cls,attr)))
     return cls
 
-
-class Decorator(object):
-    def __init__(self, arg):
-        self.arg = arg
-    def __call__(self, cls):
-        class Wrapped(cls):
-            pass
-
-        decorate_class(Wrapped)
-        Wrapped.super=cls.super
-        return Wrapped
