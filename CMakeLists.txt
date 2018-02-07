@@ -8,6 +8,8 @@ set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
+set(OT_ROOT ../opentracing-cpp)
+
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
@@ -22,9 +24,10 @@ aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
+aux_source_directory(${OT_ROOT} LCB_OT_ROOT)
 
 
-ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+#[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
 ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
@@ -32,9 +35,19 @@ ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
 ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
 ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
 ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
-ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
-include_directories( ${LCB_CORE}
-        ${LCB_ROOT}/include
+#ADD_CU(otcpp external/)
+]]
+        include_directories( ${LCB_CORE}
+        ${LCB_ROOT}/include#[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
+ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
+ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
+ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
+ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
+ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
+ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
+
         ${MCD_INC}
         ${HTTP}
         ${PYTHON_INCLUDE_DIR}
@@ -49,23 +62,54 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
+        ${LCB_OT_ROOT}/include/
         )
 include(ExternalProject)
-set(OT_ROOT ../opentracing-cpp)
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
         SOURCE_DIR ${LCB_ROOT}
         )
-ExternalProject_Add(opentracing-cpp
-        PREFIX       ${OT_ROOT}
-        GIT_REPOSITORY          https://github.com/griels/opentracing-cpp/couchbase-c-api.git
-        GIT_BRANCH   couchbase-c-api-3
+#[[ExternalProject_Add(opentracing-cpp
+        #PREFIX       ${OT_ROOT}
+        GIT_REPOSITORY
         INSTALL_DIR  ${OT_ROOT}
         SOURCE_DIR   ${OT_ROOT}
         CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        )
+        )]]
+set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
+ExternalProject_Add (opentracing-cpp
+    PREFIX ${OT_ROOT}
+    GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
 
+    #GIT_BRANCH   couchbase-c-api-3
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
+    BINARY_DIR ${OT_ROOT}/src/hidapi
+    SOURCE_DIR ${OT_ROOT}/src/hidapi
+    INSTALL_DIR ${OT_ROOT}/build
+    )
+
+    # hidapi requires an initial execution of "./bootstrap" to run autoreconf
+#[[    ExternalProject_Add_Step (opentracing-cpp
+    bootstrap
+    COMMAND ./bootstrap
+    DEPENDEES download
+    DEPENDERS configure
+WORKING_DIRECTORY ${HIDAPI_ROOT}/src/hidapi)]]
+
+add_library (liblcb_ot STATIC IMPORTED)
+#set_target_properties (liblcb_ot PROPERTIES IMPORTED_LOCATION)
+add_dependencies (liblcb_ot opentracing-cpp)
+#[[
+ExternalProject_Add(opentracing-cpp
+        PREFIX       external
+        #SOURCE_DIR   ${OT_ROOT}
+        GIT_REPOSITORY https://github.com/griels/opentracing-cpp.git
+        GIT_BRANCH   couchbase-c-api-3
+        #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
+        )
+add_dependencies(otcpp opentracing-cpp)]]
 set(CMAKE_CXX_STANDARD 11)
 set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src

@@ -18,7 +18,7 @@
 /**
  * Covers 'lock', 'touch', and 'get_and_touch'
  */
-
+#include "../opentracing-cpp/include/opentracing/lcb_ot.h"
 struct getcmd_vars_st {
     int optype;
     int allow_dval;

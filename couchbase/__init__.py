@@ -193,7 +193,7 @@ def fiddle(orig):
         return orig(*args,**kwargs)
     return fiddler
 
-def decorate_class(cls):
+def decorate_class(cls,**kwargs):
     getmembers = inspect.getmembers(cls, inspect.isfunction)
     if len(getmembers)==0:
         getmembers= inspect.getmembers(cls)
@@ -205,7 +205,7 @@ def decorate_class(cls):
         #print(str(method))
     #     #if name.startswith('_'):
              #types.MemberDescriptorType:
-        setattr(cls, name, traced_function(getattr(cls,name)))
+        setattr(cls, name, traced_function(getattr(cls,name),**kwargs))
     #for attr in cls.__dict__:
         #if callable(getattr(cls,attr)):
             #setattr(cls, attr, fiddle(getattr(cls,attr)))

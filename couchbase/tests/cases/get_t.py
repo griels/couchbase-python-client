@@ -30,11 +30,13 @@ from couchbase.tests.base import ConnectionTestCase, SkipTest
 import couchbase
 import time
 
+from jaeger_client import Config
+import logging
+
+
 class GetTest(ConnectionTestCase):
     def setUp(self):
         super(GetTest, self).setUp()
-        from jaeger_client import Config
-        import logging
         couchbase.enable_logging()
         log_level = logging.DEBUG
         logging.getLogger('').handlers = []
