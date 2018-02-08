@@ -62,7 +62,7 @@ ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
-        ${LCB_OT_ROOT}/include/
+      #  ${LCB_OT_ROOT}/include/
         )
 include(ExternalProject)
 ExternalProject_Add(libcouchbase
@@ -82,11 +82,12 @@ ExternalProject_Add (opentracing-cpp
     PREFIX ${OT_ROOT}
     GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
 
-    #GIT_BRANCH   couchbase-c-api-3
+#    GIT_BRANCH   "couchbase-c-api-3"
+        GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
     UPDATE_COMMAND ""
     PATCH_COMMAND ""
-    BINARY_DIR ${OT_ROOT}/src/hidapi
-    SOURCE_DIR ${OT_ROOT}/src/hidapi
+    BINARY_DIR ${OT_ROOT}
+    SOURCE_DIR ${OT_ROOT}
     INSTALL_DIR ${OT_ROOT}/build
     )
 
@@ -99,7 +100,7 @@ ExternalProject_Add (opentracing-cpp
 WORKING_DIRECTORY ${HIDAPI_ROOT}/src/hidapi)]]
 
 add_library (liblcb_ot STATIC IMPORTED)
-#set_target_properties (liblcb_ot PROPERTIES IMPORTED_LOCATION)
+set_target_properties (liblcb_ot PROPERTIES IMPORTED_LOCATION fred)
 add_dependencies (liblcb_ot opentracing-cpp)
 #[[
 ExternalProject_Add(opentracing-cpp
