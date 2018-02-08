@@ -8,6 +8,8 @@ set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
+set(OT_ROOT ../opentracing-cpp)
+
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
@@ -22,9 +24,10 @@ aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
+aux_source_directory(${OT_ROOT} LCB_OT_ROOT)
 
 
-ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+#[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
 ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
@@ -32,9 +35,19 @@ ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
 ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
 ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
 ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
-ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
-include_directories( ${LCB_CORE}
-        ${LCB_ROOT}/include
+#ADD_CU(otcpp external/)
+]]
+        include_directories( ${LCB_CORE}
+        ${LCB_ROOT}/include#[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
+ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
+ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
+ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
+ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
+ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
+ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
+ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
+
         ${MCD_INC}
         ${HTTP}
         ${PYTHON_INCLUDE_DIR}
@@ -49,13 +62,55 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
+      #  ${LCB_OT_ROOT}/include/
         )
 include(ExternalProject)
-
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
         SOURCE_DIR ${LCB_ROOT}
         )
+#[[ExternalProject_Add(opentracing-cpp
+        #PREFIX       ${OT_ROOT}
+        GIT_REPOSITORY
+        INSTALL_DIR  ${OT_ROOT}
+        SOURCE_DIR   ${OT_ROOT}
+        CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        )]]
+set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
+ExternalProject_Add (opentracing-cpp
+    PREFIX ${OT_ROOT}
+    GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
+
+#    GIT_BRANCH   "couchbase-c-api-3"
+        GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
+    BINARY_DIR ${OT_ROOT}
+    SOURCE_DIR ${OT_ROOT}
+    INSTALL_DIR ${OT_ROOT}/build
+    )
+
+    # hidapi requires an initial execution of "./bootstrap" to run autoreconf
+#[[    ExternalProject_Add_Step (opentracing-cpp
+    bootstrap
+    COMMAND ./bootstrap
+    DEPENDEES download
+    DEPENDERS configure
+WORKING_DIRECTORY ${HIDAPI_ROOT}/src/hidapi)]]
+
+add_library (liblcb_ot STATIC IMPORTED)
+set_target_properties (liblcb_ot PROPERTIES IMPORTED_LOCATION fred)
+add_dependencies (liblcb_ot opentracing-cpp)
+#[[
+ExternalProject_Add(opentracing-cpp
+        PREFIX       external
+        #SOURCE_DIR   ${OT_ROOT}
+        GIT_REPOSITORY https://github.com/griels/opentracing-cpp.git
+        GIT_BRANCH   couchbase-c-api-3
+        #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
+        )
+add_dependencies(otcpp opentracing-cpp)]]
 set(CMAKE_CXX_STANDARD 11)
 set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/src
@@ -63,15 +118,17 @@ set(EXTRA_SOURCE_DIRS
         ${LCB_ROOT}/include/libcouchbase
         ${LCB_ROOT}/src/http
         ${LCB_ROOT}/src/ssl
-
+        ${OT_ROOT}/include
         ${LCB_MCSERVER}
         ${LCB_IO}
-
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
         ${LCB_ROOT_A}
+        ${OT_ROOT}/test
+        ${OT_ROOT}/src
+
         )
 
 set(SOURCE
@@ -147,7 +204,6 @@ add_executable(couchbase_python_client_2_3_1
         couchbase/tests/cases/flush_t.py
         couchbase/tests/cases/format_t.py
         couchbase/tests/cases/get_t.py
-        couchbase/tests/cases/health_t.py
         couchbase/tests/cases/iops_t.py
         couchbase/tests/cases/itertypes_t.py
         couchbase/tests/cases/itmops_t.py
@@ -184,7 +240,6 @@ add_executable(couchbase_python_client_2_3_1
         couchbase/__init__.py
         couchbase/_bootstrap.py
         couchbase/_ixmgmt.py
-        couchbase/_libcouchbase.cpython-36m-darwin.so
         couchbase/_logutil.py
         couchbase/_pyport.py
         couchbase/_version.py
@@ -272,5 +327,6 @@ add_executable(couchbase_python_client_2_3_1
         txcouchbase/connection.py
         txcouchbase/iops.py
         couchbase_version.py
-        setup.py)
+        setup.py
+        )
 
