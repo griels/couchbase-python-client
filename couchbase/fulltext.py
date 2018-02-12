@@ -400,7 +400,7 @@ class Params(object):
 
     highlight_fields = _genprop(
         list, 'highlight', 'fields', doc="""
-        Highlight the results from these fields (list)
+        Highlight the results from these fields (list)re
         """)
 
     sort = _genprop(

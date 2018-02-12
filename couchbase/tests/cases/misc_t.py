@@ -168,7 +168,11 @@ class MiscTest(ConnectionTestCase):#,PluginTester):
         couchbase.disable_logging()
         self.assertFalse(lcb.lcb_logging())
 
+
     def test_redaction(self):
+
+        def all_tags():
+            return r'|'.join(re.escape(v) for k, v in _LCB.__dict__.items() if re.match(r'.*LCB_LOG_(SD|MD|UD)_[OC]TAG.*', k))
 
         from couchbase import enable_logging
         import logging
@@ -177,30 +181,34 @@ class MiscTest(ConnectionTestCase):#,PluginTester):
 
         enable_logging()
         logging.info("multi set")
+        contains_no_tags=r'^(.(?!<' + all_tags() + r'))*$'
+        contains_tags= r'^.*(' + all_tags() + r').*$'
+        expected = {0:{'text': 'off', 'pattern': contains_no_tags},
+                    1:{'text': 'on', 'pattern': contains_tags}}
+        for num, val in reversed(list(expected.items())):
+            print("connstr set to " + val['text'])
 
-        for text, num in {'on': 1, 'off': 0}.items():
-            with LogCapture() as cm:
-                logging.info("pre set to " + text)
-                curbc = self.make_connection(log_redaction=text)
+            opposite = 1 - num
+            opposite_val = expected[opposite]
 
-                report_redaction(curbc)
-                curbc.set_redaction(1 - num)
-                logging.info("post set to " + str(1 - num))
+            with self.assertLogs(level='DEBUG') as cm:
+                curbc = self.make_connection(log_redaction=val['text'])
+            print('\n'.join(cm.output))
+            report_redaction(curbc)
+
+            self.assertRegex(''.join(cm.output), val['pattern'] )
+
+            curbc.set_redaction(opposite)
+            print("cntl set to " + str(opposite))
+            with self.assertLogs(level='DEBUG') as cm:
                 curbc.upsert(key='test', value='value')
-                report_redaction(curbc)
-                self.assertEqual(1 - num, curbc.redaction)
+                self.assertEqual(opposite, curbc.redaction)
 
-            print(cm)
-            self.assertRegex(cm,self.gen_tag_regex())
+            print('\n'.join(cm.output))
+            report_redaction(curbc)
+            self.assertRegex(''.join(cm.output), opposite_val['pattern'])
 
 
-    def gen_tag_regex(self):
-        fred = (v for k, v in _LCB.__dict__.items() if re.match(r'LCB_LOG_(SD|MD|UD)_[OU]TAG', k))
-        for x in fred:
-            print x
-        all_tags = r'|'.join(fred)
-
-        return r'^.*(' + MiscTest.all_tags + r').*$'
 
     def test_compat_timeout(self):
         cb = self.make_connection(timeout=7.5)
