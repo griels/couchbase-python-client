@@ -168,45 +168,47 @@ class MiscTest(ConnectionTestCase):#,PluginTester):
         couchbase.disable_logging()
         self.assertFalse(lcb.lcb_logging())
 
-
     def test_redaction(self):
 
-        def all_tags():
-            return r'|'.join(re.escape(v) for k, v in _LCB.__dict__.items() if re.match(r'.*LCB_LOG_(SD|MD|UD)_[OC]TAG.*', k))
+        all_tags = r'|'.join(re.escape(v) for k, v in _LCB.__dict__.items() if
+                                  re.match(r'.*LCB_LOG_(SD|MD|UD)_[OC]TAG.*', k))
 
         from couchbase import enable_logging
         import logging
+
         def report_redaction(bucket):
             logging.info("redaction:" + str(bucket.redaction))
 
         enable_logging()
         logging.info("multi set")
-        contains_no_tags=r'^(.(?!<' + all_tags() + r'))*$'
-        contains_tags= r'^.*(' + all_tags() + r').*$'
-        expected = {0:{'text': 'off', 'pattern': contains_no_tags},
-                    1:{'text': 'on', 'pattern': contains_tags}}
-        for num, val in reversed(list(expected.items())):
-            print("connstr set to " + val['text'])
+        contains_no_tags=r'^(.(?!<' + all_tags + r'))*$'
+        contains_tags = r'^.*(' + all_tags + r').*$'
+        expected = {0: {logging.DEBUG: {'text': 'off', 'pattern': contains_no_tags}},
+                    1: {logging.DEBUG: {'text': 'on', 'pattern': contains_tags}}}
 
-            opposite = 1 - num
-            opposite_val = expected[opposite]
+        for num, entry in reversed(list(expected.items())):
+            for level, val in entry.items():
+                print("connstr set to " + val['text'])
 
-            with self.assertLogs(level='DEBUG') as cm:
-                curbc = self.make_connection(log_redaction=val['text'])
-            print('\n'.join(cm.output))
-            report_redaction(curbc)
+                opposite = 1 - num
+                opposite_val = expected[opposite][level]
 
-            self.assertRegex(''.join(cm.output), val['pattern'] )
+                with self.assertLogs(level=level) as cm:
+                    curbc = self.make_connection(log_redaction=val['text'])
+                print('\n'.join(cm.output))
+                report_redaction(curbc)
 
-            curbc.set_redaction(opposite)
-            print("cntl set to " + str(opposite))
-            with self.assertLogs(level='DEBUG') as cm:
-                curbc.upsert(key='test', value='value')
-                self.assertEqual(opposite, curbc.redaction)
+                self.assertRegex(''.join(cm.output), val['pattern'] )
 
-            print('\n'.join(cm.output))
-            report_redaction(curbc)
-            self.assertRegex(''.join(cm.output), opposite_val['pattern'])
+                curbc.set_redaction(opposite)
+                print("cntl set to " + str(opposite))
+                with self.assertLogs(level=level) as cm:
+                    curbc.upsert(key='test', value='value')
+                    self.assertEqual(opposite, curbc.redaction)
+
+                print('\n'.join(cm.output))
+                report_redaction(curbc)
+                self.assertRegex(''.join(cm.output), opposite_val['pattern'])
 
 
 
