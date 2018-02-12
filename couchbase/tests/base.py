@@ -56,7 +56,7 @@ class ClusterInformation(object):
     @staticmethod
     def filter_opts(options):
         return {key: value for key, value in
-                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache"] and value}
+                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "log_redaction"] and value}
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
@@ -362,6 +362,12 @@ class CouchbaseTestCase(ResourcedTestCase):
         for k in keys:
             ret[k] = "Value_For_" + k
         return ret
+
+    def assertRegex(self, *args, **kwargs):
+        try:
+            return super(CouchbaseTestCase,self).assertRegex(*args,**kwargs)
+        except:
+            return super(CouchbaseTestCase,self).assertRegexpMatches(*args,**kwargs)
 
 
 class ConnectionTestCase(CouchbaseTestCase):

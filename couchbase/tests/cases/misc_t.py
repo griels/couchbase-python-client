@@ -18,13 +18,26 @@ try:
     from urlparse import urlparse
 except ImportError:
     from urllib.parse import urlparse
+import heapq
+import inspect
+import unittest
+try:
+    import unittest2
+except ImportError:
+    unittest2 = None
+
 
 from couchbase.tests.base import ConnectionTestCase
 from couchbase.user_constants import FMT_JSON, FMT_AUTO, FMT_JSON, FMT_PICKLE
 from couchbase.exceptions import ClientTemporaryFailError
 from couchbase.exceptions import CouchbaseError
+import couchbase
+import re
+import couchbase._libcouchbase as _LCB
+import inspect
+from testfixtures import LogCapture
 
-class MiscTest(ConnectionTestCase):
+class MiscTest(ConnectionTestCase):#,PluginTester):
 
     def test_server_nodes(self):
         nodes = self.cb.server_nodes
@@ -142,7 +155,6 @@ class MiscTest(ConnectionTestCase):
 
     def test_logging(self):
         # Assume we don't have logging here..
-        import couchbase
         import couchbase._libcouchbase as lcb
 
         self.assertFalse(lcb.lcb_logging())
@@ -155,6 +167,40 @@ class MiscTest(ConnectionTestCase):
         self.assertTrue(lcb.lcb_logging())
         couchbase.disable_logging()
         self.assertFalse(lcb.lcb_logging())
+
+    def test_redaction(self):
+
+        from couchbase import enable_logging
+        import logging
+        def report_redaction(bucket):
+            logging.info("redaction:" + str(bucket.redaction))
+
+        enable_logging()
+        logging.info("multi set")
+
+        for text, num in {'on': 1, 'off': 0}.items():
+            with LogCapture() as cm:
+                logging.info("pre set to " + text)
+                curbc = self.make_connection(log_redaction=text)
+
+                report_redaction(curbc)
+                curbc.set_redaction(1 - num)
+                logging.info("post set to " + str(1 - num))
+                curbc.upsert(key='test', value='value')
+                report_redaction(curbc)
+                self.assertEqual(1 - num, curbc.redaction)
+
+            print(cm)
+            self.assertRegex(cm,self.gen_tag_regex())
+
+
+    def gen_tag_regex(self):
+        fred = (v for k, v in _LCB.__dict__.items() if re.match(r'LCB_LOG_(SD|MD|UD)_[OU]TAG', k))
+        for x in fred:
+            print x
+        all_tags = r'|'.join(fred)
+
+        return r'^.*(' + MiscTest.all_tags + r').*$'
 
     def test_compat_timeout(self):
         cb = self.make_connection(timeout=7.5)
