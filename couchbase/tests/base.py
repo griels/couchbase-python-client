@@ -19,9 +19,41 @@ import sys
 import types
 import platform
 import warnings
+from testfixtures import LogCapture
+
+from testresources import ResourcedTestCase as ResourcedTestCaseReal, TestResourceManager
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+import logging
+
+
+class ResourcedTestCase(ResourcedTestCaseReal):
+
+    class CaptureContext(LogCapture):
+        def __init__(self, *args, **kwargs):
+            self.records = []
+            kwargs['attributes'] = (lambda r: self.records.append(r))
+            super(ResourcedTestCase.CaptureContext, self).__init__(*args, **kwargs)
+
+        @property
+        def output(self):
+            return map(str, self.records)
+
+    def __init__(self,*args,**kwargs):
+        super(ResourcedTestCase,self).__init__(*args,**kwargs)
+
+    def assertLogs(self, *args, **kwargs):
+        try:
+            return super(ResourcedTestCase,self).assertLogs(*args, **kwargs)
+        except Exception as e:
+            logging.warn(e)
+
+            return ResourcedTestCase.CaptureContext(*args, **kwargs)
 
 try:
-    from unittest.case import SkipTest
+    from unittest2.case import SkipTest
 except ImportError:
     from nose.exc import SkipTest
 
@@ -31,7 +63,9 @@ except ImportError:
     # Python <3.0 fallback
     from fallback import configparser
 
-from testresources import ResourcedTestCase, TestResourceManager
+
+from unittest2.case import TestCase as TC2
+
 from couchbase.exceptions import CouchbaseError
 from couchbase.admin import Admin
 from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
@@ -132,7 +166,6 @@ class ConnectionConfiguration(object):
         else:
             self.mock_enabled = False
 
-
 class MockResourceManager(TestResourceManager):
     def __init__(self, config):
         super(MockResourceManager, self).__init__()
@@ -227,6 +260,41 @@ class ApiImplementationMixin(object):
 
 GLOBAL_CONFIG = ConnectionConfiguration()
 
+#
+# from unittest2.case import TestCase as TestCase2
+# class CBResourcedTestCase(unitt):
+#     """A TestCase parent or utility that enables cross-test resource usage.
+#
+#     ResourcedTestCase is a thin wrapper around the
+#     testresources.setUpResources and testresources.tearDownResources helper
+#     functions. It should be trivially reimplemented where a different base
+#     class is neded, or you can use multiple inheritance and call into
+#     ResourcedTestCase.setUpResources and ResourcedTestCase.tearDownResources
+#     from your setUp and tearDown (or whatever cleanup idiom is used).
+#
+#     :ivar resources: A list of (name, resource) pairs, where 'resource' is a
+#         subclass of `TestResourceManager` and 'name' is the name of the
+#         attribute that the resource should be stored on.
+#     """
+#
+#     resources = []
+#
+#     def setUp(self):
+#         super(CBResourcedTestCase, self).setUp()
+#         self.setUpResources()
+#
+#     def setUpResources(self):
+#         from testresources import setUpResources
+#         setUpResources(self, self.resources, _get_result())
+#
+#     def tearDown(self):
+#         self.tearDownResources()
+#         super(CBResourcedTestCase, self).tearDown()
+#
+#     def tearDownResources(self):
+#         super(CBResourcedTestCase,self).tearDownResources()
+#         #from testresources import tearDownResources, _get_result
+#         #tearDownResources(self, self.resources, _get_result())
 
 class CouchbaseTestCase(ResourcedTestCase):
     resources = [

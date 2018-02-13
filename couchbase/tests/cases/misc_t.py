@@ -34,10 +34,11 @@ from couchbase.exceptions import CouchbaseError
 import couchbase
 import re
 import couchbase._libcouchbase as _LCB
-import inspect
-from testfixtures import LogCapture
+from couchbase import enable_logging
+import logging
 
-class MiscTest(ConnectionTestCase):#,PluginTester):
+
+class MiscTest(ConnectionTestCase):
 
     def test_server_nodes(self):
         nodes = self.cb.server_nodes
@@ -171,46 +172,45 @@ class MiscTest(ConnectionTestCase):#,PluginTester):
     def test_redaction(self):
 
         all_tags = r'|'.join(re.escape(v) for k, v in _LCB.__dict__.items() if
-                                  re.match(r'.*LCB_LOG_(SD|MD|UD)_[OC]TAG.*', k))
-
-        from couchbase import enable_logging
-        import logging
-
-        def report_redaction(bucket):
-            logging.info("redaction:" + str(bucket.redaction))
+                             re.match(r'.*LCB_LOG_(SD|MD|UD)_[OC]TAG.*', k))
 
         enable_logging()
-        logging.info("multi set")
-        contains_no_tags=r'^(.(?!<' + all_tags + r'))*$'
+        contains_no_tags = r'^(.(?!<' + all_tags + r'))*$'
         contains_tags = r'^.*(' + all_tags + r').*$'
         expected = {0: {logging.DEBUG: {'text': 'off', 'pattern': contains_no_tags}},
                     1: {logging.DEBUG: {'text': 'on', 'pattern': contains_tags}}}
 
         for num, entry in reversed(list(expected.items())):
             for level, val in entry.items():
+
                 print("connstr set to " + val['text'])
+                optype='connstr'
+                with self.assertLogs(level=level, recursive_check=True) as cm:
+                    curbc = self.make_connection(log_redaction=val['text'])
+                    self.assertEqual(num != 0, curbc.redaction != 0)
+                result_str=''.join(cm.output)
+                logging.info(
+                    'checking {pattern} matches {optype} addition {text} result:{result_str}'.format(optype=optype,
+                                                                                                     result_str=result_str,
+                                                                                                     **val))
+                self.assertRegex(result_str, val['pattern'])
 
                 opposite = 1 - num
                 opposite_val = expected[opposite][level]
 
+                optype='cntl'
                 with self.assertLogs(level=level) as cm:
-                    curbc = self.make_connection(log_redaction=val['text'])
-                print('\n'.join(cm.output))
-                report_redaction(curbc)
-
-                self.assertRegex(''.join(cm.output), val['pattern'] )
-
-                curbc.set_redaction(opposite)
-                print("cntl set to " + str(opposite))
-                with self.assertLogs(level=level) as cm:
+                    curbc.set_redaction(opposite)
+                    print("cntl set to " + str(opposite))
                     curbc.upsert(key='test', value='value')
-                    self.assertEqual(opposite, curbc.redaction)
+                    self.assertEqual(opposite != 0, curbc.redaction != 0)
 
-                print('\n'.join(cm.output))
-                report_redaction(curbc)
+                result_str=''.join(cm.output)
+                logging.info(
+                    'checking {pattern} matches {optype} addition {text} result:{result_str}'.format(optype=optype,
+                                                                                                     result_str=result_str,
+                                                                                                     **val))
                 self.assertRegex(''.join(cm.output), opposite_val['pattern'])
-
-
 
     def test_compat_timeout(self):
         cb = self.make_connection(timeout=7.5)
