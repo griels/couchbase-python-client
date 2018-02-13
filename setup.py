@@ -135,9 +135,10 @@ setup(
         'couchbase.tests',
         'couchbase.tests.cases',
         'gcouchbase',
-        'txcouchbase',
-        'acouchbase'
-    ],
+        'txcouchbase'
+    ] + [
+        'acouchbase.py34only'
+    ] if sys.version_info >= (3, 4) else [],
     package_data = pkgdata,
     tests_require = [ 'nose', 'testresources>=0.2.7' ],
     test_suite = 'couchbase.tests.test_sync',
