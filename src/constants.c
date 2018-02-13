@@ -145,6 +145,7 @@ do_all_constants(PyObject *module,
     #define ADD_MACRO(sym) handler(module, #sym, sym)
     #define ADD_CONSTANT(name, val) handler(module, name, val)
     #define LCB_CONSTANT(postfix,...) ADD_CONSTANT(#postfix, LCB_##postfix)0
+    #define ADD_STRING(name) PyModule_AddObject(module, #name, pycbc_SimpleStringZ(name) )
 
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
