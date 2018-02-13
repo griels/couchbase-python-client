@@ -63,9 +63,6 @@ except ImportError:
     # Python <3.0 fallback
     from fallback import configparser
 
-
-from unittest2.case import TestCase as TC2
-
 from couchbase.exceptions import CouchbaseError
 from couchbase.admin import Admin
 from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
