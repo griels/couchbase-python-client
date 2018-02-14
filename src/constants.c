@@ -83,12 +83,68 @@
     X(APPEND) \
     X(PREPEND)
 
+typedef struct { const char *s; lcb_U32 u32; } STR_u32MAP;
+const STR_u32MAP* getCompMap() {
+    static const STR_u32MAP optmap[] = {
+            { "on", LCB_COMPRESS_INOUT },
+            { "off", LCB_COMPRESS_NONE },
+            { "inflate_only", LCB_COMPRESS_IN },
+            { "force", LCB_COMPRESS_INOUT|LCB_COMPRESS_FORCE },
+            { NULL }
+    };
+    return optmap;
+}
+static const STR_u32MAP* u32_from_map(const char *s, const STR_u32MAP *lookup) {
+    const STR_u32MAP *ret;
+    for (ret = lookup; ret->s; ret++) {
+        lcb_SIZE maxlen = strlen(ret->s);
+        if (!strncmp(ret->s, s, maxlen)) { return ret; }
+    }
+    return NULL;
+}
+static const STR_u32MAP* str_from_map(lcb_U32 i, const STR_u32MAP *lookup) {
+    const STR_u32MAP *ret;
+    for (ret = lookup; ret->s; ret++) {
+        if (ret->u32==i) { return ret; }
+    }
+    return NULL;
+}
+#define DO_CONVERT_STR2NUM(s, lookup, v) { \
+    const STR_u32MAP *str__rv = u32_from_map(s, lookup); \
+    if (str__rv) { (v) = str__rv->u32; } else { return LCB_ECTL_BADARG; } };
+
+#define DO_CONVERT_NUM2STR(u32, lookup, v) { \
+    const STR_u32MAP *str__rv = str_from_map(u32, lookup); \
+    if (str__rv) { (v) = str__rv->s; } else { return LCB_ECTL_BADARG; } };
+
+/* Union used for conversion to/from string functions */
+typedef union {
+    lcb_U32 u32;
+    lcb_SIZE sz;
+    int i;
+    float f;
+    void *p;
+} u_STRCONVERT;
+
+static lcb_error_t convert_compression(const char *arg, u_STRCONVERT *u) {
+    const STR_u32MAP *optmap = getCompMap();
+    DO_CONVERT_STR2NUM(arg, optmap, u->i);
+    return LCB_SUCCESS;
+};
+
+static lcb_error_t convert_compression_num2str(const char *arg, u_STRCONVERT *u) {
+    const STR_u32MAP *optmap = getCompMap();
+    DO_CONVERT_NUM2STR(arg, optmap, u->p);
+    return LCB_SUCCESS;
+};
+
 static void
 do_all_constants(PyObject *module,
                  void (*handler)(PyObject*, const char*, PY_LONG_LONG))
 {
     #define ADD_MACRO(sym) handler(module, #sym, sym)
     #define ADD_CONSTANT(name, val) handler(module, name, val)
+    #define LCB_CONSTANT(postfix,...) ADD_CONSTANT(#postfix, LCB_##postfix)0
 
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
@@ -175,6 +231,7 @@ do_all_constants(PyObject *module,
     ADD_MACRO(LCB_CNTL_SSL_MODE);
     ADD_MACRO(LCB_SSL_ENABLED);
     ADD_MACRO(LCB_CNTL_N1QL_TIMEOUT);
+    ADD_MACRO(LCB_CNTL_COMPRESSION_OPTS);
 
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
@@ -197,6 +254,22 @@ do_all_constants(PyObject *module,
     ADD_MACRO(LCB_BTYPE_COUCHBASE);
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
+
+
+
+#define __NL__
+    /* Compression options */
+#define LCB_FOR_EACH_COMPRESS_TYPE(X,DIV)\
+__NL__\
+    X(COMPRESS_NONE)DIV \
+    X(COMPRESS_IN)DIV \
+    X(COMPRESS_OUT)DIV \
+    X(COMPRESS_INOUT)DIV \
+    X(COMPRESS_FORCE)
+LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT,;);
+#undef LCB_FOR_EACH_COMPRESS_TYPE
+#undef LCB_CONSTANT
+
 #ifdef LCB_N1XSPEC_F_DEFER
     ADD_MACRO(LCB_N1XSPEC_F_DEFER);
 #endif

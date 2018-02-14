@@ -1658,6 +1658,13 @@ class Bucket(_Base):
         self._set_timeout_common(_LCB.LCB_CNTL_N1QL_TIMEOUT, value)
 
     @property
+    def compression(self):
+        pass
+
+    @property.setter
+    def compression(self, value):
+        self._cntl(_LCB.LCB_CNTL_COMPRESSION_OPTS, value_type='int', value=value)
+    @property
     def is_ssl(self):
         """
         Read-only boolean property indicating whether SSL is used for
