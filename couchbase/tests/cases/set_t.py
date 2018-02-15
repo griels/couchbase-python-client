@@ -138,5 +138,8 @@ class UpsertTest(ConnectionTestCase):
         self.cb.upsert("documentID", JSONobj, format=FMT_JSON)
 
 
+    def test_sig(self):
+        while True:
+            self.cb.upsert('key', {})
 if __name__ == '__main__':
     unittest.main()
