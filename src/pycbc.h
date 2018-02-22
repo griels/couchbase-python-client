@@ -1148,4 +1148,6 @@ extern struct lcb_logprocs_st pycbc_lcb_logprocs;
 extern PyObject *pycbc_DummyTuple;
 extern PyObject *pycbc_DummyKeywords;
 
+void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
+
 #endif /* PYCBC_H_ */

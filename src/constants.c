@@ -14,6 +14,7 @@
  *   limitations under the License.
  **/
 
+#include <stdbool.h>
 #include "pycbc.h"
 #include "iops.h"
 
@@ -83,68 +84,77 @@
     X(APPEND) \
     X(PREPEND)
 
-typedef struct { const char *s; lcb_U32 u32; } STR_u32MAP;
-const STR_u32MAP* getCompMap() {
-    static const STR_u32MAP optmap[] = {
-            { "on", LCB_COMPRESS_INOUT },
-            { "off", LCB_COMPRESS_NONE },
-            { "inflate_only", LCB_COMPRESS_IN },
-            { "force", LCB_COMPRESS_INOUT|LCB_COMPRESS_FORCE },
-            { NULL }
+
+#define __NL__
+
+
+/* Compression options */
+#define LCB_FOR_EACH_COMPRESS_TYPE(X, DIV)\
+__NL__\
+    X(COMPRESS_NONE, "Do not perform compression in any direction.") DIV \
+    X(COMPRESS_IN, "Decompress incoming data, if the data has been compressed at the server.") DIV \
+    X(COMPRESS_OUT," Compress outgoing data.") DIV \
+    X(COMPRESS_INOUT)DIV \
+    X(COMPRESS_FORCE,"Setting this flag will force the client to assume that all servers support compression despite a HELLO not having been intially negotiated.")
+
+#define LCB_CONSTANT(postfix, ...) ADD_CONSTANT(#postfix, LCB_##postfix)
+
+
+#include "structmember.h"
+
+#define ADD_CONSTANT(name, val) handler(module, name, val)
+
+typedef void (*pycbc_constant_handler)(PyObject *, const char *, long long int);
+
+static PyObject *setup_compression_map(PyObject *module,
+                                       pycbc_constant_handler handler) {
+
+    //LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT, ;);
+    PyObject *pObject = PyImport_ImportModule("enum");
+    PyObject *enumeration = PyObject_GetAttrString(
+                        pObject,
+                        "enum");
+    static const char name[]="CompressionType";/*
+    PyTypeObject *comp_enum_type =
+            (PyTypeObject *) PyType_Type.tp_alloc(&PyType_Type, 0);
+    comp_enum_type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
+    comp_enum_type->tp_name = name;
+    comp_enum_type->tp_doc = "BrownNoddy objects";
+    comp_enum_type->tp_base = &enumeration;
+#define PP_FOR_EACH(FUNC, DIV)\
+        FUNC(on,           LCB_COMPRESS_INOUT) DIV\
+        FUNC(off,          LCB_COMPRESS_NONE) DIV\
+        FUNC(inflate_only, LCB_COMPRESS_IN) DIV\
+        FUNC(force,        LCB_COMPRESS_INOUT | LCB_COMPRESS_FORCE)
+    typedef struct {
+        PyObject_HEAD
+#define X(NAME, VALUE) PyObject* NAME
+        PP_FOR_EACH(X, ;);
+
+    } pycbc_compress_type;
+#define COMPENTRY(NAME, VALUE) {#NAME, T_OBJECT_EX, offsetof(pycbc_compress_type, NAME)},
+
+
+    static struct PyMemberDef CompMembers[] = {
+            PP_FOR_EACH(COMPENTRY, __NL__)
+            {NULL}
     };
-    return optmap;
+    comp_enum_type->tp_members = CompMembers;*/
+
+
+    return NULL;//PyObject_CallObject(comp_enum_type, Py_None);
+
 }
-static const STR_u32MAP* u32_from_map(const char *s, const STR_u32MAP *lookup) {
-    const STR_u32MAP *ret;
-    for (ret = lookup; ret->s; ret++) {
-        lcb_SIZE maxlen = strlen(ret->s);
-        if (!strncmp(ret->s, s, maxlen)) { return ret; }
-    }
-    return NULL;
-}
-static const STR_u32MAP* str_from_map(lcb_U32 i, const STR_u32MAP *lookup) {
-    const STR_u32MAP *ret;
-    for (ret = lookup; ret->s; ret++) {
-        if (ret->u32==i) { return ret; }
-    }
-    return NULL;
-}
-#define DO_CONVERT_STR2NUM(s, lookup, v) { \
-    const STR_u32MAP *str__rv = u32_from_map(s, lookup); \
-    if (str__rv) { (v) = str__rv->u32; } else { return LCB_ECTL_BADARG; } };
 
-#define DO_CONVERT_NUM2STR(u32, lookup, v) { \
-    const STR_u32MAP *str__rv = str_from_map(u32, lookup); \
-    if (str__rv) { (v) = str__rv->s; } else { return LCB_ECTL_BADARG; } };
 
-/* Union used for conversion to/from string functions */
-typedef union {
-    lcb_U32 u32;
-    lcb_SIZE sz;
-    int i;
-    float f;
-    void *p;
-} u_STRCONVERT;
 
-static lcb_error_t convert_compression(const char *arg, u_STRCONVERT *u) {
-    const STR_u32MAP *optmap = getCompMap();
-    DO_CONVERT_STR2NUM(arg, optmap, u->i);
-    return LCB_SUCCESS;
-};
 
-static lcb_error_t convert_compression_num2str(const char *arg, u_STRCONVERT *u) {
-    const STR_u32MAP *optmap = getCompMap();
-    DO_CONVERT_NUM2STR(arg, optmap, u->p);
-    return LCB_SUCCESS;
-};
 
 static void
-do_all_constants(PyObject *module,
-                 void (*handler)(PyObject*, const char*, PY_LONG_LONG))
+do_all_constants(PyObject *module, pycbc_constant_handler handler)
 {
     #define ADD_MACRO(sym) handler(module, #sym, sym)
     #define ADD_CONSTANT(name, val) handler(module, name, val)
-    #define LCB_CONSTANT(postfix,...) ADD_CONSTANT(#postfix, LCB_##postfix)0
     #define ADD_STRING(name) PyModule_AddObject(module, #name, pycbc_SimpleStringZ(name) )
 
     #define X(b) ADD_MACRO(LCB_##b);
@@ -258,16 +268,10 @@ do_all_constants(PyObject *module,
 
 
 
-#define __NL__
-    /* Compression options */
-#define LCB_FOR_EACH_COMPRESS_TYPE(X,DIV)\
-__NL__\
-    X(COMPRESS_NONE)DIV \
-    X(COMPRESS_IN)DIV \
-    X(COMPRESS_OUT)DIV \
-    X(COMPRESS_INOUT)DIV \
-    X(COMPRESS_FORCE)
-LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT,;);
+
+    setup_compression_map(module, handler);
+
+
 #undef LCB_FOR_EACH_COMPRESS_TYPE
 #undef LCB_CONSTANT
 
@@ -277,8 +281,8 @@ LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT,;);
 }
 
 static void
-do_constmod(PyObject *module, const char *name, PY_LONG_LONG value) {
-    PyObject *o = PyLong_FromLongLong(value);
+do_constmod(PyObject *module, const char *name, void* value) {
+    PyObject *o = PyLong_FromLongLong((PY_LONG_LONG)value);
     PyModule_AddObject(module, name, o);
 }
 

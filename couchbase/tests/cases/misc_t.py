@@ -169,5 +169,5 @@ class MiscTest(ConnectionTestCase):
 
     import couchbase._libcouchbase as _LCB
     def test_compression(self):
-        types =
+        types = _LCB
         cb = self.make_connection(compression='on')
