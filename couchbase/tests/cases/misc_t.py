@@ -166,3 +166,16 @@ class MiscTest(ConnectionTestCase):
         cb.add_bucket_creds(new_bucket, 'newpass')
         self.assertRaises(ValueError, cb.add_bucket_creds, '', 'pass')
         self.assertRaises(ValueError, cb.add_bucket_creds, 'bkt', '')
+
+    def test_compression(self):
+        import couchbase._libcouchbase as _LCB
+        count = 0
+        items = list(_LCB.COMPRESSION.items())[:]
+        for connstr, cntl in map(lambda x: items[x%len(items)],range(0,len(items)*2)):
+            print(connstr+","+str(cntl))
+            cb = self.make_connection(compression=connstr)
+            self.assertEqual(cb.compression, cntl)
+            cb.upsert("hello","world")
+            cb.compression=items[(count+1) % len(items)][1]
+            self.assertEqual("world",cb.get("hello").value)
+            cb.remove("hello")
