@@ -1659,9 +1659,9 @@ class Bucket(_Base):
 
     @property
     def compression(self):
-        pass
+        return self._cntl(_LCB.LCB_CNTL_COMPRESSION_OPTS, value_type='int')
 
-    @property.setter
+    @compression.setter
     def compression(self, value):
         self._cntl(_LCB.LCB_CNTL_COMPRESSION_OPTS, value_type='int', value=value)
     @property

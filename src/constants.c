@@ -100,8 +100,6 @@ __NL__\
 #define LCB_CONSTANT(postfix, ...) ADD_CONSTANT(#postfix, LCB_##postfix)
 
 
-#include "structmember.h"
-
 #define ADD_CONSTANT(name, val) handler(module, name, val)
 
 typedef void (*pycbc_constant_handler)(PyObject *, const char *, long long int);
@@ -109,46 +107,18 @@ typedef void (*pycbc_constant_handler)(PyObject *, const char *, long long int);
 static PyObject *setup_compression_map(PyObject *module,
                                        pycbc_constant_handler handler) {
 
-    //LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT, ;);
-    PyObject *pObject = PyImport_ImportModule("enum");
-    PyObject *enumeration = PyObject_GetAttrString(
-                        pObject,
-                        "enum");
-    static const char name[]="CompressionType";/*
-    PyTypeObject *comp_enum_type =
-            (PyTypeObject *) PyType_Type.tp_alloc(&PyType_Type, 0);
-    comp_enum_type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
-    comp_enum_type->tp_name = name;
-    comp_enum_type->tp_doc = "BrownNoddy objects";
-    comp_enum_type->tp_base = &enumeration;
+    LCB_FOR_EACH_COMPRESS_TYPE(LCB_CONSTANT, ;);
+    PyObject* result = PyDict_New();
 #define PP_FOR_EACH(FUNC, DIV)\
-        FUNC(on,           LCB_COMPRESS_INOUT) DIV\
-        FUNC(off,          LCB_COMPRESS_NONE) DIV\
-        FUNC(inflate_only, LCB_COMPRESS_IN) DIV\
-        FUNC(force,        LCB_COMPRESS_INOUT | LCB_COMPRESS_FORCE)
-    typedef struct {
-        PyObject_HEAD
-#define X(NAME, VALUE) PyObject* NAME
-        PP_FOR_EACH(X, ;);
-
-    } pycbc_compress_type;
-#define COMPENTRY(NAME, VALUE) {#NAME, T_OBJECT_EX, offsetof(pycbc_compress_type, NAME)},
-
-
-    static struct PyMemberDef CompMembers[] = {
-            PP_FOR_EACH(COMPENTRY, __NL__)
-            {NULL}
-    };
-    comp_enum_type->tp_members = CompMembers;*/
-
-
-    return NULL;//PyObject_CallObject(comp_enum_type, Py_None);
-
+    FUNC(on,           LCB_COMPRESS_INOUT) DIV\
+    FUNC(off,          LCB_COMPRESS_NONE) DIV\
+    FUNC(inflate_only, LCB_COMPRESS_IN) DIV\
+    FUNC(force,        LCB_COMPRESS_INOUT | LCB_COMPRESS_FORCE)
+#define X(NAME, VALUE) PyDict_SetItemString(result,#NAME,PyLong_FromLong(VALUE))
+    PP_FOR_EACH(X, ;);
+#undef X
+    return result;
 }
-
-
-
-
 
 static void
 do_all_constants(PyObject *module, pycbc_constant_handler handler)
@@ -267,9 +237,8 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
 
 
-
-
-    setup_compression_map(module, handler);
+    PyObject *pObject = setup_compression_map(module, handler);
+    PyModule_AddObject(module, "COMPRESSION", pObject);
 
 
 #undef LCB_FOR_EACH_COMPRESS_TYPE
@@ -281,7 +250,7 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
 }
 
 static void
-do_constmod(PyObject *module, const char *name, void* value) {
+do_constmod(PyObject *module, const char *name, long long value) {
     PyObject *o = PyLong_FromLongLong((PY_LONG_LONG)value);
     PyModule_AddObject(module, name, o);
 }

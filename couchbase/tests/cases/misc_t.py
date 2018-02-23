@@ -167,7 +167,9 @@ class MiscTest(ConnectionTestCase):
         self.assertRaises(ValueError, cb.add_bucket_creds, '', 'pass')
         self.assertRaises(ValueError, cb.add_bucket_creds, 'bkt', '')
 
-    import couchbase._libcouchbase as _LCB
     def test_compression(self):
-        types = _LCB
-        cb = self.make_connection(compression='on')
+        import couchbase._libcouchbase as _LCB
+        for connstr, cntl in _LCB.COMPRESSION.items():
+            print(connstr+","+str(cntl))
+            cb = self.make_connection(compression=connstr)
+            self.assertEqual(cb.compression, cntl)
