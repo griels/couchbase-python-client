@@ -143,3 +143,71 @@ class Couchbase(object):
         _depr('Couchbase.connect()', 'Bucket()')
         return Connection(bucket, **kwargs)
 
+from basictracer import BasicTracer
+from basictracer.recorder import InMemoryRecorder
+from opentracing.ext import tags
+
+
+recorder = InMemoryRecorder()
+tracer = BasicTracer(recorder=recorder)
+
+def get_tracer():
+    return tracer
+
+def get_recorder():
+    return recorder
+
+
+def get_sampled_spans():
+    return [span for span in recorder.get_spans() if span.context.sampled]
+
+
+
+
+def test_span_log_kv():
+    recorder = InMemoryRecorder()
+    tracer = BasicTracer(recorder=recorder)
+
+    span = tracer.start_span('x')
+    span.log_kv({
+        'foo': 'bar',
+        'baz': 42,
+    })
+    span.finish()
+
+    finished_spans = recorder.get_spans()
+    assert len(finished_spans) == 1
+    assert len(finished_spans[0].logs) == 1
+    assert len(finished_spans[0].logs[0].key_values) == 2
+    assert finished_spans[0].logs[0].key_values['foo'] == 'bar'
+    assert finished_spans[0].logs[0].key_values['baz'] == 42
+
+
+
+from opentracing_instrumentation import traced_function
+
+import inspect
+import types
+def fiddle(orig):
+    def fiddler(*args,**kwargs):
+        return orig(*args,**kwargs)
+    return fiddler
+
+def decorate_class(cls,**kwargs):
+    getmembers = inspect.getmembers(cls, inspect.isfunction)
+    if len(getmembers)==0:
+        getmembers= inspect.getmembers(cls)
+        filter(lambda k, v: k.startswith('_'), cls.__dict__.items())
+    #return class_decorator()(cls)
+    #print(str(cls)+":"+str(getmembers))
+    for name, method in getmembers:
+        #print(name)
+        #print(str(method))
+    #     #if name.startswith('_'):
+             #types.MemberDescriptorType:
+        setattr(cls, name, traced_function(getattr(cls,name),**kwargs))
+    #for attr in cls.__dict__:
+        #if callable(getattr(cls,attr)):
+            #setattr(cls, attr, fiddle(getattr(cls,attr)))
+    return cls
+
