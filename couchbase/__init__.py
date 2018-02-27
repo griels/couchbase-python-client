@@ -183,31 +183,81 @@ def test_span_log_kv():
     assert finished_spans[0].logs[0].key_values['baz'] == 42
 
 
-
 from opentracing_instrumentation import traced_function
 
 import inspect
-import types
-def fiddle(orig):
-    def fiddler(*args,**kwargs):
-        return orig(*args,**kwargs)
-    return fiddler
 
-def decorate_class(cls,**kwargs):
+from basictracer.span import BasicSpan
+
+def lcb_span(BasicSpan):
+    def __init__(
+            self,
+            tracer,
+            operation_name=None,
+            context=None,
+            parent_id=None,
+            tags=None,
+            start_time=None):
+        super(BasicSpan, self).__init__(tracer, context)
+        self._tracer = tracer
+        self._lock = Lock()
+
+        self.operation_name = operation_name
+        self.start_time = start_time
+        self.parent_id = parent_id
+        self.tags = tags if tags is not None else {}
+        self.duration = -1
+        self.logs = []
+
+    def set_operation_name(self, operation_name):
+        with self._lock:
+            self.operation_name = operation_name
+        return super(BasicSpan, self).set_operation_name(operation_name)
+
+    def set_tag(self, key, value):
+        with self._lock:
+            if key == tags.SAMPLING_PRIORITY:
+                self.context.sampled = value > 0
+            if self.tags is None:
+                self.tags = {}
+            self.tags[key] = value
+        return super(BasicSpan, self).set_tag(key, value)
+
+    def log_kv(self, key_values, timestamp=None):
+        with self._lock:
+            self.logs.append(LogData(key_values, timestamp))
+        return super(BasicSpan, self).log_kv(key_values, timestamp)
+
+    def finish(self, finish_time=None):
+        with self._lock:
+            finish = time.time() if finish_time is None else finish_time
+            self.duration = finish - self.start_time
+            self._tracer.record(self)
+
+    def set_baggage_item(self, key, value):
+        new_context = self._context.with_baggage_item(key, value)
+        with self._lock:
+            self._context = new_context
+        return self
+
+    def get_baggage_item(self, key):
+        with self._lock:
+            return self.context.baggage.get(key)
+
+def decorate_class(cls, **kwargs):
     getmembers = inspect.getmembers(cls, inspect.isfunction)
-    if len(getmembers)==0:
-        getmembers= inspect.getmembers(cls)
+    if len(getmembers) == 0:
+        getmembers = inspect.getmembers(cls)
         filter(lambda k, v: k.startswith('_'), cls.__dict__.items())
-    #return class_decorator()(cls)
-    #print(str(cls)+":"+str(getmembers))
+    # return class_decorator()(cls)
+    # print(str(cls)+":"+str(getmembers))
     for name, method in getmembers:
-        #print(name)
-        #print(str(method))
-    #     #if name.startswith('_'):
-             #types.MemberDescriptorType:
-        setattr(cls, name, traced_function(getattr(cls,name),**kwargs))
-    #for attr in cls.__dict__:
-        #if callable(getattr(cls,attr)):
-            #setattr(cls, attr, fiddle(getattr(cls,attr)))
+        # print(name)
+        # print(str(method))
+        #     #if name.startswith('_'):
+        # types.MemberDescriptorType:
+        setattr(cls, name, traced_function(getattr(cls, name), **kwargs))
+    # for attr in cls.__dict__:
+    # if callable(getattr(cls,attr)):
+    # setattr(cls, attr, fiddle(getattr(cls,attr)))
     return cls
-

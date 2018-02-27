@@ -17,7 +17,7 @@
 #include <libcouchbase/api3.h>
 #include "oputil.h"
 #include "pycbc.h"
-
+#include "libcouchbase/tracing.h"
 /**
  * This file contains 'miscellaneous' operations. Functions contained here
  * might move to other files if they become more complex.

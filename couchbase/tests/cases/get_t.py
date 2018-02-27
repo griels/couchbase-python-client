@@ -18,7 +18,7 @@
 import pickle
 from time import sleep
 
-from basictracer import BasicTracer
+from basictracer import BasicTracer, tracer
 from nose.plugins.attrib import attr
 
 from couchbase import FMT_JSON, FMT_PICKLE, FMT_UTF8, FMT_BYTES
@@ -32,6 +32,8 @@ import time
 
 from jaeger_client import Config
 import logging
+
+from opentracing_instrumentation import traced_function
 
 
 class GetTest(ConnectionTestCase):
@@ -222,7 +224,6 @@ class GetTest(ConnectionTestCase):
             self.assertTrue(k in kvs)
             self.assertTrue(NotFoundError._can_derive(v.rc))
 
-
     def test_get_span(self):
         couchbase.enable_logging()
         tracer=couchbase.get_tracer()
@@ -230,14 +231,12 @@ class GetTest(ConnectionTestCase):
         import opentracing_instrumentation
         span=opentracing_instrumentation.get_current_span()
         span=tracer.start_span(operation_name="fred")
-        with opentracing_instrumentation.span_in_context(span) as context:
-            print("doobrey{"+str(span)+"}"+str(context))
+        with opentracing_instrumentation.span_in_stack_context(span) as context:
             try:
                 self.cb.get('fish')
             except:
                 pass
         sampled_spans=str(span.duration)
-
 
     def test_jaeger(self):
 
@@ -245,22 +244,22 @@ class GetTest(ConnectionTestCase):
             self.cb.get('fish')
         except:
             pass
-        #
-        # with tracer.start_span('TestSpan') as span:
-        #     span.log_event('test message', payload={'life': 42})
-        #
-        #     with tracer.start_span('ChildSpan', child_of=span) as child_span:
-        #         span.log_event('down below')
-        #
-        #     import opentracing_instrumentation
-        #     #span=opentracing_instrumentation.get_current_span()
-        #     #span=tracer.start_span(operation_name="fred")
-        #     #with opentracing_instrumentation.span_in_context(span) as context:
-        #     #print("doobrey{"+str(span)+"}"+str(context))
-        #     try:
-        #         self.cb.get('fish')
-        #     except:
-        #         pass
+
+        with tracer.start_span('TestSpan') as span:
+            span.log_event('test message', payload={'life': 42})
+
+            with tracer.start_span('ChildSpan', child_of=span) as child_span:
+                span.log_event('down below')
+
+            import opentracing_instrumentation
+            #span=opentracing_instrumentation.get_current_span()
+            #span=tracer.start_span(operation_name="fred")
+            #with opentracing_instrumentation.span_in_context(span) as context:
+            #print("doobrey{"+str(span)+"}"+str(context))
+            try:
+                self.cb.get('fish')
+            except:
+                pass
 
 
 if __name__ == '__main__':
