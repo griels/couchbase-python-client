@@ -212,7 +212,7 @@ def lcb_span(BasicSpan):
     def set_operation_name(self, operation_name):
         with self._lock:
             self.operation_name = operation_name
-        return super(BasicSpan, self).set_operation_name(operation_name)
+        return super(lcb_span, self).set_operation_name(operation_name)
 
     def set_tag(self, key, value):
         with self._lock:
@@ -221,12 +221,12 @@ def lcb_span(BasicSpan):
             if self.tags is None:
                 self.tags = {}
             self.tags[key] = value
-        return super(BasicSpan, self).set_tag(key, value)
+        return super(lcb_span, self).set_tag(key, value)
 
     def log_kv(self, key_values, timestamp=None):
         with self._lock:
             self.logs.append(LogData(key_values, timestamp))
-        return super(BasicSpan, self).log_kv(key_values, timestamp)
+        return super(lcb_span, self).log_kv(key_values, timestamp)
 
     def finish(self, finish_time=None):
         with self._lock:
