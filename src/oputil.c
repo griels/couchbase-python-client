@@ -15,6 +15,8 @@
  **/
 
 #include "oputil.h"
+#include "pycbc.h"
+#include "structmember.h"
 
 void
 pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
@@ -740,6 +742,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 
 #define COMPONENT_NAME "demo"
 
+
 struct zipkin_payload;
 
 typedef struct zipkin_payload {
@@ -747,7 +750,9 @@ typedef struct zipkin_payload {
     struct zipkin_payload *next;
 } zipkin_payload;
 
+
 typedef struct zipkin_state {
+    PyObject_HEAD
     char *json_api_host;
     char *json_api_port;
     /* [0, 100], where 0 is "never", 100 is "always" */
@@ -987,7 +992,12 @@ lcbtrace_TRACER *zipkin_new()
     tracer->cookie = zipkin;
     return tracer;
 }
+typedef struct {
+    PyObject_HEAD
+    lcbtrace_TRACER *tracer;
 
+
+} pycbc_Tracer;
 static void die(lcb_t instance, const char *msg, lcb_error_t err)
 {
     fprintf(stderr, "%s. Received code 0x%X (%s)\n", msg, err, lcb_strerror(instance, err));
@@ -1137,4 +1147,380 @@ int init_tracer(int argc, char *argv[])
     do_span(&err, instance, &scmd, &gcmd, span, get_tracer(instance));
 
     return 0;
+}
+
+static PyGetSetDef Tracer_TABLE_getset[] = {
+      /*  { "default_format",
+                (getter)Tracer_get_format,
+                (setter)Tracer_set_format,
+                PyDoc_STR("The default format to use for encoding values "
+                                  "(passed to transcoder)")
+        },
+        { "server_nodes",
+                (getter)Tracer_server_nodes,
+                NULL,
+                PyDoc_STR("Get a list of the current nodes in the cluster")
+        },
+        { "configured_replica_count",
+                (getter)Tracer_get_configured_replica_count,
+                NULL,
+                PyDoc_STR("Get the number of configured replicas for the Tracer")
+        },
+
+        { "transcoder",
+                (getter)Tracer_get_transcoder,
+                (setter)Tracer_set_transcoder,
+                PyDoc_STR("The :class:`~couchbase.transcoder.Transcoder` "
+                                  "object being used.\n\n"
+                                  ""
+                                  "This is normally ``None`` unless a custom "
+                                  ":class:`couchbase.transcoder.Transcoder` "
+                                  "is being used\n")
+        },
+
+        { "connected",
+                (getter)Tracer_connected,
+                NULL,
+                PyDoc_STR("Boolean read only property indicating whether\n"
+                                  "this instance has been connected.\n"
+                                  "\n"
+                                  "Note that this will still return true even if\n"
+                                  "it is subsequently closed via :meth:`_close`\n")
+        },
+
+        { "_instance_pointer",
+                (getter)Tracer__instance_pointer,
+                NULL,
+                PyDoc_STR("Gets the C level pointer for the underlying C "
+                                  "handle")
+        },*/
+
+        { NULL }
+};
+
+static struct PyMemberDef Tracer_TABLE_members[] = {
+      /*  { "quiet", T_UINT, offsetof(pycbc_Tracer, quiet),
+                0,
+                PyDoc_STR("Whether to suppress errors when keys are not found "
+                                  "(in :meth:`get` and :meth:`delete` operations).\n"
+                                  "\n"
+                                  "An error is still returned within the :class:`Result`\n"
+                                  "object")
+        },
+
+        { "data_passthrough", T_UINT, offsetof(pycbc_Tracer, data_passthrough),
+                0,
+                PyDoc_STR("When this flag is set, values are always returned "
+                                  "as raw bytes\n")
+        },
+
+        { "unlock_gil", T_UINT, offsetof(pycbc_Tracer, unlock_gil),
+                READONLY,
+                PyDoc_STR("Whether GIL manipulation is enabeld for "
+                                  "this connection object.\n"
+                                  "\n"
+                                  "This attribute can only be set from the constructor.\n")
+        },
+
+        { "Tracer", T_OBJECT_EX, offsetof(pycbc_Tracer, Tracer),
+                READONLY,
+                PyDoc_STR("Name of the Tracer this object is connected to")
+        },
+
+        { "btype", T_OBJECT_EX, offsetof(pycbc_Tracer, btype),
+                READONLY,
+                PyDoc_STR("Type of the Tracer this object is connected to")
+        },
+
+        { "lockmode", T_INT, offsetof(pycbc_Tracer, lockmode),
+                READONLY,
+                PyDoc_STR("How access from multiple threads is handled.\n"
+                                  "See :ref:`multiple_threads` for more information\n")
+        },
+
+        { "_privflags", T_UINT, offsetof(pycbc_Tracer, flags),
+                0,
+                PyDoc_STR("Internal flags.")
+        },
+
+        { "_conncb", T_OBJECT_EX, offsetof(pycbc_Tracer, conncb),
+                0,
+                PyDoc_STR("Internal connection callback.")
+        },
+
+        { "_dtorcb", T_OBJECT_EX, offsetof(pycbc_Tracer, dtorcb),
+                0,
+                PyDoc_STR("Internal destruction callback")
+        },
+
+        { "_dur_persist_to", T_BYTE,
+                offsetof(pycbc_Tracer, dur_global.persist_to),
+                0,
+                PyDoc_STR("Internal default persistence settings")
+        },
+
+        { "_dur_replicate_to", T_BYTE,
+                offsetof(pycbc_Tracer, dur_global.replicate_to),
+                0,
+                PyDoc_STR("Internal default replication settings")
+        },
+
+        { "_dur_timeout", T_ULONG,
+                offsetof(pycbc_Tracer, dur_timeout),
+                0,
+                PyDoc_STR("Internal ")
+        },
+
+        { "_dur_testhook", T_OBJECT_EX,
+                offsetof(pycbc_Tracer, dur_testhook),
+                0,
+                PyDoc_STR("Internal hook for durability tests")
+        },*/
+
+        { NULL }
+};
+
+static PyMethodDef Tracer_TABLE_methods[] = {
+
+#define OPFUNC(name, doc) \
+{ #name, (PyCFunction)pycbc_Tracer_##name, METH_VARARGS|METH_KEYWORDS, \
+    PyDoc_STR(doc) }
+
+      /*  *//** Basic Operations *//*
+        OPFUNC(upsert, "Unconditionally store a key in Couchbase"),
+        OPFUNC(insert, "Add a key in Couchbase if it does not already exist"),
+        OPFUNC(replace, "Replace an existing key in Couchbase"),
+        OPFUNC(append, "Append to an existing value in Couchbase"),
+        OPFUNC(prepend, "Prepend to an existing value in Couchbase"),
+        OPFUNC(upsert_multi, NULL),
+        OPFUNC(insert_multi, NULL),
+        OPFUNC(replace_multi, NULL),
+        OPFUNC(append_multi, NULL),
+        OPFUNC(prepend_multi, NULL),
+
+        OPFUNC(get, "Get a key from Couchbase"),
+        OPFUNC(touch, "Update the expiration time of a key in Couchbase"),
+        OPFUNC(lock, "Lock a key in Couchbase"),
+        OPFUNC(get_multi, NULL),
+        OPFUNC(touch_multi, NULL),
+        OPFUNC(lock_multi, NULL),
+        OPFUNC(_rget, NULL),
+        OPFUNC(_rgetix, NULL),
+
+        OPFUNC(mutate_in, "Perform mutations in document paths"),
+        OPFUNC(lookup_in, "Perform lookups in document paths"),
+
+        OPFUNC(remove, "Delete a key in Couchbase"),
+        OPFUNC(unlock, "Unlock a previously-locked key in Couchbase"),
+        OPFUNC(remove_multi, "Multi-key variant of delete"),
+        OPFUNC(unlock_multi, "Multi-key variant of unlock"),
+
+        OPFUNC(counter, "Modify a counter in Couchbase"),
+        OPFUNC(counter_multi, "Multi-key variant of counter"),
+        OPFUNC(_stats, "Get various server statistics"),
+        OPFUNC(_ping, "Ping cluster to receive diagnostics"),
+        OPFUNC(_diagnostics, "Get diagnostics"),
+
+        OPFUNC(_http_request, "Internal routine for HTTP requests"),
+        OPFUNC(_view_request, "Internal routine for view requests"),
+        OPFUNC(_n1ql_query, "Internal routine for N1QL queries"),
+        OPFUNC(_cbas_query, "Internal routine for analytics queries"),
+        OPFUNC(_fts_query, "Internal routine for Fulltext queries"),
+
+        OPFUNC(_ixmanage, "Internal routine for managing indexes"),
+        OPFUNC(_ixwatch, "Internal routine for monitoring indexes"),
+
+        OPFUNC(observe, "Get replication/persistence status for keys"),
+        OPFUNC(observe_multi, "multi-key variant of observe"),
+
+        OPFUNC(endure_multi, "Check durability requirements"),*/
+
+
+#undef OPFUNC
+/*
+
+
+        { "_thr_lockop",
+          (PyCFunction)Tracer__thr_lockop,
+          METH_VARARGS,
+          PyDoc_STR("Unconditionally lock/unlock the connection object "
+                            "if 'lockmode' has been set. For testing uses only")
+        },
+
+        { "_close",
+          (PyCFunction)Tracer__close,
+          METH_NOARGS,
+          PyDoc_STR(
+                  "Close the instance's underlying socket resources\n"
+                          "\n"
+                          "Note that operations pending on the connection may\n"
+                          "fail.\n"
+                          "\n")
+        },
+
+        { "_connect",
+          (PyCFunction)Tracer__connect,
+          METH_NOARGS,
+          PyDoc_STR(
+                  "Connect this instance. This is typically called by one of\n"
+                          "the wrapping constructors\n")
+        },
+
+        { "_pipeline_begin",
+          (PyCFunction)pycbc_Tracer__start_pipeline,
+          METH_NOARGS,
+          PyDoc_STR("Enter pipeline mode. Internal use")
+        },
+
+        { "_pipeline_end",
+          (PyCFunction)pycbc_Tracer__end_pipeline,
+          METH_NOARGS,
+          PyDoc_STR(
+                  "End pipeline mode and wait for operations to complete")
+        },
+
+        { "_start_timings",
+          (PyCFunction)Tracer__start_timings,
+          METH_NOARGS,
+          PyDoc_STR("Start recording timings")
+        },
+
+        { "_get_timings",
+          (PyCFunction)Tracer__get_timings,
+          METH_NOARGS,
+          PyDoc_STR("Get all timings since the last call to start_timings")
+        },
+
+        { "_stop_timings",
+          (PyCFunction)Tracer__clear_timings,
+          METH_NOARGS,
+          PyDoc_STR("Clear and disable timings")
+        },
+
+        { "_cntl",
+          (PyCFunction)pycbc_Tracer__cntl,
+          METH_VARARGS|METH_KEYWORDS,
+          NULL
+        },
+
+        { "_cntlstr", (PyCFunction)pycbc_Tracer__cntlstr,
+          METH_VARARGS|METH_KEYWORDS,
+          NULL
+        },
+
+        { "_vbmap",
+          (PyCFunction)pycbc_Tracer__vbmap,
+          METH_VARARGS,
+          PyDoc_STR("Returns a tuple of (vTracer, server index) for a key")
+        },
+
+        { "_mutinfo",
+          (PyCFunction)Tracer__mutinfo,
+          METH_NOARGS,
+          PyDoc_STR("Gets known mutation information")
+        },
+        { "_add_creds",
+          (PyCFunction)Tracer__add_creds,
+          METH_VARARGS,
+          PyDoc_STR("Add additional user/pasword information")
+        },
+*/
+
+        { NULL, NULL, 0, NULL }
+};
+static PyTypeObject TracerType = {
+        PYCBC_POBJ_HEAD_INIT(NULL)
+        0
+};
+
+static int
+Tracer__init__(pycbc_Tracer *self,
+               PyObject *args, PyObject *kwargs)
+{
+    int rv;
+
+    lcb_error_t err;
+    PyObject *unlock_gil_O = NULL;
+    PyObject *iops_O = NULL;
+    PyObject *dfl_fmt = NULL;
+    PyObject *tc = NULL;
+
+
+
+    /**
+     * This xmacro enumerates the constructor keywords, targets, and types.
+     * This was converted into an xmacro to ease the process of adding or
+     * removing various parameters.
+     */
+#define XCTOR_ARGS(X) \
+    X("connection_string", &create_opts.v.v3.connstr, "z") \
+    X("connstr", &create_opts.v.v3.connstr, "z") \
+    X("username", &create_opts.v.v3.username, "z") \
+    X("password", &create_opts.v.v3.passwd, "z") \
+    X("quiet", &self->quiet, "I") \
+    X("unlock_gil", &unlock_gil_O, "O") \
+    X("transcoder", &tc, "O") \
+    X("default_format", &dfl_fmt, "O") \
+    X("lockmode", &self->lockmode, "i") \
+    X("_flags", &self->flags, "I") \
+    X("_conntype", &conntype, "i") \
+    X("_iops", &iops_O, "O")
+
+    static char *kwlist[] = {
+#define X(s, target, type) s,
+            XCTOR_ARGS(X)
+#undef X
+            NULL
+    };
+
+#define X(s, target, type) type
+    static char *argspec = "|" XCTOR_ARGS(X);
+#undef X
+
+    return 0;
+}
+
+static void
+Tracer_dtor(pycbc_Tracer *self)
+{
+
+   /* Py_XDECREF(self->dtorcb);
+    Py_XDECREF(self->dfl_fmt);
+    Py_XDECREF(self->tc);
+    Py_XDECREF(self->bucket);
+    Py_XDECREF(self->conncb);
+    Py_XDECREF(self->dur_testhook);
+    Py_XDECREF(self->iopswrap);
+*/
+
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+int
+pycbc_TracerType_init(PyObject **ptr)
+{
+    PyTypeObject *p = &TracerType;
+    *ptr = (PyObject*)p;
+
+    if (p->tp_name) {
+        return 0;
+    }
+
+    p->tp_name = "Tracer";
+    p->tp_new = PyType_GenericNew;
+    p->tp_init = (initproc)Tracer__init__;
+    p->tp_dealloc = (destructor)Tracer_dtor;
+
+    p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+    p->tp_doc = PyDoc_STR("The connection object");
+
+    p->tp_basicsize = sizeof(pycbc_Tracer);
+
+    p->tp_methods = Tracer_TABLE_methods;
+    p->tp_members = Tracer_TABLE_members;
+    p->tp_getset = Tracer_TABLE_getset;
+
+    pycbc_DummyTuple = PyTuple_New(0);
+    pycbc_DummyKeywords = PyDict_New();
+
+    return PyType_Ready(p);
 }

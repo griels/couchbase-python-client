@@ -188,6 +188,7 @@ from opentracing_instrumentation import traced_function
 import inspect
 
 from basictracer.span import BasicSpan
+from opentracing.span import Span
 
 def lcb_span(BasicSpan):
     def __init__(
