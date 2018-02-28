@@ -689,36 +689,6 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
     return 0;
 }
 
-/* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-/*
- *     Copyright 2018 Couchbase, Inc.
- *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
- */
-
-/**
- * @file
- *
- * This is a minimal example file showing how to connect to a cluster and
- * set and retrieve a single item. This is copy of minimal.c, but with
- * tracing enabled.
- *
- *   docker run -d -p 9411:9411 openzipkin/zipkin
- *   make
- *   ./tracing couchbase://localhost password Administrator
- *
- *  open browser at http://localhost:9411
- */
 
 #include <stdio.h>
 #include <libcouchbase/couchbase.h>
@@ -997,6 +967,7 @@ typedef struct {
     lcbtrace_TRACER *tracer;
 
 
+    int init_called:1;
 } pycbc_Tracer;
 static void die(lcb_t instance, const char *msg, lcb_error_t err)
 {
@@ -1020,64 +991,35 @@ static void op_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     }
 }
 
-struct lcb_create_st getOptions(int argc, char *const *argv, struct lcb_create_st *create_options) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s couchbase://host/bucket [ password [ username ] ]\n", argv[0]);
-        exit(EXIT_FAILURE);
+
+void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMDGET *gcmd, const lcbtrace_SPAN *span) {/* Now fetch the item back */
+    LCB_CMD_SET_TRACESPAN(gcmd, span);
+    LCB_CMD_SET_KEY(gcmd, "key", strlen("key"));
+    (*err) = lcb_get3(instance, NULL, gcmd);
+    if ((*err) != LCB_SUCCESS) {
+        die(instance, "Couldn't schedule retrieval operation", (*err));
     }
-    create_options->version = 3;
-    (*create_options).v.v3.connstr = argv[1];
-    if (argc > 2) {
-        (*create_options).v.v3.passwd = argv[2];
-    }
-    if (argc > 3) {
-        (*create_options).v.v3.username = argv[3];
-    }
-    return (*create_options);
+
+    /* Likewise, the get_callback is invoked from here */
+    fprintf(stderr, "Will wait to retrieve item..\n");
+    lcb_wait(instance);
 }
 
-lcb_t init_connection(lcb_error_t *err, lcb_t *instance, struct lcb_create_st *create_options) {
-    (*err) = lcb_create(instance, create_options);
-    if ((*err) != LCB_SUCCESS) {
-        die(NULL, "Couldn't create couchbase handle", (*err));
-    }
+void pycbc_do_decoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
+    int decoding_time_us = rand() % 1000;
+    lcbtrace_SPAN *decoding;
+    lcbtrace_REF ref;
 
-    (*err) = lcb_connect((*instance));
-    if ((*err) != LCB_SUCCESS) {
-        die((*instance), "Couldn't schedule connection", (*err));
-    }
+    ref.type = LCBTRACE_REF_CHILD_OF;
+    ref.span = span;
 
-    lcb_wait((*instance));
-
-    (*err) = lcb_get_bootstrap_status((*instance));
-    if ((*err) != LCB_SUCCESS) {
-        die((*instance), "Couldn't bootstrap from cluster", (*err));
-    }
-    return (*instance);
+    decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
+    lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    usleep(decoding_time_us);
+    lcbtrace_span_finish(decoding, LCBTRACE_NOW);
 }
 
-void do_span(lcb_error_t *err, const struct lcb_st *instance, lcb_CMDSTORE *scmd, lcb_CMDGET *gcmd, lcbtrace_SPAN *span,
-             lcbtrace_TRACER *tracer) {/* Assign the handlers to be called for the operation types */
-    lcb_install_callback3(instance, LCB_CALLBACK_GET, op_callback);
-    lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
-
-    span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
-    lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-
-    {
-        int encoding_time_us = rand() % 1000;
-        lcbtrace_SPAN *encoding;
-        lcbtrace_REF ref;
-
-        ref.type = LCBTRACE_REF_CHILD_OF;
-        ref.span = span;
-
-        encoding = lcbtrace_span_start(tracer, LCBTRACE_OP_REQUEST_ENCODING, 0, &ref);
-        lcbtrace_span_add_tag_str(encoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-        usleep(encoding_time_us);
-        lcbtrace_span_finish(encoding, LCBTRACE_NOW);
-    }
-
+void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMDSTORE *scmd, const lcbtrace_SPAN *span) {
     LCB_CMD_SET_TRACESPAN(scmd, span);
     LCB_CMD_SET_KEY(scmd, "key", strlen("key"));
     LCB_CMD_SET_VALUE(scmd, "value", strlen("value"));
@@ -1090,64 +1032,54 @@ void do_span(lcb_error_t *err, const struct lcb_st *instance, lcb_CMDSTORE *scmd
     /* The store_callback is invoked from lcb_wait() */
     fprintf(stderr, "Will wait for storage operation to complete..\n");
     lcb_wait(instance);
+}
 
-    /* Now fetch the item back */
-    LCB_CMD_SET_TRACESPAN(gcmd, span);
-    LCB_CMD_SET_KEY(gcmd, "key", strlen("key"));
-    (*err) = lcb_get3(instance, NULL, gcmd);
-    if ((*err) != LCB_SUCCESS) {
-        die(instance, "Couldn't schedule retrieval operation", (*err));
-    }
+struct pycbc_op_params
+{
+    enum type {};
+};
 
-    /* Likewise, the get_callback is invoked from here */
-    fprintf(stderr, "Will wait to retrieve item..\n");
-    lcb_wait(instance);
+void encoding_function(pycbc_Bucket* bucket, int encoding_time_us);
 
-    {
-        int decoding_time_us = rand() % 1000;
-        lcbtrace_SPAN *decoding;
-        lcbtrace_REF ref;
+void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
+    int encoding_time_us = rand() % 1000;
+    lcbtrace_SPAN *encoding;
+    lcbtrace_REF ref;
 
-        ref.type = LCBTRACE_REF_CHILD_OF;
-        ref.span = span;
+    ref.type = LCBTRACE_REF_CHILD_OF;
+    ref.span = span;
 
-        decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
-        lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-        usleep(decoding_time_us);
-        lcbtrace_span_finish(decoding, LCBTRACE_NOW);
-    }
+    encoding = lcbtrace_span_start(tracer, LCBTRACE_OP_REQUEST_ENCODING, 0, &ref);
+    lcbtrace_span_add_tag_str(encoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    encoding_function(encoding_time_us);
+    lcbtrace_span_finish(encoding, LCBTRACE_NOW);
+}
+
+void encoding_function(int encoding_time_us) { usleep(encoding_time_us); }
+
+void do_span(lcb_error_t *err, const struct lcb_st *instance, lcbtrace_SPAN *span,
+             lcbtrace_TRACER *tracer) {/* Assign the handlers to be called for the operation types */
+    lcb_install_callback3(instance, LCB_CgALLBACK_GET, op_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
+
+    span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
+    lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+
+    pycbc_do_encoding(span, tracer);
+    lcb_CMDSTORE scmd = {0};
+    lcb_CMDGET gcmd = {0};
+    pycbc_do_set(err, instance, &scmd, span);
+    pycbc_do_get(err, instance, &gcmd, span);
+
+    pycbc_do_decoding(span, tracer);
 
     lcbtrace_span_finish(span, LCBTRACE_NOW);
 
     zipkin_flush(tracer);
 }
 
-lcbtrace_TRACER *get_tracer(const struct lcb_st *instance) {
-    lcbtrace_TRACER* tracer = zipkin_new();
-
-    lcb_set_tracer(instance, tracer);
-    return tracer;
-}
-
-int init_tracer(int argc, char *argv[])
-{
-    lcb_error_t err;
-    lcb_t instance;
-    struct lcb_create_st create_options = {0};
-    lcb_CMDSTORE scmd = {0};
-    lcb_CMDGET gcmd = {0};
-    lcbtrace_SPAN *span = NULL;
 
 
-
-    create_options = getOptions(argc, argv, &create_options);
-
-    srand(time(NULL));
-
-    do_span(&err, instance, &scmd, &gcmd, span, get_tracer(instance));
-
-    return 0;
-}
 
 static PyGetSetDef Tracer_TABLE_getset[] = {
       /*  { "default_format",
@@ -1156,45 +1088,8 @@ static PyGetSetDef Tracer_TABLE_getset[] = {
                 PyDoc_STR("The default format to use for encoding values "
                                   "(passed to transcoder)")
         },
-        { "server_nodes",
-                (getter)Tracer_server_nodes,
-                NULL,
-                PyDoc_STR("Get a list of the current nodes in the cluster")
-        },
-        { "configured_replica_count",
-                (getter)Tracer_get_configured_replica_count,
-                NULL,
-                PyDoc_STR("Get the number of configured replicas for the Tracer")
-        },
 
-        { "transcoder",
-                (getter)Tracer_get_transcoder,
-                (setter)Tracer_set_transcoder,
-                PyDoc_STR("The :class:`~couchbase.transcoder.Transcoder` "
-                                  "object being used.\n\n"
-                                  ""
-                                  "This is normally ``None`` unless a custom "
-                                  ":class:`couchbase.transcoder.Transcoder` "
-                                  "is being used\n")
-        },
-
-        { "connected",
-                (getter)Tracer_connected,
-                NULL,
-                PyDoc_STR("Boolean read only property indicating whether\n"
-                                  "this instance has been connected.\n"
-                                  "\n"
-                                  "Note that this will still return true even if\n"
-                                  "it is subsequently closed via :meth:`_close`\n")
-        },
-
-        { "_instance_pointer",
-                (getter)Tracer__instance_pointer,
-                NULL,
-                PyDoc_STR("Gets the C level pointer for the underlying C "
-                                  "handle")
-        },*/
-
+*/
         { NULL }
 };
 
@@ -1207,75 +1102,7 @@ static struct PyMemberDef Tracer_TABLE_members[] = {
                                   "An error is still returned within the :class:`Result`\n"
                                   "object")
         },
-
-        { "data_passthrough", T_UINT, offsetof(pycbc_Tracer, data_passthrough),
-                0,
-                PyDoc_STR("When this flag is set, values are always returned "
-                                  "as raw bytes\n")
-        },
-
-        { "unlock_gil", T_UINT, offsetof(pycbc_Tracer, unlock_gil),
-                READONLY,
-                PyDoc_STR("Whether GIL manipulation is enabeld for "
-                                  "this connection object.\n"
-                                  "\n"
-                                  "This attribute can only be set from the constructor.\n")
-        },
-
-        { "Tracer", T_OBJECT_EX, offsetof(pycbc_Tracer, Tracer),
-                READONLY,
-                PyDoc_STR("Name of the Tracer this object is connected to")
-        },
-
-        { "btype", T_OBJECT_EX, offsetof(pycbc_Tracer, btype),
-                READONLY,
-                PyDoc_STR("Type of the Tracer this object is connected to")
-        },
-
-        { "lockmode", T_INT, offsetof(pycbc_Tracer, lockmode),
-                READONLY,
-                PyDoc_STR("How access from multiple threads is handled.\n"
-                                  "See :ref:`multiple_threads` for more information\n")
-        },
-
-        { "_privflags", T_UINT, offsetof(pycbc_Tracer, flags),
-                0,
-                PyDoc_STR("Internal flags.")
-        },
-
-        { "_conncb", T_OBJECT_EX, offsetof(pycbc_Tracer, conncb),
-                0,
-                PyDoc_STR("Internal connection callback.")
-        },
-
-        { "_dtorcb", T_OBJECT_EX, offsetof(pycbc_Tracer, dtorcb),
-                0,
-                PyDoc_STR("Internal destruction callback")
-        },
-
-        { "_dur_persist_to", T_BYTE,
-                offsetof(pycbc_Tracer, dur_global.persist_to),
-                0,
-                PyDoc_STR("Internal default persistence settings")
-        },
-
-        { "_dur_replicate_to", T_BYTE,
-                offsetof(pycbc_Tracer, dur_global.replicate_to),
-                0,
-                PyDoc_STR("Internal default replication settings")
-        },
-
-        { "_dur_timeout", T_ULONG,
-                offsetof(pycbc_Tracer, dur_timeout),
-                0,
-                PyDoc_STR("Internal ")
-        },
-
-        { "_dur_testhook", T_OBJECT_EX,
-                offsetof(pycbc_Tracer, dur_testhook),
-                0,
-                PyDoc_STR("Internal hook for durability tests")
-        },*/
+*/
 
         { NULL }
 };
@@ -1288,53 +1115,6 @@ static PyMethodDef Tracer_TABLE_methods[] = {
 
       /*  *//** Basic Operations *//*
         OPFUNC(upsert, "Unconditionally store a key in Couchbase"),
-        OPFUNC(insert, "Add a key in Couchbase if it does not already exist"),
-        OPFUNC(replace, "Replace an existing key in Couchbase"),
-        OPFUNC(append, "Append to an existing value in Couchbase"),
-        OPFUNC(prepend, "Prepend to an existing value in Couchbase"),
-        OPFUNC(upsert_multi, NULL),
-        OPFUNC(insert_multi, NULL),
-        OPFUNC(replace_multi, NULL),
-        OPFUNC(append_multi, NULL),
-        OPFUNC(prepend_multi, NULL),
-
-        OPFUNC(get, "Get a key from Couchbase"),
-        OPFUNC(touch, "Update the expiration time of a key in Couchbase"),
-        OPFUNC(lock, "Lock a key in Couchbase"),
-        OPFUNC(get_multi, NULL),
-        OPFUNC(touch_multi, NULL),
-        OPFUNC(lock_multi, NULL),
-        OPFUNC(_rget, NULL),
-        OPFUNC(_rgetix, NULL),
-
-        OPFUNC(mutate_in, "Perform mutations in document paths"),
-        OPFUNC(lookup_in, "Perform lookups in document paths"),
-
-        OPFUNC(remove, "Delete a key in Couchbase"),
-        OPFUNC(unlock, "Unlock a previously-locked key in Couchbase"),
-        OPFUNC(remove_multi, "Multi-key variant of delete"),
-        OPFUNC(unlock_multi, "Multi-key variant of unlock"),
-
-        OPFUNC(counter, "Modify a counter in Couchbase"),
-        OPFUNC(counter_multi, "Multi-key variant of counter"),
-        OPFUNC(_stats, "Get various server statistics"),
-        OPFUNC(_ping, "Ping cluster to receive diagnostics"),
-        OPFUNC(_diagnostics, "Get diagnostics"),
-
-        OPFUNC(_http_request, "Internal routine for HTTP requests"),
-        OPFUNC(_view_request, "Internal routine for view requests"),
-        OPFUNC(_n1ql_query, "Internal routine for N1QL queries"),
-        OPFUNC(_cbas_query, "Internal routine for analytics queries"),
-        OPFUNC(_fts_query, "Internal routine for Fulltext queries"),
-
-        OPFUNC(_ixmanage, "Internal routine for managing indexes"),
-        OPFUNC(_ixwatch, "Internal routine for monitoring indexes"),
-
-        OPFUNC(observe, "Get replication/persistence status for keys"),
-        OPFUNC(observe_multi, "multi-key variant of observe"),
-
-        OPFUNC(endure_multi, "Check durability requirements"),*/
-
 
 #undef OPFUNC
 /*
@@ -1347,83 +1127,6 @@ static PyMethodDef Tracer_TABLE_methods[] = {
                             "if 'lockmode' has been set. For testing uses only")
         },
 
-        { "_close",
-          (PyCFunction)Tracer__close,
-          METH_NOARGS,
-          PyDoc_STR(
-                  "Close the instance's underlying socket resources\n"
-                          "\n"
-                          "Note that operations pending on the connection may\n"
-                          "fail.\n"
-                          "\n")
-        },
-
-        { "_connect",
-          (PyCFunction)Tracer__connect,
-          METH_NOARGS,
-          PyDoc_STR(
-                  "Connect this instance. This is typically called by one of\n"
-                          "the wrapping constructors\n")
-        },
-
-        { "_pipeline_begin",
-          (PyCFunction)pycbc_Tracer__start_pipeline,
-          METH_NOARGS,
-          PyDoc_STR("Enter pipeline mode. Internal use")
-        },
-
-        { "_pipeline_end",
-          (PyCFunction)pycbc_Tracer__end_pipeline,
-          METH_NOARGS,
-          PyDoc_STR(
-                  "End pipeline mode and wait for operations to complete")
-        },
-
-        { "_start_timings",
-          (PyCFunction)Tracer__start_timings,
-          METH_NOARGS,
-          PyDoc_STR("Start recording timings")
-        },
-
-        { "_get_timings",
-          (PyCFunction)Tracer__get_timings,
-          METH_NOARGS,
-          PyDoc_STR("Get all timings since the last call to start_timings")
-        },
-
-        { "_stop_timings",
-          (PyCFunction)Tracer__clear_timings,
-          METH_NOARGS,
-          PyDoc_STR("Clear and disable timings")
-        },
-
-        { "_cntl",
-          (PyCFunction)pycbc_Tracer__cntl,
-          METH_VARARGS|METH_KEYWORDS,
-          NULL
-        },
-
-        { "_cntlstr", (PyCFunction)pycbc_Tracer__cntlstr,
-          METH_VARARGS|METH_KEYWORDS,
-          NULL
-        },
-
-        { "_vbmap",
-          (PyCFunction)pycbc_Tracer__vbmap,
-          METH_VARARGS,
-          PyDoc_STR("Returns a tuple of (vTracer, server index) for a key")
-        },
-
-        { "_mutinfo",
-          (PyCFunction)Tracer__mutinfo,
-          METH_NOARGS,
-          PyDoc_STR("Gets known mutation information")
-        },
-        { "_add_creds",
-          (PyCFunction)Tracer__add_creds,
-          METH_VARARGS,
-          PyDoc_STR("Add additional user/pasword information")
-        },
 */
 
         { NULL, NULL, 0, NULL }
@@ -1434,26 +1137,21 @@ static PyTypeObject TracerType = {
 };
 
 static int
-Tracer__init__(pycbc_Tracer *self,
+Tracer__init__(pycbc_Tracer *self, lcb_t* instance,
                PyObject *args, PyObject *kwargs)
 {
-    int rv;
-
     lcb_error_t err;
-    PyObject *unlock_gil_O = NULL;
-    PyObject *iops_O = NULL;
-    PyObject *dfl_fmt = NULL;
-    PyObject *tc = NULL;
+    int rv = 0;
+    zipkin_new(self->tracer);
 
-
-
+    lcb_set_tracer(instance, self->tracer);
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
      * This was converted into an xmacro to ease the process of adding or
      * removing various parameters.
      */
 #define XCTOR_ARGS(X) \
-    X("connection_string", &create_opts.v.v3.connstr, "z") \
+    X("tracer", &self, "z") \
     X("connstr", &create_opts.v.v3.connstr, "z") \
     X("username", &create_opts.v.v3.username, "z") \
     X("password", &create_opts.v.v3.passwd, "z") \
@@ -1476,8 +1174,17 @@ Tracer__init__(pycbc_Tracer *self,
 #define X(s, target, type) type
     static char *argspec = "|" XCTOR_ARGS(X);
 #undef X
+    if (self->init_called) {
+        PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
+        return -1;
+    }
 
-    return 0;
+    self->init_called = 1;
+#define X(s, target, type) target,
+    rv = PyArg_ParseTupleAndKeywords(args, kwargs, argspec, kwlist,
+                                     XCTOR_ARGS(X) NULL);
+#undef X
+    return rv;
 }
 
 static void
@@ -1485,14 +1192,8 @@ Tracer_dtor(pycbc_Tracer *self)
 {
 
    /* Py_XDECREF(self->dtorcb);
-    Py_XDECREF(self->dfl_fmt);
-    Py_XDECREF(self->tc);
-    Py_XDECREF(self->bucket);
-    Py_XDECREF(self->conncb);
-    Py_XDECREF(self->dur_testhook);
-    Py_XDECREF(self->iopswrap);
 */
-
+    lcbtrace_destroy(self->tracer);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 int
