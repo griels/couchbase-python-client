@@ -278,6 +278,8 @@ typedef struct {
     /** LCB instance */
     lcb_t instance;
 
+    /** Tracer **/
+    PyObject *tracer;
     /** Transcoder object */
     PyObject *tc;
 

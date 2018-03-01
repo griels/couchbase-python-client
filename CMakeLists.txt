@@ -8,6 +8,7 @@ set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
+set(OT_ROOT thirdparty/opentracing-cpp)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
@@ -22,7 +23,7 @@ aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
-
+aux_source_directory(LCB_OT_ROOT ${OT_ROOT}/src)
 
 ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
@@ -33,6 +34,22 @@ ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
 ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
 ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
 ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
+
+
+include(ExternalProject)
+ExternalProject_Add (opentracing-cpp
+        PREFIX ${OT_ROOT}
+        GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
+
+        #    GIT_BRANCH   "couchbase-c-api-3"
+        GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
+        UPDATE_COMMAND ""
+        PATCH_COMMAND ""
+        BINARY_DIR ${OT_ROOT}
+        SOURCE_DIR ${OT_ROOT}
+        INSTALL_DIR ${OT_ROOT}/build
+        )
+
 include_directories( ${LCB_CORE}
         ${LCB_ROOT}/include
         ${MCD_INC}
@@ -49,8 +66,8 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
+        ${OT_ROOT}/include/opentracing
         )
-include(ExternalProject)
 
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
@@ -76,7 +93,7 @@ set(EXTRA_SOURCE_DIRS
 
 set(SOURCE
         ${SOURCE}
-        ${LCB_CORE}
+       #[[ ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
         ${HTTP}
@@ -89,14 +106,16 @@ set(SOURCE
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
-        ${LCB_ROOT_SRC}
+        ${LCB_ROOT_SRC}]]
+        ${OT_ROOT}/src
         )
 link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
         )
 add_executable(couchbase_python_client_2_3_1
-        ${EXTRA_SOURCE_DIRS}
-        ${LCB_CORE}
+        ${OT_ROOT}/src
+       # ${EXTRA_SOURCE_DIRS}
+      #[[  ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
         ${LCB_JSON}
@@ -107,7 +126,7 @@ add_executable(couchbase_python_client_2_3_1
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
-        ${LCB_ROOT_SRC}
+        ${LCB_ROOT_SRC}]]
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py

@@ -668,6 +668,8 @@ Bucket__init__(pycbc_Bucket *self,
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
 
+    self->tracer = PyObject_New()
+
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
         return -1;

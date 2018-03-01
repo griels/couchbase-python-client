@@ -689,7 +689,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
     return 0;
 }
 
-
+#ifdef LCB_TRACING
 #include <stdio.h>
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/api3.h>
@@ -709,6 +709,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <libcouchbase/tracing.h>
+#include "include/opentracing/lcb_ot.h"
 
 #define COMPONENT_NAME "demo"
 
@@ -1005,19 +1006,7 @@ void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMD
     lcb_wait(instance);
 }
 
-void pycbc_do_decoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
-    int decoding_time_us = rand() % 1000;
-    lcbtrace_SPAN *decoding;
-    lcbtrace_REF ref;
 
-    ref.type = LCBTRACE_REF_CHILD_OF;
-    ref.span = span;
-
-    decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
-    lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    usleep(decoding_time_us);
-    lcbtrace_span_finish(decoding, LCBTRACE_NOW);
-}
 
 void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMDSTORE *scmd, const lcbtrace_SPAN *span) {
     LCB_CMD_SET_TRACESPAN(scmd, span);
@@ -1039,10 +1028,9 @@ struct pycbc_op_params
     enum type {};
 };
 
-void encoding_function(pycbc_Bucket* bucket, int encoding_time_us);
+typedef void (*encoding_fn)(void* context);
 
-void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
-    int encoding_time_us = rand() % 1000;
+void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
     lcbtrace_SPAN *encoding;
     lcbtrace_REF ref;
 
@@ -1051,8 +1039,22 @@ void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
 
     encoding = lcbtrace_span_start(tracer, LCBTRACE_OP_REQUEST_ENCODING, 0, &ref);
     lcbtrace_span_add_tag_str(encoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    encoding_function(encoding_time_us);
+    fun(NULL);
     lcbtrace_span_finish(encoding, LCBTRACE_NOW);
+}
+
+void pycbc_do_decoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
+    int decoding_time_us = rand() % 1000;
+    lcbtrace_SPAN *decoding;
+    lcbtrace_REF ref;
+
+    ref.type = LCBTRACE_REF_CHILD_OF;
+    ref.span = span;
+
+    decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
+    lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    usleep(decoding_time_us);
+    lcbtrace_span_finish(decoding, LCBTRACE_NOW);
 }
 
 void encoding_function(int encoding_time_us) { usleep(encoding_time_us); }
@@ -1065,7 +1067,7 @@ void do_span(lcb_error_t *err, const struct lcb_st *instance, lcbtrace_SPAN *spa
     span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
     lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
 
-    pycbc_do_encoding(span, tracer);
+    pycbc_do_encoding(span, tracer, encoding_function, NULL);
     lcb_CMDSTORE scmd = {0};
     lcb_CMDGET gcmd = {0};
     pycbc_do_set(err, instance, &scmd, span);
@@ -1225,3 +1227,4 @@ pycbc_TracerType_init(PyObject **ptr)
 
     return PyType_Ready(p);
 }
+#endif
