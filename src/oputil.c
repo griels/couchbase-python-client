@@ -946,7 +946,7 @@ void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
     state->content_length = 0;
 }
 
-lcbtrace_TRACER *pycbc_zipkin_new()
+lcbtrace_TRACER *pycbc_zipkin_new(void)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     zipkin_state *zipkin = calloc(1, sizeof(zipkin_state));
@@ -970,9 +970,6 @@ void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN
     LCB_CMD_SET_TRACESPAN(&gcmd, span);
     LCB_CMD_SET_KEY(&gcmd, "key", strlen("key"));
     (*err) = lcb_get3(instance, NULL, &gcmd);
-    if ((*err) != LCB_SUCCESS) {
-        die(instance, "Couldn't schedule retrieval operation", (*err));
-    }
 
     /* Likewise, the get_callback is invoked from here */
     fprintf(stderr, "Will wait to retrieve item..\n");
@@ -990,9 +987,6 @@ void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN
     LCB_CMD_SET_VALUE(&scmd, "value", strlen("value"));
     scmd.operation = LCB_SET;
     (*err) = lcb_store3(instance, NULL, &scmd);
-    if ((*err) != LCB_SUCCESS) {
-        die(instance, "Couldn't schedule storage operation", (*err));
-    }
 
     /* The store_callback is invoked from lcb_wait() */
     fprintf(stderr, "Will wait for storage operation to complete..\n");
@@ -1107,7 +1101,7 @@ Tracer__init__(pycbc_Tracer_t *self,
 {
     lcb_error_t err;
     int rv = 0;
-    self->tracer=zipkin_new();
+    self->tracer=pycbc_zipkin_new();
     pycbc_Bucket* bucket;
     lcb_t instance;
     /**

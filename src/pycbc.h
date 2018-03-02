@@ -285,7 +285,7 @@ typedef  struct  {
 
     int init_called:1;
 } pycbc_Tracer_t;
-lcbtrace_TRACER *pycbc_zipkin_new();
+lcbtrace_TRACER *pycbc_zipkin_new(void);
 struct pycbc_op_params
 {
     enum type {lcb_get_op,lcb_set_op} x;
@@ -996,7 +996,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
         struct pycbc_exception_params __pycbc_ep = {0};                        \
         __pycbc_ep.file = __FILE__;                                            \
         __pycbc_ep.line = __LINE__;                                            \
-        __pycbc_ep.err = e_err;                                                \
+        __pycbc_ep.err = (lcb_error_t)e_err;                                                \
         __pycbc_ep.msg = e_msg;                                                \
         __pycbc_ep.key = e_key;                                                \
         __pycbc_ep.objextra = e_objextra;                                      \

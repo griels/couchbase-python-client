@@ -13,6 +13,10 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  **/
+#ifdef __cpluspluse
+extern "C"
+{
+#endif
 
 #include "oputil.h"
 
@@ -35,20 +39,19 @@ struct single_key_context {
 
 static int
 handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *scv,
-    struct single_key_context *skc)
-{
+               struct single_key_context *skc) {
     int rv;
     PyObject *ttl_O = NULL, *flagsobj_Oalt = NULL, *igncas_O = NULL;
     PyObject *frag_O = NULL;
     static char *itm_optlist[] = {
-            "ttl", "format", "ignore_cas", "fragment", NULL };
+            "ttl", "format", "ignore_cas", "fragment", NULL};
 
     lcb_cas_t itmcas = itm->cas;
     skc->value = itm->value;
 
     if (options) {
         rv = PyArg_ParseTupleAndKeywords(pycbc_DummyTuple, options, "|OOOO",
-            itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
+                                         itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
         if (!rv) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0,
                            "Couldn't parse item options");
@@ -106,20 +109,19 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
 
 static int
 handle_multi_mutate(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-    PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-    void *arg);
+                    PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
+                    void *arg);
 
 static int
 handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-    PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-    void *arg)
-{
+                 PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
+                 void *arg) {
     int rv;
-    const struct storecmd_vars *scv = (struct storecmd_vars *)arg;
-    struct single_key_context skc = { NULL };
-    pycbc_pybuffer keybuf = { NULL }, valbuf = { NULL };
+    const struct storecmd_vars *scv = (struct storecmd_vars *) arg;
+    struct single_key_context skc = {NULL};
+    pycbc_pybuffer keybuf = {NULL}, valbuf = {NULL};
     lcb_error_t err;
-    lcb_CMDSTORE cmd = { 0 };
+    lcb_CMDSTORE cmd = {0};
 
     if (scv->argopts & PYCBC_ARGOPT_SDMULTI) {
         return handle_multi_mutate(self, cv, optype, curkey, curvalue, options, itm, arg);
@@ -144,7 +146,7 @@ handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     }
 
     rv = pycbc_tc_encode_value(self, skc.value, skc.flagsobj,
-        &valbuf, &cmd.flags);
+                               &valbuf, &cmd.flags);
     if (rv < 0) {
         rv = -1;
         goto GT_DONE;
@@ -160,8 +162,9 @@ handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
     LCB_CMD_SET_VALUE(&cmd, valbuf.buffer, valbuf.length);
     cmd.cas = skc.cas;
-    cmd.operation = scv->operation;
+    cmd.operation = (lcb_storage_t) scv->operation;
     cmd.exptime = skc.ttl;
+//    LCB_CMD_SET_TRACESPAN(&cmd, span);
     err = lcb_store3(self->instance, cv->mres, &cmd);
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -180,13 +183,12 @@ handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
 
 static int
 handle_multi_mutate(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-    PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-    void *arg)
-{
+                    PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
+                    void *arg) {
     int rv;
-    const struct storecmd_vars *scv = arg;
-    pycbc_pybuffer keybuf = { NULL };
-    lcb_CMDSUBDOC cmd = { 0 };
+    const struct storecmd_vars *scv = (const struct storecmd_vars *) arg;
+    pycbc_pybuffer keybuf = {NULL};
+    lcb_CMDSUBDOC cmd = {0};
 
     if (itm) {
         PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Item not supported in subdoc mode");
@@ -207,8 +209,7 @@ handle_multi_mutate(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype
 }
 
 static int
-handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj)
-{
+handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj) {
     unsigned long val = 0;
 
     if (*flagsobj == NULL || *flagsobj == Py_None) {
@@ -221,7 +222,7 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj)
     }
 
     val = pycbc_IntAsUL(*flagsobj);
-    if (val == (unsigned long)-1) {
+    if (val == (unsigned long) -1) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "invalid flags", *flagsobj);
         return -1;
     }
@@ -232,15 +233,32 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj)
         return 0;
     }
 
-    PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Only FMT_BYTES and FMT_UTF8 are supported for append/prepend", *flagsobj);
+    PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Only FMT_BYTES and FMT_UTF8 are supported for append/prepend",
+                       *flagsobj);
     return -1;
 
 }
 
+/*
+extern "C"
+{
+template < typename Fn, Fn
+fn , typename... Args >
+typename std::result_of<Fn(Args...)>::type
+wrapper(Args && ... args ) {
+return fn (std::forward<Args>(args) ... ) ;
+}
+#define WRAPPER(FUNC) wrapper<decltype(&FUNC), &FUNC>
+
+}
+
+//#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
+//    QUALIFIERS RTYPE NAME(__VA_ARGS__){return NAME##_traced(NULL, NULL, )
+//    QUALIFIERS RTYPE NAME##_traced(lcb_tracer *tracer, lcb_span *span,__VA_ARGS__){
+*/
 static PyObject *
 set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-    int operation, int argopts)
-{
+           int operation, int argopts) {
     int rv;
     Py_ssize_t ncmds = 0;
     PyObject *ttl_O = NULL;
@@ -249,7 +267,7 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     PyObject *value;
     pycbc_seqtype_t seqtype;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
-    struct storecmd_vars scv = { 0 };
+    struct storecmd_vars scv = {0};
     char persist_to = 0, replicate_to = 0;
 
 
@@ -342,7 +360,7 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         goto GT_DONE;
     }
 
-GT_DONE:
+    GT_DONE:
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
@@ -354,17 +372,27 @@ GT_DONE:
 }
 
 DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)
+
 DECLFUNC(insert_multi, LCB_ADD, PYCBC_ARGOPT_MULTI)
+
 DECLFUNC(replace_multi, LCB_REPLACE, PYCBC_ARGOPT_MULTI)
 
 DECLFUNC(append_multi, LCB_APPEND, PYCBC_ARGOPT_MULTI)
+
 DECLFUNC(prepend_multi, LCB_PREPEND, PYCBC_ARGOPT_MULTI)
 
 DECLFUNC(upsert, LCB_SET, PYCBC_ARGOPT_SINGLE)
+
 DECLFUNC(insert, LCB_ADD, PYCBC_ARGOPT_SINGLE)
+
 DECLFUNC(replace, LCB_REPLACE, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(append, LCB_APPEND, PYCBC_ARGOPT_SINGLE)
+
 DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)
+
+#ifdef __cpluspluse
+}
+#endif

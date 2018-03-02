@@ -74,7 +74,6 @@ SOURCEMODS = [
         'cntl',
         'convert',
         'bucket',
-        'store',
         'constants',
         'multiresult',
         'miscops',
@@ -92,11 +91,16 @@ SOURCEMODS = [
         'views',
         'n1ql',
         'fts',
-        'ixmgmt'
+        'ixmgmt',
+        'store'
         ]
 
+SOURCEMODS_CPP = [
+    'store'
+]
 if platform.python_implementation() != 'PyPy':
     extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    #extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP ]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:
