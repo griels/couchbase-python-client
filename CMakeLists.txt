@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
-set(LCB_ROOT ../libcouchbase)
+set(LCB_ROOT thirdparty/libcouchbase)
 set(LCB_ROOT_SRC ${LCB_ROOT}/src)
 set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 
@@ -25,7 +25,7 @@ aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
 aux_source_directory(LCB_OT_ROOT ${OT_ROOT}/src)
 
-ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
+#[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
 ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
@@ -33,7 +33,7 @@ ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
 ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
 ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
 ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
-ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
+ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
 
 
 include(ExternalProject)
@@ -43,8 +43,6 @@ ExternalProject_Add (opentracing-cpp
 
         #    GIT_BRANCH   "couchbase-c-api-3"
         GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
-        UPDATE_COMMAND ""
-        PATCH_COMMAND ""
         BINARY_DIR ${OT_ROOT}
         SOURCE_DIR ${OT_ROOT}
         INSTALL_DIR ${OT_ROOT}/build

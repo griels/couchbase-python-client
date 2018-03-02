@@ -272,14 +272,31 @@ typedef struct {
     char replicate_to;
 } pycbc_dur_params;
 
+#ifdef LCB_TRACING
+static PyTypeObject TracerType = {
+        PYCBC_POBJ_HEAD_INIT(NULL)
+        0
+};
+
+typedef  struct  {
+    PyObject_HEAD
+    lcbtrace_TRACER *tracer;
+    lcb_t* instance;
+
+    int init_called:1;
+} pycbc_Tracer_t;
+
+#endif
+
 typedef struct {
     PyObject_HEAD
 
     /** LCB instance */
     lcb_t instance;
-
+#ifdef LCB_TRACING
     /** Tracer **/
-    PyObject *tracer;
+    pycbc_Tracer_t *tracer;
+#endif
     /** Transcoder object */
     PyObject *tc;
 

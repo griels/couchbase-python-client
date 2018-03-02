@@ -709,7 +709,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <libcouchbase/tracing.h>
-#include "include/opentracing/lcb_ot.h"
+//#include "include/opentracing/lcb_ot.h"
 
 #define COMPONENT_NAME "demo"
 
@@ -963,13 +963,7 @@ lcbtrace_TRACER *zipkin_new()
     tracer->cookie = zipkin;
     return tracer;
 }
-typedef struct {
-    PyObject_HEAD
-    lcbtrace_TRACER *tracer;
 
-
-    int init_called:1;
-} pycbc_Tracer;
 static void die(lcb_t instance, const char *msg, lcb_error_t err)
 {
     fprintf(stderr, "%s. Received code 0x%X (%s)\n", msg, err, lcb_strerror(instance, err));
@@ -993,10 +987,12 @@ static void op_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
 }
 
 
-void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMDGET *gcmd, const lcbtrace_SPAN *span) {/* Now fetch the item back */
-    LCB_CMD_SET_TRACESPAN(gcmd, span);
-    LCB_CMD_SET_KEY(gcmd, "key", strlen("key"));
-    (*err) = lcb_get3(instance, NULL, gcmd);
+void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcbtrace_SPAN *span) {/* Now fetch the item back */
+    lcb_CMDGET gcmd = {0};
+    lcb_install_callback3(instance, LCB_CALLBACK_GET, op_callback);
+    LCB_CMD_SET_TRACESPAN(&gcmd, span);
+    LCB_CMD_SET_KEY(&gcmd, "key", strlen("key"));
+    (*err) = lcb_get3(instance, NULL, &gcmd);
     if ((*err) != LCB_SUCCESS) {
         die(instance, "Couldn't schedule retrieval operation", (*err));
     }
@@ -1008,12 +1004,15 @@ void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMD
 
 
 
-void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMDSTORE *scmd, const lcbtrace_SPAN *span) {
-    LCB_CMD_SET_TRACESPAN(scmd, span);
-    LCB_CMD_SET_KEY(scmd, "key", strlen("key"));
-    LCB_CMD_SET_VALUE(scmd, "value", strlen("value"));
-    (*scmd).operation = LCB_SET;
-    (*err) = lcb_store3(instance, NULL, scmd);
+void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcbtrace_SPAN *span) {
+    lcb_CMDSTORE scmd = {0};
+    lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
+
+    LCB_CMD_SET_TRACESPAN(&scmd, span);
+    LCB_CMD_SET_KEY(&scmd, "key", strlen("key"));
+    LCB_CMD_SET_VALUE(&scmd, "value", strlen("value"));
+    scmd.operation = LCB_SET;
+    (*err) = lcb_store3(instance, NULL, &scmd);
     if ((*err) != LCB_SUCCESS) {
         die(instance, "Couldn't schedule storage operation", (*err));
     }
@@ -1025,15 +1024,14 @@ void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcb_CMD
 
 struct pycbc_op_params
 {
-    enum type {};
+    enum type {lcb_get_op,lcb_set_op};
 };
 
 typedef void (*encoding_fn)(void* context);
 
-void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
+void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
     lcbtrace_SPAN *encoding;
     lcbtrace_REF ref;
-
     ref.type = LCBTRACE_REF_CHILD_OF;
     ref.span = span;
 
@@ -1043,7 +1041,7 @@ void pycbc_do_encoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer, encod
     lcbtrace_span_finish(encoding, LCBTRACE_NOW);
 }
 
-void pycbc_do_decoding(lcbtrace_SPAN *span, const lcbtrace_TRACER *tracer) {
+void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer) {
     int decoding_time_us = rand() % 1000;
     lcbtrace_SPAN *decoding;
     lcbtrace_REF ref;
@@ -1061,17 +1059,13 @@ void encoding_function(int encoding_time_us) { usleep(encoding_time_us); }
 
 void do_span(lcb_error_t *err, const struct lcb_st *instance, lcbtrace_SPAN *span,
              lcbtrace_TRACER *tracer) {/* Assign the handlers to be called for the operation types */
-    lcb_install_callback3(instance, LCB_CgALLBACK_GET, op_callback);
-    lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
 
     span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
     lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
 
     pycbc_do_encoding(span, tracer, encoding_function, NULL);
-    lcb_CMDSTORE scmd = {0};
-    lcb_CMDGET gcmd = {0};
-    pycbc_do_set(err, instance, &scmd, span);
-    pycbc_do_get(err, instance, &gcmd, span);
+    pycbc_do_set(err, instance, span);
+    pycbc_do_get(err, instance, span);
 
     pycbc_do_decoding(span, tracer);
 
@@ -1133,20 +1127,17 @@ static PyMethodDef Tracer_TABLE_methods[] = {
 
         { NULL, NULL, 0, NULL }
 };
-static PyTypeObject TracerType = {
-        PYCBC_POBJ_HEAD_INIT(NULL)
-        0
-};
+
 
 static int
-Tracer__init__(pycbc_Tracer *self, lcb_t* instance,
+Tracer__init__(pycbc_Tracer_t *self,
                PyObject *args, PyObject *kwargs)
 {
     lcb_error_t err;
     int rv = 0;
-    zipkin_new(self->tracer);
-
-    lcb_set_tracer(instance, self->tracer);
+    self->tracer=zipkin_new();
+    PyObject* bucket;
+    lcb_t instance;
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
      * This was converted into an xmacro to ease the process of adding or
@@ -1154,17 +1145,7 @@ Tracer__init__(pycbc_Tracer *self, lcb_t* instance,
      */
 #define XCTOR_ARGS(X) \
     X("tracer", &self, "z") \
-    X("connstr", &create_opts.v.v3.connstr, "z") \
-    X("username", &create_opts.v.v3.username, "z") \
-    X("password", &create_opts.v.v3.passwd, "z") \
-    X("quiet", &self->quiet, "I") \
-    X("unlock_gil", &unlock_gil_O, "O") \
-    X("transcoder", &tc, "O") \
-    X("default_format", &dfl_fmt, "O") \
-    X("lockmode", &self->lockmode, "i") \
-    X("_flags", &self->flags, "I") \
-    X("_conntype", &conntype, "i") \
-    X("_iops", &iops_O, "O")
+    X("bucket", &bucket, "z")
 
     static char *kwlist[] = {
 #define X(s, target, type) s,
@@ -1186,11 +1167,15 @@ Tracer__init__(pycbc_Tracer *self, lcb_t* instance,
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, argspec, kwlist,
                                      XCTOR_ARGS(X) NULL);
 #undef X
+    instance=PyObject_GetAttrString(bucket,"self");
+    lcb_set_tracer(instance, self->tracer);
+
+
     return rv;
 }
 
 static void
-Tracer_dtor(pycbc_Tracer *self)
+Tracer_dtor(pycbc_Tracer_t *self)
 {
 
    /* Py_XDECREF(self->dtorcb);
@@ -1216,7 +1201,7 @@ pycbc_TracerType_init(PyObject **ptr)
     p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
     p->tp_doc = PyDoc_STR("The connection object");
 
-    p->tp_basicsize = sizeof(pycbc_Tracer);
+    p->tp_basicsize = sizeof(pycbc_Tracer_t);
 
     p->tp_methods = Tracer_TABLE_methods;
     p->tp_members = Tracer_TABLE_members;

@@ -667,8 +667,14 @@ Bucket__init__(pycbc_Bucket *self,
     #define X(s, target, type) type
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
+#ifdef LCB_TRACING
 
-    self->tracer = PyObject_New()
+
+
+    self->tracer = ((pycbc_Tracer_t*)PyObject_Init(
+            (PyObject*)PyObject_Malloc(((&TracerType)->tp_basicsize)), (&TracerType)));
+#endif
+    //PyObject_NEW(myTracer,&TracerType);
 
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
