@@ -285,7 +285,32 @@ typedef  struct  {
 
     int init_called:1;
 } pycbc_Tracer_t;
+lcbtrace_TRACER *pycbc_zipkin_new();
+struct pycbc_op_params
+{
+    enum type {lcb_get_op,lcb_set_op} x;
+};
 
+typedef void (*encoding_fn)(void* context);
+typedef void (*decoding_fn)(void* context);
+void do_span(lcb_error_t *err, struct lcb_st *instance, lcbtrace_SPAN *span,
+             lcbtrace_TRACER *tracer);
+void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload);
+
+void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, decoding_fn fun, void *payload);
+
+void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span);
+
+void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span);
+
+
+void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
+
+void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
+
+void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
+
+void pycbc_zipkin_flush(lcbtrace_TRACER *tracer);
 #endif
 
 typedef struct {
@@ -295,7 +320,7 @@ typedef struct {
     lcb_t instance;
 #ifdef LCB_TRACING
     /** Tracer **/
-    pycbc_Tracer_t *tracer;
+    lcbtrace_TRACER *tracer;
 #endif
     /** Transcoder object */
     PyObject *tc;

@@ -671,10 +671,8 @@ Bucket__init__(pycbc_Bucket *self,
 
 
 
-    self->tracer = ((pycbc_Tracer_t*)PyObject_Init(
-            (PyObject*)PyObject_Malloc(((&TracerType)->tp_basicsize)), (&TracerType)));
+    self->tracer = pycbc_zipkin_new();
 #endif
-    //PyObject_NEW(myTracer,&TracerType);
 
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");

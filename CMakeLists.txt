@@ -91,7 +91,7 @@ set(EXTRA_SOURCE_DIRS
 
 set(SOURCE
         ${SOURCE}
-       #[[ ${LCB_CORE}
+        ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
         ${HTTP}
@@ -104,7 +104,7 @@ set(SOURCE
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
-        ${LCB_ROOT_SRC}]]
+        ${LCB_ROOT_SRC}
         ${OT_ROOT}/src
         )
 link_directories(${LCB_ROOT}/lib)

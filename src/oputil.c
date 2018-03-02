@@ -733,7 +733,7 @@ typedef struct zipkin_state {
     size_t content_length;
 } zipkin_state;
 
-void zipkin_destructor(lcbtrace_TRACER *tracer)
+void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 {
     if (tracer) {
         if (tracer->cookie) {
@@ -744,7 +744,7 @@ void zipkin_destructor(lcbtrace_TRACER *tracer)
     }
 }
 
-void zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
+void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 {
     zipkin_state *state = NULL;
 
@@ -845,7 +845,7 @@ void zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     }
 }
 
-void loop_send(int sock, char *bytes, ssize_t nbytes)
+void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes)
 {
     do {
         ssize_t rv = send(sock, bytes, nbytes, 0);
@@ -861,7 +861,7 @@ void loop_send(int sock, char *bytes, ssize_t nbytes)
     } while (1);
 }
 
-void zipkin_flush(lcbtrace_TRACER *tracer)
+void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
 {
     zipkin_state *state = NULL;
     int sock, rv;
@@ -928,32 +928,32 @@ void zipkin_flush(lcbtrace_TRACER *tracer)
     }
     {
         zipkin_payload *ptr = state->root;
-        loop_send(sock, "[", 1);
+        pycbc_loop_send(sock, "[", 1);
         while (ptr) {
             zipkin_payload *tmp = ptr;
-            loop_send(sock, ptr->data, strlen(ptr->data));
+            pycbc_loop_send(sock, ptr->data, strlen(ptr->data));
             ptr = ptr->next;
             if (ptr) {
-                loop_send(sock, ",", 1);
+                pycbc_loop_send(sock, ",", 1);
             }
             free(tmp->data);
             free(tmp);
         }
-        loop_send(sock, "]", 1);
+        pycbc_loop_send(sock, "]", 1);
     }
     close(sock);
     state->root = state->last = NULL;
     state->content_length = 0;
 }
 
-lcbtrace_TRACER *zipkin_new()
+lcbtrace_TRACER *pycbc_zipkin_new()
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     zipkin_state *zipkin = calloc(1, sizeof(zipkin_state));
-    tracer->destructor = zipkin_destructor;
+    tracer->destructor = pycbc_zipkin_destructor;
     tracer->flags = 0;
     tracer->version = 0;
-    tracer->v.v0.report = zipkin_report;
+    tracer->v.v0.report = pycbc_zipkin_report;
     zipkin->json_api_host = "localhost";
     zipkin->json_api_port = "9411";
     zipkin->sample_rate = 100;
@@ -964,32 +964,9 @@ lcbtrace_TRACER *zipkin_new()
     return tracer;
 }
 
-static void die(lcb_t instance, const char *msg, lcb_error_t err)
-{
-    fprintf(stderr, "%s. Received code 0x%X (%s)\n", msg, err, lcb_strerror(instance, err));
-    exit(EXIT_FAILURE);
-}
-
-static void op_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
-{
-    fprintf(stderr, "=== %s ===\n", lcb_strcbtype(cbtype));
-    if (rb->rc == LCB_SUCCESS) {
-        fprintf(stderr, "KEY: %.*s\n", (int)rb->nkey, rb->key);
-        fprintf(stderr, "CAS: 0x%" PRIx64 "\n", rb->cas);
-        if (cbtype == LCB_CALLBACK_GET) {
-            const lcb_RESPGET *rg = (const lcb_RESPGET *)rb;
-            fprintf(stderr, "VALUE: %.*s\n", (int)rg->nvalue, rg->value);
-            fprintf(stderr, "FLAGS: 0x%x\n", rg->itmflags);
-        }
-    } else {
-        die(instance, lcb_strcbtype(cbtype), rb->rc);
-    }
-}
-
-
-void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcbtrace_SPAN *span) {/* Now fetch the item back */
+void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span) {/* Now fetch the item back */
     lcb_CMDGET gcmd = {0};
-    lcb_install_callback3(instance, LCB_CALLBACK_GET, op_callback);
+ //   lcb_install_callback3(instance, LCB_CALLBACK_GET, op_callback);
     LCB_CMD_SET_TRACESPAN(&gcmd, span);
     LCB_CMD_SET_KEY(&gcmd, "key", strlen("key"));
     (*err) = lcb_get3(instance, NULL, &gcmd);
@@ -1004,9 +981,9 @@ void pycbc_do_get(lcb_error_t *err, const struct lcb_st *instance, const lcbtrac
 
 
 
-void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcbtrace_SPAN *span) {
+void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span) {
     lcb_CMDSTORE scmd = {0};
-    lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
+   // lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
 
     LCB_CMD_SET_TRACESPAN(&scmd, span);
     LCB_CMD_SET_KEY(&scmd, "key", strlen("key"));
@@ -1022,12 +999,7 @@ void pycbc_do_set(lcb_error_t *err, const struct lcb_st *instance, const lcbtrac
     lcb_wait(instance);
 }
 
-struct pycbc_op_params
-{
-    enum type {lcb_get_op,lcb_set_op};
-};
 
-typedef void (*encoding_fn)(void* context);
 
 void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
     lcbtrace_SPAN *encoding;
@@ -1037,12 +1009,11 @@ void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn
 
     encoding = lcbtrace_span_start(tracer, LCBTRACE_OP_REQUEST_ENCODING, 0, &ref);
     lcbtrace_span_add_tag_str(encoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    fun(NULL);
+    fun(payload);
     lcbtrace_span_finish(encoding, LCBTRACE_NOW);
 }
 
-void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer) {
-    int decoding_time_us = rand() % 1000;
+void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, decoding_fn fun, void* payload) {
     lcbtrace_SPAN *decoding;
     lcbtrace_REF ref;
 
@@ -1051,27 +1022,28 @@ void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer) {
 
     decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
     lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    usleep(decoding_time_us);
+    fun(payload);
     lcbtrace_span_finish(decoding, LCBTRACE_NOW);
 }
 
-void encoding_function(int encoding_time_us) { usleep(encoding_time_us); }
+void pycbc_encoding_function(void* encoding_time_us) { usleep((int)encoding_time_us); }
+void pycbc_decoding_function(void* encoding_time_us) { usleep((int)encoding_time_us); }
 
-void do_span(lcb_error_t *err, const struct lcb_st *instance, lcbtrace_SPAN *span,
+void do_span(lcb_error_t *err, struct lcb_st *instance, lcbtrace_SPAN *span,
              lcbtrace_TRACER *tracer) {/* Assign the handlers to be called for the operation types */
 
     span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
     lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
 
-    pycbc_do_encoding(span, tracer, encoding_function, NULL);
+    pycbc_do_encoding(span, tracer, pycbc_encoding_function, NULL);
     pycbc_do_set(err, instance, span);
     pycbc_do_get(err, instance, span);
 
-    pycbc_do_decoding(span, tracer);
+    pycbc_do_decoding(span, tracer, pycbc_decoding_function, NULL);
 
     lcbtrace_span_finish(span, LCBTRACE_NOW);
 
-    zipkin_flush(tracer);
+    pycbc_zipkin_flush(tracer);
 }
 
 
@@ -1136,7 +1108,7 @@ Tracer__init__(pycbc_Tracer_t *self,
     lcb_error_t err;
     int rv = 0;
     self->tracer=zipkin_new();
-    PyObject* bucket;
+    pycbc_Bucket* bucket;
     lcb_t instance;
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
@@ -1144,8 +1116,7 @@ Tracer__init__(pycbc_Tracer_t *self,
      * removing various parameters.
      */
 #define XCTOR_ARGS(X) \
-    X("tracer", &self, "z") \
-    X("bucket", &bucket, "z")
+    X("bucket", "O!",  &bucket)
 
     static char *kwlist[] = {
 #define X(s, target, type) s,
@@ -1154,7 +1125,7 @@ Tracer__init__(pycbc_Tracer_t *self,
             NULL
     };
 
-#define X(s, target, type) type
+#define X(s, type, ...) type
     static char *argspec = "|" XCTOR_ARGS(X);
 #undef X
     if (self->init_called) {
@@ -1163,12 +1134,11 @@ Tracer__init__(pycbc_Tracer_t *self,
     }
 
     self->init_called = 1;
-#define X(s, target, type) target,
-    rv = PyArg_ParseTupleAndKeywords(args, kwargs, argspec, kwlist,
+#define X(s, type, ...) __VA_ARGS__,
+    rv = PyArg_ParseTuple(args, kwargs, argspec, kwlist,
                                      XCTOR_ARGS(X) NULL);
 #undef X
-    instance=PyObject_GetAttrString(bucket,"self");
-    lcb_set_tracer(instance, self->tracer);
+    lcb_set_tracer(bucket->instance, self->tracer);
 
 
     return rv;
