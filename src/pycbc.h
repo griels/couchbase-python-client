@@ -13,6 +13,10 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  **/
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #ifndef PYCBC_H_
 #define PYCBC_H_
@@ -28,6 +32,7 @@
 #include <libcouchbase/n1ql.h>
 #include <libcouchbase/cbft.h>
 #include <libcouchbase/ixmgmt.h>
+
 #if LCB_VERSION < 0x020601
 #error "Couchbase Python SDK requires libcouchbase 2.6.1 or greater"
 #endif
@@ -169,7 +174,7 @@ enum {
     PYCBC_CMD_UNLOCK,
     PYCBC_CMD_GETREPLICA,
     /** "Extended" get replica, provides for more options */
-    PYCBC_CMD_GETREPLICA_INDEX,
+            PYCBC_CMD_GETREPLICA_INDEX,
     PYCBC_CMD_GETREPLICA_ALL,
     PYCBC_CMD_ENDURE
 };
@@ -179,37 +184,37 @@ enum {
  */
 enum {
     /** Argument Error. User passed the wrong arguments */
-    PYCBC_EXC_ARGUMENTS,
+            PYCBC_EXC_ARGUMENTS,
 
     /** Couldn't encode/decode something */
-    PYCBC_EXC_ENCODING,
+            PYCBC_EXC_ENCODING,
 
     /** Operational error returned from LCB */
-    PYCBC_EXC_LCBERR,
+            PYCBC_EXC_LCBERR,
 
     /** Internal error. There's something wrong with our code */
-    PYCBC_EXC_INTERNAL,
+            PYCBC_EXC_INTERNAL,
 
     /** HTTP Error */
-    PYCBC_EXC_HTTP,
+            PYCBC_EXC_HTTP,
 
     /** ObjectThreadError */
-    PYCBC_EXC_THREADING,
+            PYCBC_EXC_THREADING,
 
     /** Object destroyed before it could connect */
-    PYCBC_EXC_DESTROYED,
+            PYCBC_EXC_DESTROYED,
 
     /** Illegal operation in pipeline context */
-    PYCBC_EXC_PIPELINE
+            PYCBC_EXC_PIPELINE
 };
 
 /* Argument options */
 enum {
     /** Entry point is a single key variant */
-    PYCBC_ARGOPT_SINGLE = 0x1,
+            PYCBC_ARGOPT_SINGLE = 0x1,
 
     /** Entry point is a multi key variant */
-    PYCBC_ARGOPT_MULTI = 0x2,
+            PYCBC_ARGOPT_MULTI = 0x2,
 
     PYCBC_ARGOPT_SUBDOC = 0x04,
 
@@ -232,10 +237,10 @@ enum {
     PYCBC_FMT_COMMON_UTF8 = (0x04U << 24),
     PYCBC_FMT_COMMON_MASK = (0xFFU << 24),
 
-    PYCBC_FMT_JSON = PYCBC_FMT_LEGACY_JSON|PYCBC_FMT_COMMON_JSON,
-    PYCBC_FMT_PICKLE = PYCBC_FMT_LEGACY_PICKLE|PYCBC_FMT_COMMON_PICKLE,
-    PYCBC_FMT_BYTES = PYCBC_FMT_LEGACY_BYTES|PYCBC_FMT_COMMON_BYTES,
-    PYCBC_FMT_UTF8 = PYCBC_FMT_LEGACY_UTF8|PYCBC_FMT_COMMON_UTF8
+    PYCBC_FMT_JSON = PYCBC_FMT_LEGACY_JSON | PYCBC_FMT_COMMON_JSON,
+    PYCBC_FMT_PICKLE = PYCBC_FMT_LEGACY_PICKLE | PYCBC_FMT_COMMON_PICKLE,
+    PYCBC_FMT_BYTES = PYCBC_FMT_LEGACY_BYTES | PYCBC_FMT_COMMON_BYTES,
+    PYCBC_FMT_UTF8 = PYCBC_FMT_LEGACY_UTF8 | PYCBC_FMT_COMMON_UTF8
 };
 
 typedef enum {
@@ -258,13 +263,13 @@ enum {
      * 2) Return an AsyncContainer (i.e. a MultiResult)
      * 3) Invoke the MultiResult (AsyncContainer)'s callback as needed
      */
-    PYCBC_CONN_F_ASYNC = 1 << 3,
+            PYCBC_CONN_F_ASYNC = 1 << 3,
 
     /** Whether this instance has been connected */
-    PYCBC_CONN_F_CONNECTED = 1 << 4,
+            PYCBC_CONN_F_CONNECTED = 1 << 4,
 
     /** Schedule destruction of iops and lcb instance for later */
-    PYCBC_CONN_F_ASYNC_DTOR = 1 << 5
+            PYCBC_CONN_F_ASYNC_DTOR = 1 << 5
 };
 
 typedef struct {
@@ -278,23 +283,29 @@ static PyTypeObject TracerType = {
         0
 };
 
-typedef  struct  {
+typedef struct {
     PyObject_HEAD
     lcbtrace_TRACER *tracer;
-    lcb_t* instance;
+    lcb_t *instance;
 
     int init_called:1;
 } pycbc_Tracer_t;
+
 lcbtrace_TRACER *pycbc_zipkin_new(void);
-struct pycbc_op_params
-{
-    enum type {lcb_get_op,lcb_set_op} x;
+
+struct pycbc_op_params {
+    enum type {
+        lcb_get_op, lcb_set_op
+    } x;
 };
 
-typedef void (*encoding_fn)(void* context);
-typedef void (*decoding_fn)(void* context);
+typedef void (*encoding_fn)(void *context);
+
+typedef void (*decoding_fn)(void *context);
+
 void do_span(lcb_error_t *err, struct lcb_st *instance, lcbtrace_SPAN *span,
              lcbtrace_TRACER *tracer);
+
 void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload);
 
 void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, decoding_fn fun, void *payload);
@@ -311,6 +322,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
 void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
 
 void pycbc_zipkin_flush(lcbtrace_TRACER *tracer);
+
 #endif
 
 typedef struct {
@@ -430,7 +442,7 @@ typedef struct {
  */
 typedef struct {
     pycbc_ValResult_HEAD
-    PyObject* vdict;
+    PyObject *vdict;
 } pycbc_Item;
 
 typedef struct {
@@ -478,28 +490,28 @@ typedef struct {
 
 enum {
     /** 'quiet' boolean set */
-    PYCBC_MRES_F_QUIET      = 1 << 0,
+            PYCBC_MRES_F_QUIET = 1 << 0,
 
     /** We're using a user-created Item; Don't create our own results */
-    PYCBC_MRES_F_ITEMS      = 1 << 1,
+            PYCBC_MRES_F_ITEMS = 1 << 1,
 
     /** Items are already allocated and present within the dictionary. */
-    PYCBC_MRES_F_UALLOCED   = 1 << 2,
+            PYCBC_MRES_F_UALLOCED = 1 << 2,
 
     /** For GET (and possibly others), force FMT_BYTES */
-    PYCBC_MRES_F_FORCEBYTES = 1 << 3,
+            PYCBC_MRES_F_FORCEBYTES = 1 << 3,
 
     /** The commands have durability requirements */
-    PYCBC_MRES_F_DURABILITY = 1 << 4,
+            PYCBC_MRES_F_DURABILITY = 1 << 4,
 
     /** The command is an async subclass. Do we need this? */
-    PYCBC_MRES_F_ASYNC = 1 << 5,
+            PYCBC_MRES_F_ASYNC = 1 << 5,
 
     /** This result is from a call to one of the single-item APIs */
-    PYCBC_MRES_F_SINGLE = 1 << 6,
+            PYCBC_MRES_F_SINGLE = 1 << 6,
 
     /* Hint to dispatch to the view callback functions */
-    PYCBC_MRES_F_VIEWS = 1 << 7
+            PYCBC_MRES_F_VIEWS = 1 << 7
 };
 /**
  * Contextual info for enhanced error logging
@@ -629,13 +641,13 @@ typedef struct {
  * print out.
  */
 enum {
-    PYCBC_RESFLD_RC     = 1 << 0,
-    PYCBC_RESFLD_CAS    = 1 << 1,
-    PYCBC_RESFLD_KEY    = 1 << 2,
-    PYCBC_RESFLD_FLAGS  = 1 << 3,
+    PYCBC_RESFLD_RC = 1 << 0,
+    PYCBC_RESFLD_CAS = 1 << 1,
+    PYCBC_RESFLD_KEY = 1 << 2,
+    PYCBC_RESFLD_FLAGS = 1 << 3,
     PYCBC_RESFLD_HTCODE = 1 << 4,
-    PYCBC_RESFLD_VALUE  = 1 << 5,
-    PYCBC_RESFLD_URL    = 1 << 6
+    PYCBC_RESFLD_VALUE = 1 << 5,
+    PYCBC_RESFLD_URL = 1 << 6
 };
 
 #define PYCBC_RESULT_BASEFLDS (PYCBC_RESFLD_RC)
@@ -655,6 +667,7 @@ enum {
             PYCBC_RESFLD_VALUE)
 
 #define PYCBC_RESPROPS_NAME "_fldprops"
+
 /**
  * Wrapper around PyType_Ready which also injects the common flags properties
  */
@@ -748,13 +761,13 @@ extern PyObject *pycbc_ExceptionType;
  * pycbc_helpers.
  */
 struct pycbc_helpers_ST {
-    #define X(n) PyObject *n;
+#define X(n) PyObject *n;
     PYCBC_XHELPERS(X)
-    #undef X
+#undef X
 
-    #define X(n, s) PyObject *n;
+#define X(n, s) PyObject *n;
     PYCBC_XHELPERS_STRS(X)
-    #undef X
+#undef X
 };
 
 /**
@@ -799,24 +812,41 @@ extern struct pycbc_helpers_ST pycbc_helpers;
 
 /** Initializes the constants, constants. */
 void pycbc_init_pyconstants(PyObject *module);
+
 PyObject *pycbc_lcb_errstr(lcb_t instance, lcb_error_t err);
+
 PyObject *pycbc_print_constants(PyObject *mod, PyObject *args);
 
 int pycbc_ResultType_init(PyObject **ptr);
+
 int pycbc_BucketType_init(PyObject **ptr);
+
 int pycbc_MultiResultType_init(PyObject **ptr);
+
 int pycbc_ValueResultType_init(PyObject **ptr);
+
 int pycbc_OperationResultType_init(PyObject **ptr);
+
 int pycbc_SDResultType_init(PyObject **ptr);
+
 int pycbc_HttpResultType_init(PyObject **ptr);
+
 int pycbc_TranscoderType_init(PyObject **ptr);
+
 int pycbc_ObserveInfoType_init(PyObject **ptr);
+
 int pycbc_ItemType_init(PyObject **ptr);
+
 int pycbc_EventType_init(PyObject **ptr);
+
 int pycbc_TimerEventType_init(PyObject **ptr);
+
 int pycbc_IOEventType_init(PyObject **ptr);
+
 int pycbc_AsyncResultType_init(PyObject **ptr);
+
 int pycbc_IOPSWrapperType_init(PyObject **ptr);
+
 int pycbc_ViewResultType_init(PyObject **ptr);
 
 /**
@@ -829,10 +859,15 @@ int pycbc_ViewResultType_init(PyObject **ptr);
  * Allocators for result functions. See callbacks.c:get_common
  */
 PyObject *pycbc_result_new(pycbc_Bucket *parent);
+
 PyObject *pycbc_multiresult_new(pycbc_Bucket *parent);
+
 pycbc_ValueResult *pycbc_valresult_new(pycbc_Bucket *parent);
+
 pycbc_OperationResult *pycbc_opresult_new(pycbc_Bucket *parent);
+
 pycbc_Item *pycbc_item_new(pycbc_Bucket *parent);
+
 pycbc__SDResult *pycbc_sdresult_new(pycbc_Bucket *parent, PyObject *specs);
 
 /* Add a result to a list of multi results. Specify the index */
@@ -842,7 +877,7 @@ void pycbc_sdresult_addresult(pycbc__SDResult *obj, size_t ii, PyObject *item);
 void pycbc_httpresult_init(pycbc_HttpResult *self, pycbc_MultiResult *parent);
 
 /* For observe info */
-pycbc_ObserveInfo * pycbc_observeinfo_new(pycbc_Bucket *parent);
+pycbc_ObserveInfo *pycbc_observeinfo_new(pycbc_Bucket *parent);
 
 /**
  * If an HTTP result was successful or not
@@ -873,7 +908,7 @@ pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
 void
 pycbc_httpresult_complete(pycbc_HttpResult *htres, pycbc_MultiResult *mres,
                           lcb_error_t err, short status,
-                          const char * const *headers);
+                          const char *const *headers);
 
 /**
  * Add more data to the view's row list.
@@ -922,7 +957,7 @@ void pycbc_Result_dealloc(pycbc_Result *self);
  * This calls pycbc_exc_mktuple(), so the constrains there apply to this
  * function as well.
  */
-void pycbc_multiresult_adderr(pycbc_MultiResult* mres);
+void pycbc_multiresult_adderr(pycbc_MultiResult *mres);
 
 /**
  * Raise an exception from a multi result. This will raise an exception if:
@@ -938,7 +973,7 @@ int pycbc_multiresult_maybe_raise(pycbc_MultiResult *self);
  * @param self the object
  * @return a new reference to the final result, or NULL on error.
  */
-PyObject* pycbc_multiresult_get_result(pycbc_MultiResult *self);
+PyObject *pycbc_multiresult_get_result(pycbc_MultiResult *self);
 
 /**
  * Invokes a callback when an operation has been completed. This will either
@@ -952,7 +987,9 @@ void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres,
  * Initialize the callbacks for the lcb_t
  */
 void pycbc_callbacks_init(lcb_t instance);
+
 void pycbc_http_callbacks_init(lcb_t instance);
+
 void pycbc_views_callbacks_init(lcb_t instance);
 
 /**
@@ -968,19 +1005,19 @@ void pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p);
  * @param err the libcouchbase error, if any
  * @return a borrowed reference to the appropriate exception class
  */
-PyObject* pycbc_exc_map(int mode, lcb_error_t err);
+PyObject *pycbc_exc_map(int mode, lcb_error_t err);
 
 /**
  * Creates a simple exception with a given message. The exception
  * is not thrown.
  */
-PyObject* pycbc_exc_message(int mode, lcb_error_t err, const char *msg);
+PyObject *pycbc_exc_message(int mode, lcb_error_t err, const char *msg);
 
 /**
  * Gets the error classifier categories (as a set of bit flags) for a given
  * error code.
  */
-PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
+PyObject *pycbc_exc_get_categories(PyObject *self, PyObject *arg);
 /**
  * Throws an exception. If an exception is pending, it is caught and wrapped,
  * delivered into the CouchbaseError's 'inner_cause' field
@@ -1019,7 +1056,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
 
 #define PYCBC_EXC_WRAP_VALUE PYCBC_EXC_WRAP_KEY
 
-int pycbc_handle_assert(const char *msg, const char* file, int line);
+int pycbc_handle_assert(const char *msg, const char *file, int line);
 
 /**
  * Creates a tuple of (class, object, traceback), similar to what would be
@@ -1158,15 +1195,18 @@ void pycbc_schedule_dtor_event(pycbc_Bucket *self);
 /**
  * Pipeline handlers
  */
-PyObject* pycbc_Bucket__start_pipeline(pycbc_Bucket *);
-PyObject* pycbc_Bucket__end_pipeline(pycbc_Bucket *);
+PyObject *pycbc_Bucket__start_pipeline(pycbc_Bucket *);
+
+PyObject *pycbc_Bucket__end_pipeline(pycbc_Bucket *);
 
 /**
  * Control methods
  */
-PyObject* pycbc_Bucket__cntl(pycbc_Bucket *, PyObject *, PyObject *);
-PyObject* pycbc_Bucket__vbmap(pycbc_Bucket *, PyObject *);
-PyObject* pycbc_Bucket__cntlstr(pycbc_Bucket *conn, PyObject *args, PyObject *kw);
+PyObject *pycbc_Bucket__cntl(pycbc_Bucket *, PyObject *, PyObject *);
+
+PyObject *pycbc_Bucket__vbmap(pycbc_Bucket *, PyObject *);
+
+PyObject *pycbc_Bucket__cntlstr(pycbc_Bucket *conn, PyObject *args, PyObject *kw);
 
 /**
  * Health-check methods
@@ -1178,10 +1218,11 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
 PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs);
+
 /**
  * Flag to check if logging is enabled for the library via Python's logging
  */
-extern PyObject* pycbc_log_handler;
+extern PyObject *pycbc_log_handler;
 extern struct lcb_logprocs_st pycbc_lcb_logprocs;
 
 /**
@@ -1193,3 +1234,6 @@ extern PyObject *pycbc_DummyTuple;
 extern PyObject *pycbc_DummyKeywords;
 
 #endif /* PYCBC_H_ */
+#ifdef __cplusplus
+}
+#endif

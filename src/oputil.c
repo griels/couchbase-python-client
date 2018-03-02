@@ -766,6 +766,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         lcbtrace_SPAN *parent;
         uint64_t start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
+        printf("got span %p\n",span);
         /*cJSON *json = cJSON_CreateObject();
 
         buf = calloc(nbuf, sizeof(char));
@@ -838,7 +839,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
             state->last->next = payload;
         }
         state->last = payload;
-        state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
+       // state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
         if (state->root == NULL) {
             state->root = payload;
         }

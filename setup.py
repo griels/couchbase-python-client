@@ -66,6 +66,7 @@ else:
 
 
 SOURCEMODS = [
+        'store',
         'exceptions',
         'ext',
         'result',
@@ -91,8 +92,7 @@ SOURCEMODS = [
         'views',
         'n1ql',
         'fts',
-        'ixmgmt',
-        'store'
+        'ixmgmt'
         ]
 
 SOURCEMODS_CPP = [

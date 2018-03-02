@@ -13,12 +13,13 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  **/
-#ifdef __cpluspluse
+
+
+#include "oputil.h"
+#ifdef __cplusplus
 extern "C"
 {
 #endif
-
-#include "oputil.h"
 
 struct storecmd_vars {
     int operation;
@@ -48,7 +49,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
 
     lcb_cas_t itmcas = itm->cas;
     skc->value = itm->value;
-
+    PyObject *pycbc_DummyTuple = PyTuple_New(0);
     if (options) {
         rv = PyArg_ParseTupleAndKeywords(pycbc_DummyTuple, options, "|OOOO",
                                          itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
@@ -239,27 +240,25 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj) {
 
 }
 
-/*
+
+#ifdef __cplusplus
 extern "C"
 {
-template < typename Fn, Fn
-fn , typename... Args >
-typename std::result_of<Fn(Args...)>::type
-wrapper(Args && ... args ) {
-return fn (std::forward<Args>(args) ... ) ;
-}
+#endif
+
 #define WRAPPER(FUNC) wrapper<decltype(&FUNC), &FUNC>
 
-}
+#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
+    QUALIFIERS RTYPE NAME##_traced(lcb_tracer *tracer, lcb_span *span,__VA_ARGS__)
 
-//#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
-//    QUALIFIERS RTYPE NAME(__VA_ARGS__){return NAME##_traced(NULL, NULL, )
-//    QUALIFIERS RTYPE NAME##_traced(lcb_tracer *tracer, lcb_span *span,__VA_ARGS__){
-*/
-static PyObject *
-set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
+#define WRAP(NAME,...) NAME##_traced(tracer,span,__VA_ARGS__)
+
+
+        static PyObject *
+set_common_traced(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
            int operation, int argopts) {
     int rv;
+
     Py_ssize_t ncmds = 0;
     PyObject *ttl_O = NULL;
     PyObject *dict = NULL;
@@ -365,6 +364,16 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     return cv.ret;
 }
 
+static PyObject *
+set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
+           int operation, int argopts) {
+
+    lcbtrace_TRACER* tracer=NULL;
+    lcbtrace_SPAN* span=NULL;
+    return set_common_traced(tracer,span,self,args,kwargs,operation,argopts);
+
+};
+
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
@@ -393,6 +402,6 @@ DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)
 
-#ifdef __cpluspluse
+#ifdef __cplusplus
 }
 #endif
