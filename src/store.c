@@ -253,10 +253,18 @@ extern "C"
 
 #define WRAP(NAME,...) NAME##_traced(tracer,span,__VA_ARGS__)
 
+typedef struct
+{
+#ifdef LCB_TRACING
+    lcbtrace_TRACER* tracer;
+    lcbtrace_SPAN* span;
+#endif
+} pycbc_stack_context;
+
 
         static PyObject *
-set_common_traced(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-           int operation, int argopts) {
+set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
+           int operation, int argopts, pycbc_stack_context* context) {
     int rv;
 
     Py_ssize_t ncmds = 0;
@@ -364,20 +372,19 @@ set_common_traced(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span, pycbc_Bucket *se
     return cv.ret;
 }
 
-static PyObject *
+/*static PyObject *
 set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
            int operation, int argopts) {
 
-    lcbtrace_TRACER* tracer=NULL;
-    lcbtrace_SPAN* span=NULL;
-    return set_common_traced(tracer,span,self,args,kwargs,operation,argopts);
 
-};
+    return set_common_traced(self,args,kwargs,operation,argopts, pycbc_stack_context);
+
+};*/
 
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return set_common(self, args, kwargs, operation, mode); \
+    return set_common(self, args, kwargs, operation, mode, NULL); \
 }
 
 DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)
