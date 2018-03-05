@@ -312,12 +312,6 @@ typedef struct {
 
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
-struct pycbc_op_params {
-    enum type {
-        lcb_get_op, lcb_set_op
-    } x;
-};
-
 typedef void (*encoding_fn)(void *context);
 
 typedef void (*decoding_fn)(void *context);
@@ -343,20 +337,39 @@ void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
 void pycbc_zipkin_flush(lcbtrace_TRACER *tracer);
 
 pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, struct lcbtrace_TRACER* tracer);
-
+#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, lcb_get_tracer(self->instance))
+pycbc_stack_context_handle
+new_stack_context(const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer);
 #else
+
+inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
+    return pycbc_stack_context_handle();
+}
+
+#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, NULL)
+
+pycbc_stack_context_handle
+new_stack_context(const char *operation, uint64_t now, void *ref, void *tracer)
+{
+    return pycbc_stack_context_handle();
+}
+
 #endif
 
-#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
+#define WRAP(RV,NAME,...) \
+{ pycbc_stack_context_handle context = get_stack_context4(kwargs,NAME##_category,0,NULL,context.tracer);\
+RV=NAME##_traced(__VA_ARGS__,context);\
+lcbtrace_span_finish(context.span, LCBTRACE_NOW);};
+
+#define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
+    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context);\
+    static const char* NAME##_category=#CATEGORY;\
     QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context)
 
 
 
-#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, lcb_get_tracer(self->instance))
 
 
-#define WRAP(NAME,...) \
-NAME##_traced(__VA_ARGS__,get_stack_context(kw))
 
 
 #define WRAP_TIMED(NAME,...)

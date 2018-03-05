@@ -31,7 +31,7 @@ struct getcmd_vars_st {
     } u;
 };
 
-TRACED_FUNCTION(static, int,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
 handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
     void *arg)
@@ -309,8 +309,8 @@ GT_DONE:
     return cv.ret;
 }
 
-static int
-handle_single_lookup(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
+handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
     void *arg)
 {
@@ -356,7 +356,7 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
     }
 
     if (pycbc_oputil_iter_multi(
-        self, seqtype, kobj, &cv, 0, handle_single_lookup, NULL, context) != 0) {
+        self, seqtype, kobj, &cv, 0, handle_single_lookup_traced, NULL, context) != 0) {
         goto GT_DONE;
     }
 

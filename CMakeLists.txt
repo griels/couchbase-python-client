@@ -10,6 +10,7 @@ set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
 set(OT_ROOT thirdparty/opentracing-cpp)
 set(LCB_CJSON ${LCB_ROOT}/contrib/cJSON)
+set(TP_CJSON thirdparty/cJSON)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
@@ -40,15 +41,14 @@ ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
 
 include(ExternalProject)
 
-ExternalProject_Add (opentracing-cpp
+ExternalProject_Add (cJSON
 PREFIX ${OT_ROOT}
 GIT_REPOSITORY "https://github.com/DaveGamble/cJSON.git"
 
 #    GIT_BRANCH   "couchbase-c-api-3"
-GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
-BINARY_DIR ${OT_ROOT}
-SOURCE_DIR ${OT_ROOT}
-INSTALL_DIR ${OT_ROOT}/build
+BINARY_DIR ${TP_CJSON}
+SOURCE_DIR ${TP_CJSON}
+INSTALL_DIR ${TP_CJSON}/build
 )
 
 ExternalProject_Add (opentracing-cpp

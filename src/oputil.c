@@ -716,24 +716,30 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
-pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER* tracer)
-{
-    pycbc_stack_context_handle* pcontext;
-    PyObject* span = PyDict_GetItemString(kwargs,"span");
-    if (span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
+
+pycbc_stack_context_handle
+get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer) {
+    pycbc_stack_context_handle *pcontext;
+    PyObject *span = PyDict_GetItemString(kwargs, "span");
+    if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
     {
         return *pcontext;
-    }
-    else
-    {
-        pycbc_stack_context_handle context;
-        context.tracer = tracer;
-        context.span=lcbtrace_span_start(tracer, operation, now, ref);
-        lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-        return context;
+    } else{
+        return new_stack_context(operation, now, ref, tracer);
     }
 }
+
+pycbc_stack_context_handle
+new_stack_context(const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer) {
+    pycbc_stack_context_handle context;
+    context.tracer = tracer;
+    context.span = lcbtrace_span_start(tracer, operation, now, ref);
+    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    return context;
+}
+
 #endif
+
 
 struct zipkin_payload;
 
@@ -883,6 +889,8 @@ void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes)
     } while (1);
 }
 
+int zipkin_init_dump(const zipkin_state *state, int sock, int rv);
+
 void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
 {
     zipkin_state *state = NULL;
@@ -898,56 +906,7 @@ void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
     if (state->root == NULL || state->content_length == 0) {
         return;
     }
-    {
-        struct addrinfo hints, *addr, *a;
-
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        rv = getaddrinfo(state->json_api_host, state->json_api_port, &hints, &addr);
-        if (rv != 0) {
-            fprintf(stderr, "failed to resolve zipkin address getaddrinfo: %s\n", gai_strerror(rv));
-            exit(EXIT_FAILURE);
-        }
-        for (a = addr; a != NULL; a = a->ai_next) {
-            sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
-            if (sock == -1) {
-                perror("failed to create socket for zipkin: ");
-                continue;
-            }
-            rv = connect(sock, a->ai_addr, a->ai_addrlen);
-            if (rv == -1) {
-                perror("failed to connect socket for zipkin: ");
-                continue;
-            }
-            break;
-        }
-        if (a == NULL) {
-            fprintf(stderr, "unable to connect to zipkin. terminating\n");
-            exit(EXIT_FAILURE);
-        }
-        freeaddrinfo(addr);
-    }
-    {
-        char preamble[1000] = "";
-        size_t size;
-
-        snprintf(preamble, sizeof(preamble),
-                 "POST /api/v2/spans HTTP/1.1\r\n"
-                         "Content-Type: application/json\r\n"
-                         "Accept: */*\r\n"
-                         "Connection: close\r\n"
-                         "Host: %s:%s\r\n"
-                         "Content-Length: %ld\r\n\r\n",
-                 state->json_api_host, state->json_api_port, (long)state->content_length + 1 /* for open bracket */);
-        size = strlen(preamble);
-
-        rv = send(sock, preamble, size, 0);
-        if (rv == -1) {
-            perror("failed to send HTTP headers to zipkin: ");
-            exit(EXIT_FAILURE);
-        }
-    }
+    sock = zipkin_init_dump(state, sock, rv);
     {
         zipkin_payload *ptr = state->root;
         pycbc_loop_send(sock, "[", 1);
@@ -968,6 +927,60 @@ void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
     state->content_length = 0;
 }
 
+int zipkin_init_dump(const zipkin_state *state, int sock, int rv) {
+    {
+        struct addrinfo hints, *addr, *a;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        rv = getaddrinfo(state->json_api_host, state->json_api_port, &hints, &addr);
+        if (rv != 0) {
+            fprintf(stderr, "failed to resolve zipkin address getaddrinfo: %s\n", gai_strerror(rv));
+            //exit(EXIT_FAILURE);
+        }
+        for (a = addr; a != NULL; a = a->ai_next) {
+            sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+            if (sock == -1) {
+                perror("failed to create socket for zipkin: ");
+                continue;
+            }
+            rv = connect(sock, a->ai_addr, a->ai_addrlen);
+            if (rv == -1) {
+                perror("failed to connect socket for zipkin: ");
+                continue;
+            }
+            break;
+        }
+        if (a == NULL) {
+            fprintf(stderr, "unable to connect to zipkin. terminating\n");
+            //exit(EXIT_FAILURE);
+        }
+        freeaddrinfo(addr);
+    }
+    {
+        char preamble[1000] = "";
+        size_t size;
+
+        snprintf(preamble, sizeof(preamble),
+                 "POST /api/v2/spans HTTP/1.1\r\n"
+                         "Content-Type: application/json\r\n"
+                         "Accept: */*\r\n"
+                         "Connection: close\r\n"
+                         "Host: %s:%s\r\n"
+                         "Content-Length: %ld\r\n\r\n",
+                 state->json_api_host, state->json_api_port, (long)state->content_length + 1 /* for open bracket */);
+        size = strlen(preamble);
+
+        rv = send(sock, preamble, size, 0);
+        if (rv == -1) {
+            perror("failed to send HTTP headers to zipkin: ");
+            //exit(EXIT_FAILURE);
+        }
+    }
+    return sock;
+}
+
 lcbtrace_TRACER *pycbc_zipkin_new(void)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
@@ -986,34 +999,6 @@ lcbtrace_TRACER *pycbc_zipkin_new(void)
     return tracer;
 }
 
-void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span) {/* Now fetch the item back */
-    lcb_CMDGET gcmd = {0};
- //   lcb_install_callback3(instance, LCB_CALLBACK_GET, op_callback);
-    LCB_CMD_SET_TRACESPAN(&gcmd, span);
-    LCB_CMD_SET_KEY(&gcmd, "key", strlen("key"));
-    (*err) = lcb_get3(instance, NULL, &gcmd);
-
-    /* Likewise, the get_callback is invoked from here */
-    fprintf(stderr, "Will wait to retrieve item..\n");
-    lcb_wait(instance);
-}
-
-
-
-void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span) {
-    lcb_CMDSTORE scmd = {0};
-   // lcb_install_callback3(instance, LCB_CALLBACK_STORE, op_callback);
-
-    LCB_CMD_SET_TRACESPAN(&scmd, span);
-    LCB_CMD_SET_KEY(&scmd, "key", strlen("key"));
-    LCB_CMD_SET_VALUE(&scmd, "value", strlen("value"));
-    scmd.operation = LCB_SET;
-    (*err) = lcb_store3(instance, NULL, &scmd);
-
-    /* The store_callback is invoked from lcb_wait() */
-    fprintf(stderr, "Will wait for storage operation to complete..\n");
-    lcb_wait(instance);
-}
 
 
 
@@ -1052,8 +1037,6 @@ void do_span(lcb_error_t *err, struct lcb_st *instance, lcbtrace_SPAN *span,
     lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
 
     pycbc_do_encoding(span, tracer, pycbc_encoding_function, NULL);
-    pycbc_do_set(err, instance, span);
-    pycbc_do_get(err, instance, span);
 
     pycbc_do_decoding(span, tracer, pycbc_decoding_function, NULL);
 

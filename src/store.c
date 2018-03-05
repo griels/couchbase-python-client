@@ -367,9 +367,10 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) {\
-            \
-\
-    return set_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
+        pycbc_stack_context_handle context = get_stack_context4(kwargs, LCBTRACE_OP_REQUEST_ENCODING, 0,\
+            NULL, self->tracer);\
+        PyObject* result = set_common(self, args, kwargs, operation, mode, context);\
+        return result;\
 }
 
 DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)
