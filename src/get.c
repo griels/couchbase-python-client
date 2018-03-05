@@ -198,7 +198,7 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
 
 static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
-    int argopts)
+    int argopts, pycbc_stack_context* context)
 {
     int rv;
     Py_ssize_t ncmds = 0;
@@ -284,7 +284,7 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
         rv = pycbc_oputil_iter_multi(self, seqtype, kobj, &cv, optype,
-            handle_single_key, &gv);
+            handle_single_key, &gv, context);
 
     } else {
         rv = handle_single_key(self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
@@ -329,7 +329,7 @@ handle_single_lookup(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 }
 
 static PyObject *
-sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts)
+sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts, pycbc_stack_context* context)
 {
     Py_ssize_t ncmds;
     PyObject *kobj = NULL;
@@ -353,7 +353,7 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
     }
 
     if (pycbc_oputil_iter_multi(
-        self, seqtype, kobj, &cv, 0, handle_single_lookup, NULL) != 0) {
+        self, seqtype, kobj, &cv, 0, handle_single_lookup, NULL, context) != 0) {
         goto GT_DONE;
     }
 
@@ -371,19 +371,19 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
 PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE);
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, get_stack_context(kwargs));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI);
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, get_stack_context(kwargs));
 }
 
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return get_common(self, args, kwargs, operation, mode); \
+    return get_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
 }
 
 

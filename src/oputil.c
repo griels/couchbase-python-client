@@ -252,7 +252,8 @@ pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
                            Py_ssize_t *dictpos,
                            int ii,
                            PyObject **key,
-                           PyObject **value)
+                           PyObject **value,
+                           pycbc_stack_context* context )
 {
     if (seqtype & PYCBC_SEQTYPE_DICT) {
         int rv = PyDict_Next(seqobj, dictpos, key, value);
@@ -347,7 +348,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         struct pycbc_common_vars *cv,
                         int optype,
                         pycbc_oputil_keyhandler handler,
-                        void *arg)
+                        void *arg,
+                        pycbc_stack_context* context)
 {
     int rv = 0;
     int ii;
@@ -366,7 +368,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
         pycbc_Item *itm = NULL;
 
         rv = pycbc_oputil_sequence_next(seqtype,
-                                        seqobj, &dictpos, ii, &k, &v);
+                                        seqobj, &dictpos, ii, &k, &v, context);
         if (rv < 0) {
             goto GT_ITER_DONE;
         }
@@ -381,7 +383,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-        rv = handler(self, cv, optype, arg_k, v, options, itm, arg);
+        rv = handler(self, cv, optype, arg_k, v, options, itm, arg, context);
 
         GT_ITER_DONE:
         Py_XDECREF(k);
@@ -712,6 +714,11 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 //#include "include/opentracing/lcb_ot.h"
 
 #define COMPONENT_NAME "demo"
+pycbc_stack_context* get_stack_context(PyObject* kwargs)
+{
+    pycbc_stack_context* context;
+    return NULL;//((pycbc_stack_context*)PyArg_ParseTuple(PyDict_GetItemString(kwargs,"span"), "O!", &TracerType, &context));
+}
 
 
 struct zipkin_payload;

@@ -118,8 +118,7 @@ handle_single_keyop(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype
     return rv;
 }
 
-static PyObject *
-keyop_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
+TRACED_FUNCTION(static, PyObject*, keyop_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts)
 {
     int rv;
@@ -170,7 +169,7 @@ keyop_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
         rv = pycbc_oputil_iter_multi(self, seqtype, kobj, &cv, optype,
-                                     handle_single_keyop, NULL);
+                                     handle_single_keyop, NULL, context);
     } else {
         rv = handle_single_keyop(self, &cv, optype, kobj, casobj, NULL, NULL, NULL);
     }
@@ -260,7 +259,7 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     }
 
     rv = pycbc_oputil_iter_multi(self, seqtype, keys, &cv, PYCBC_CMD_ENDURE,
-                                 handle_single_keyop, NULL);
+                                 handle_single_keyop, NULL, get_stack_context(kwargs));
     if (rv < 0) {
         goto GT_DONE;
     }
@@ -278,7 +277,7 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return keyop_common(self, args, kwargs, operation, mode); \
+    return keyop_common_traced(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
 }
 
 DECLFUNC(remove, PYCBC_CMD_DELETE, PYCBC_ARGOPT_SINGLE)

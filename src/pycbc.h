@@ -277,6 +277,16 @@ typedef struct {
     char replicate_to;
 } pycbc_dur_params;
 
+typedef struct
+{
+#ifdef LCB_TRACING
+    lcbtrace_TRACER* tracer;
+    lcbtrace_SPAN* span;
+#endif
+} pycbc_stack_context;
+
+
+
 #ifdef LCB_TRACING
 static PyTypeObject TracerType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
@@ -290,6 +300,20 @@ typedef struct {
 
     int init_called:1;
 } pycbc_Tracer_t;
+
+typedef struct {
+    PyObject_HEAD
+    lcbtrace_SPAN *span;
+
+} pycbc_Span_t;
+
+pycbc_stack_context* get_stack_context(PyObject* kwargs);
+
+#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
+    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context* context)
+
+#define WRAP(NAME,...) \
+NAME##_traced(__VA_ARGS__,get_stack_context(kw)
 
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 

@@ -89,7 +89,7 @@ pycbc_observeinfo_new(pycbc_Bucket *parent)
 
 static int
 handle_single_observe(pycbc_Bucket *self, PyObject *curkey, int master_only,
-    struct pycbc_common_vars *cv)
+    struct pycbc_common_vars *cv, pycbc_stack_context* context)
 {
     int rv;
     pycbc_pybuffer keybuf = { NULL };
@@ -119,7 +119,7 @@ handle_single_observe(pycbc_Bucket *self, PyObject *curkey, int master_only,
 }
 
 static PyObject *
-observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts)
+observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts, pycbc_stack_context* context)
 {
     int rv;
     int ii;
@@ -174,12 +174,12 @@ observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts
             PyObject *curkey = NULL, *curvalue = NULL;
 
             rv = pycbc_oputil_sequence_next(seqtype, curseq, &dictpos, ii,
-                &curkey, &curvalue);
+                &curkey, &curvalue, context);
             if (rv < 0) {
                 goto GT_ITER_DONE;
             }
 
-            rv = handle_single_observe(self, curkey, master_only, &cv);
+            rv = handle_single_observe(self, curkey, master_only, &cv, context);
 
             GT_ITER_DONE:
             Py_XDECREF(curkey);
@@ -191,7 +191,7 @@ observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts
         }
 
     } else {
-        rv = handle_single_observe(self, kobj, master_only, &cv);
+        rv = handle_single_observe(self, kobj, master_only, &cv, context);
 
         if (rv < 0) {
             goto GT_DONE;
@@ -212,11 +212,11 @@ observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts
 PyObject *
 pycbc_Bucket_observe(pycbc_Bucket *self, PyObject *args, PyObject *kw)
 {
-    return observe_common(self, args, kw, PYCBC_ARGOPT_SINGLE);
+    return observe_common(self, args, kw, PYCBC_ARGOPT_SINGLE, get_stack_context(kw));
 }
 
 PyObject *
 pycbc_Bucket_observe_multi(pycbc_Bucket *self, PyObject *args, PyObject *kw)
 {
-    return observe_common(self, args, kw, PYCBC_ARGOPT_MULTI);
+    return observe_common(self, args, kw, PYCBC_ARGOPT_MULTI, get_stack_context(kw));
 }

@@ -106,7 +106,8 @@ typedef int (*pycbc_oputil_keyhandler)
          PyObject *value,
          PyObject *options,
          pycbc_Item *item,
-         void *arg);
+         void *arg,
+         pycbc_stack_context* context);
 
 /**
  * Examine the 'quiet' parameter and see if we should set the MultiResult's
@@ -186,7 +187,8 @@ int pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
                                Py_ssize_t *dictpos,
                                int ii,
                                PyObject **key,
-                               PyObject **value);
+                               PyObject **value,
+                               pycbc_stack_context* context);
 
 /**
  * Initialize the 'common_vars' structure.
@@ -219,7 +221,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         struct pycbc_common_vars *cv,
                         int optype,
                         pycbc_oputil_keyhandler handler,
-                        void *arg);
+                        void *arg,
+                        pycbc_stack_context* context);
 
 
 /**

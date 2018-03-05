@@ -116,7 +116,7 @@ handle_multi_mutate(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype
 static int
 handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
                  PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-                 void *arg) {
+                 void *arg, pycbc_stack_context* context) {
     int rv;
     const struct storecmd_vars *scv = (struct storecmd_vars *) arg;
     struct single_key_context skc = {NULL};
@@ -246,20 +246,7 @@ extern "C"
 {
 #endif
 
-#define WRAPPER(FUNC) wrapper<decltype(&FUNC), &FUNC>
 
-#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
-    QUALIFIERS RTYPE NAME##_traced(lcb_tracer *tracer, lcb_span *span,__VA_ARGS__)
-
-#define WRAP(NAME,...) NAME##_traced(tracer,span,__VA_ARGS__)
-
-typedef struct
-{
-#ifdef LCB_TRACING
-    lcbtrace_TRACER* tracer;
-    lcbtrace_SPAN* span;
-#endif
-} pycbc_stack_context;
 
 
         static PyObject *
@@ -353,10 +340,10 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = pycbc_oputil_iter_multi(self, seqtype, dict, &cv, 0, handle_single_kv, &scv);
+        rv = pycbc_oputil_iter_multi(self, seqtype, dict, &cv, 0, handle_single_kv, &scv, context);
 
     } else {
-        rv = handle_single_kv(self, &cv, 0, key, value, NULL, NULL, &scv);
+        rv = handle_single_kv(self, &cv, 0, key, value, NULL, NULL, &scv, context);
     }
 
     if (rv < 0) {
@@ -372,18 +359,11 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     return cv.ret;
 }
 
-/*static PyObject *
-set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-           int operation, int argopts) {
-
-
-    return set_common_traced(self,args,kwargs,operation,argopts, pycbc_stack_context);
-
-};*/
-
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
-                                      PyObject *args, PyObject *kwargs) { \
+                                      PyObject *args, PyObject *kwargs) {\
+            \
+\
     return set_common(self, args, kwargs, operation, mode, NULL); \
 }
 
