@@ -26,7 +26,7 @@ struct arithmetic_common_vars {
 static int
 handle_single_arith(pycbc_Bucket *self, struct pycbc_common_vars *cv,
     int optype, PyObject *curkey, PyObject *curvalue, PyObject *options,
-    pycbc_Item *item, void *arg, pycbc_stack_context* context)
+    pycbc_Item *item, void *arg, pycbc_stack_context_handle context)
 {
     int rv = 0;
     lcb_error_t err;
@@ -96,7 +96,7 @@ handle_single_arith(pycbc_Bucket *self, struct pycbc_common_vars *cv,
 
 PyObject *
 arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-    int optype, int argopts, pycbc_stack_context* context)
+    int optype, int argopts, pycbc_stack_context_handle context)
 {
     int rv;
     Py_ssize_t ncmds;
@@ -165,8 +165,7 @@ arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    pycbc_stack_context* context=NULL;\
-    return arithmetic_common(self, args, kwargs, operation, mode, context); \
+    return arithmetic_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
 }
 
 DECLFUNC(counter, PYCBC_CMD_COUNTER, PYCBC_ARGOPT_SINGLE)

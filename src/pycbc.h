@@ -285,7 +285,7 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
-
+typedef pycbc_stack_context pycbc_stack_context_handle;
 
 #ifdef LCB_TRACING
 static PyTypeObject TracerType = {
@@ -307,13 +307,8 @@ typedef struct {
 
 } pycbc_Span_t;
 
-pycbc_stack_context* get_stack_context(PyObject* kwargs);
 
-#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
-    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context* context)
 
-#define WRAP(NAME,...) \
-NAME##_traced(__VA_ARGS__,get_stack_context(kw)
 
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
@@ -347,7 +342,24 @@ void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
 
 void pycbc_zipkin_flush(lcbtrace_TRACER *tracer);
 
+pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, struct lcbtrace_TRACER* tracer);
+
+#else
 #endif
+
+#define TRACED_FUNCTION(QUALIFIERS,RTYPE,NAME,...)\
+    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context)
+
+
+
+#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, lcb_get_tracer(self->instance))
+
+
+#define WRAP(NAME,...) \
+NAME##_traced(__VA_ARGS__,get_stack_context(kw))
+
+
+#define WRAP_TIMED(NAME,...)
 
 typedef struct {
     PyObject_HEAD

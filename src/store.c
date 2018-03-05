@@ -16,6 +16,8 @@
 
 
 #include "oputil.h"
+#include "pycbc.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -116,7 +118,7 @@ handle_multi_mutate(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype
 static int
 handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
                  PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-                 void *arg, pycbc_stack_context* context) {
+                 void *arg, pycbc_stack_context_handle context) {
     int rv;
     const struct storecmd_vars *scv = (struct storecmd_vars *) arg;
     struct single_key_context skc = {NULL};
@@ -165,7 +167,10 @@ handle_single_kv(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     cmd.cas = skc.cas;
     cmd.operation = (lcb_storage_t) scv->operation;
     cmd.exptime = skc.ttl;
-//    LCB_CMD_SET_TRACESPAN(&cmd, span);
+
+#ifdef LCB_TRACING
+    LCB_CMD_SET_TRACESPAN(&cmd, context.span);
+#endif
     err = lcb_store3(self->instance, cv->mres, &cmd);
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -251,7 +256,7 @@ extern "C"
 
         static PyObject *
 set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-           int operation, int argopts, pycbc_stack_context* context) {
+           int operation, int argopts, pycbc_stack_context_handle context) {
     int rv;
 
     Py_ssize_t ncmds = 0;
@@ -364,7 +369,7 @@ set_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
                                       PyObject *args, PyObject *kwargs) {\
             \
 \
-    return set_common(self, args, kwargs, operation, mode, NULL); \
+    return set_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
 }
 
 DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)

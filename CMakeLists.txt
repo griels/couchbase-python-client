@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
 
-set(LCB_ROOT thirdparty/libcouchbase)
+set(LCB_ROOT ../libcouchbase)
 set(LCB_ROOT_SRC ${LCB_ROOT}/src)
 set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 
@@ -106,6 +106,7 @@ set(SOURCE
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
         ${OT_ROOT}/src
+
         )
 link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
@@ -113,18 +114,15 @@ link_libraries(${LCB_ROOT}/../lib/
 add_executable(couchbase_python_client_2_3_1
         ${OT_ROOT}/src
        # ${EXTRA_SOURCE_DIRS}
-      #[[  ${LCB_CORE}
+        ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
         ${LCB_JSON}
         ${LCB_SSL}
-        ${LCB_ROOT}/src/ssl
 
-        ${LCB_IO}
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
-        ${LCB_ROOT_SRC}]]
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py

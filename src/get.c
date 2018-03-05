@@ -31,8 +31,8 @@ struct getcmd_vars_st {
     } u;
 };
 
-static int
-handle_single_key(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+TRACED_FUNCTION(static, int,
+handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
     void *arg)
 {
@@ -121,6 +121,9 @@ handle_single_key(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     case PYCBC_CMD_GET:
         GT_GET:
         u_cmd.get.lock = lock;
+#ifdef LCB_TRACING
+        LCB_CMD_SET_TRACESPAN(&u_cmd.get, context.span);
+#endif
         err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
         break;
 
@@ -198,7 +201,7 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
 
 static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
-    int argopts, pycbc_stack_context* context)
+    int argopts, pycbc_stack_context_handle context)
 {
     int rv;
     Py_ssize_t ncmds = 0;
@@ -284,10 +287,10 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
         rv = pycbc_oputil_iter_multi(self, seqtype, kobj, &cv, optype,
-            handle_single_key, &gv, context);
+            handle_single_key_traced, &gv, context);
 
     } else {
-        rv = handle_single_key(self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
+        rv = handle_single_key_traced(self, &cv, optype, kobj, NULL, NULL, NULL, &gv, context);
     }
     if (rv < 0) {
         goto GT_DONE;
@@ -329,7 +332,7 @@ handle_single_lookup(pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 }
 
 static PyObject *
-sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts, pycbc_stack_context* context)
+sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts, pycbc_stack_context_handle context)
 {
     Py_ssize_t ncmds;
     PyObject *kobj = NULL;
