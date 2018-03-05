@@ -712,6 +712,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 #include <arpa/inet.h>
 #include <libcouchbase/tracing.h>
 //#include "include/opentracing/lcb_ot.h"
+#include "../contrib/cJSON/cJSON.h"
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
@@ -727,7 +728,7 @@ pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *oper
     {
         pycbc_stack_context_handle context;
         context.tracer = tracer;
-        context.span=lcbtrace_span_start(context.tracer, operation, now, ref);
+        context.span=lcbtrace_span_start(tracer, operation, now, ref);
         lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
         return context;
     }
@@ -787,7 +788,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         uint64_t start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
         printf("got span %p\n",span);
-        /*cJSON *json = cJSON_CreateObject();
+        cJSON *json = cJSON_CreateObject();
 
         buf = calloc(nbuf, sizeof(char));
         cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
@@ -854,12 +855,12 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
 
         payload->data = cJSON_PrintUnformatted(json);
-        cJSON_Delete(json);*/
+        cJSON_Delete(json);
         if (state->last) {
             state->last->next = payload;
         }
         state->last = payload;
-       // state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
+        state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
         if (state->root == NULL) {
             state->root = payload;
         }

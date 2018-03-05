@@ -92,7 +92,8 @@ SOURCEMODS = [
         'views',
         'n1ql',
         'fts',
-        'ixmgmt'
+        'ixmgmt',
+        '../contrib/cJSON/cJSON'
         ]
 
 SOURCEMODS_CPP = [

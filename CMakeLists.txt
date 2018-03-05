@@ -9,11 +9,13 @@ set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/p
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
 set(OT_ROOT thirdparty/opentracing-cpp)
+set(LCB_CJSON ${LCB_ROOT}/contrib/cJSON)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 aux_source_directory(${LCB_ROOT}/contrib/lcb-jsoncpp LCB_JSON)
+aux_source_directory(${LCB_CJSON} LCB_CJSON_SRC )
 aux_source_directory(${LCB_ROOT}/src/ssl LCB_SSL)
 aux_source_directory(${LCB_ROOT}/src/mcserver LCB_MCSERVER)
 aux_source_directory(${LCB_IO} LCB_IO_A)
@@ -37,6 +39,18 @@ ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
 
 
 include(ExternalProject)
+
+ExternalProject_Add (opentracing-cpp
+PREFIX ${OT_ROOT}
+GIT_REPOSITORY "https://github.com/DaveGamble/cJSON.git"
+
+#    GIT_BRANCH   "couchbase-c-api-3"
+GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
+BINARY_DIR ${OT_ROOT}
+SOURCE_DIR ${OT_ROOT}
+INSTALL_DIR ${OT_ROOT}/build
+)
+
 ExternalProject_Add (opentracing-cpp
         PREFIX ${OT_ROOT}
         GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
@@ -65,6 +79,7 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
         ${OT_ROOT}/include/opentracing
+        ${LCB_CJSON}
         )
 
 ExternalProject_Add(libcouchbase
@@ -119,7 +134,7 @@ add_executable(couchbase_python_client_2_3_1
         ${MCD_INC}
         ${LCB_JSON}
         ${LCB_SSL}
-
+        ${LCB_CJSON_SRC}
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
