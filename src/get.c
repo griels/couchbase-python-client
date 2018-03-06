@@ -290,7 +290,7 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
             handle_single_key_traced, &gv, context);
 
     } else {
-        rv = handle_single_key_traced(self, &cv, optype, kobj, NULL, NULL, NULL, &gv, context);
+        WRAP(rv,handle_single_key,self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
     }
     if (rv < 0) {
         goto GT_DONE;

@@ -328,14 +328,6 @@ void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN
 void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span);
 
 
-void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
-
-void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
-
-void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
-
-void pycbc_zipkin_flush(lcbtrace_TRACER *tracer);
-
 pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, struct lcbtrace_TRACER* tracer);
 #define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, lcb_get_tracer(self->instance))
 pycbc_stack_context_handle
