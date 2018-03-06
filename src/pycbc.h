@@ -357,9 +357,9 @@ new_stack_context(const char *operation, uint64_t now, void *ref, void *tracer)
 #endif
 
 #define WRAP(RV,NAME,...) \
-{ pycbc_stack_context_handle context = get_stack_context4(kwargs,NAME##_category,0,NULL,context.tracer);\
-RV=NAME##_traced(__VA_ARGS__,context);\
-lcbtrace_span_finish(context.span, LCBTRACE_NOW);};
+{ pycbc_stack_context_handle sub_context = get_stack_context4(kwargs,NAME##_category,0,NULL,context.tracer);\
+RV=NAME##_traced(__VA_ARGS__,sub_context);\
+lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);};
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context);\

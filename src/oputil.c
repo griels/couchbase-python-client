@@ -1098,7 +1098,7 @@ static PyMethodDef Tracer_TABLE_methods[] = {
 
         { NULL, NULL, 0, NULL }
 };
-
+/*
 
 static int
 Tracer__init__(pycbc_Tracer_t *self,
@@ -1109,11 +1109,11 @@ Tracer__init__(pycbc_Tracer_t *self,
     self->tracer=pycbc_zipkin_new();
     pycbc_Bucket* bucket;
     lcb_t instance;
-    /**
+    *//**
      * This xmacro enumerates the constructor keywords, targets, and types.
      * This was converted into an xmacro to ease the process of adding or
      * removing various parameters.
-     */
+     *//*
 #define XCTOR_ARGS(X) \
     X("bucket", "O!",  &bucket)
 
@@ -1147,8 +1147,8 @@ static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
 
-   /* Py_XDECREF(self->dtorcb);
-*/
+   *//* Py_XDECREF(self->dtorcb);
+*//*
     lcbtrace_destroy(self->tracer);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
@@ -1180,5 +1180,5 @@ pycbc_TracerType_init(PyObject **ptr)
     pycbc_DummyKeywords = PyDict_New();
 
     return PyType_Ready(p);
-}
+}*/
 #endif
