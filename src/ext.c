@@ -493,10 +493,6 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
 
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
 
-void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes);
-
-void pycbc_zipkin_flush(lcbtrace_TRACER *tracer, lcb_t instance);
-
 struct zipkin_payload;
 
 typedef struct zipkin_payload {
@@ -514,6 +510,7 @@ typedef struct zipkin_state {
     zipkin_payload *root;
     zipkin_payload *last;
     size_t content_length;
+    lcb_t instance
 } zipkin_state;
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
@@ -525,6 +522,49 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
         }
         free(tracer);
     }
+}
+//#include "../../libcouchbase/src/config_static.h"
+//#include "../../libcouchbase/build/generated/config.h"
+//#include "../../libcouchbase/src/internal.h"
+#define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
+void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
+{
+    zipkin_state *state = NULL;
+    //int sock;
+
+    if (tracer == NULL) {
+        return;
+    }
+    state = tracer->cookie;
+    if (state == NULL) {
+        return;
+    }
+    if (state->root == NULL || state->content_length == 0) {
+        return;
+    }
+    //sock = zipkin_init_dump(state);
+    {
+        zipkin_payload *ptr = state->root;
+        //pycbc_loop_send(sock, "[", 1);
+        printf("flushing\n");
+        while (ptr) {
+            zipkin_payload *tmp = ptr;
+            printf(tmp->data);
+//            lcb_log(LOGARGS(instance, ERROR),tmp->data);
+
+            // pycbc_loop_send(sock, ptr->data, strlen(ptr->data));
+            ptr = ptr->next;
+            if (ptr) {
+                //   pycbc_loop_send(sock, ",", 1);
+            }
+            free(tmp->data);
+            free(tmp);
+        }
+        // pycbc_loop_send(sock, "]", 1);
+    }
+    //close(sock);
+    state->root = state->last = NULL;
+    state->content_length = 0;
 }
 
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
@@ -622,69 +662,15 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
             state->last->next = payload;
         }
         state->last = payload;
+        printf(payload);
         state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
         if (state->root == NULL) {
             state->root = payload;
         }
     }
+    pycbc_zipkin_flush(tracer);
 }
 
-void pycbc_loop_send(int sock, char *bytes, ssize_t nbytes)
-{
-    do {
-        ssize_t rv = send(sock, bytes, nbytes, 0);
-        if (rv < 0) {
-            perror("failed to send data to zipkin: ");
-            exit(EXIT_FAILURE);
-        } else if (rv < nbytes) {
-            nbytes -= rv;
-            bytes += rv;
-            continue;
-        }
-        break;
-    } while (1);
-}
-
-int zipkin_init_dump(const zipkin_state *state);
-
-//#define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
-void pycbc_zipkin_flush(lcbtrace_TRACER *tracer, lcb_t instance)
-{
-    zipkin_state *state = NULL;
-    //int sock;
-
-    if (tracer == NULL) {
-        return;
-    }
-    state = tracer->cookie;
-    if (state == NULL) {
-        return;
-    }
-    if (state->root == NULL || state->content_length == 0) {
-        return;
-    }
-    //sock = zipkin_init_dump(state);
-    {
-        zipkin_payload *ptr = state->root;
-        //pycbc_loop_send(sock, "[", 1);
-        while (ptr) {
-            zipkin_payload *tmp = ptr;
-  //          lcb_log(LOGARGS(instance, ERR), "Failed to bootstrap client=%p. Error=%s, Message=%s", (void *)parent, lcb_strerror_short(parent->last_error), errinfo);
-
-           // pycbc_loop_send(sock, ptr->data, strlen(ptr->data));
-            ptr = ptr->next;
-            if (ptr) {
-             //   pycbc_loop_send(sock, ",", 1);
-            }
-            free(tmp->data);
-            free(tmp);
-        }
-       // pycbc_loop_send(sock, "]", 1);
-    }
-    //close(sock);
-    state->root = state->last = NULL;
-    state->content_length = 0;
-}
 
 int zipkin_init_dump(const zipkin_state *state) {
     int rv;
@@ -803,7 +789,7 @@ void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
 
     lcbtrace_span_finish(span, LCBTRACE_NOW);
 
-    pycbc_zipkin_flush(tracer,instance);
+    pycbc_zipkin_flush(tracer);
 }
 
 

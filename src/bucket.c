@@ -667,10 +667,8 @@ Bucket__init__(pycbc_Bucket *self,
     #define X(s, target, type) type
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
+
 #ifdef LCB_TRACING
-
-
-
     self->tracer = pycbc_zipkin_new();
 #endif
 
@@ -740,7 +738,9 @@ Bucket__init__(pycbc_Bucket *self,
 #endif
 
     err = lcb_create(&self->instance, &create_opts);
+#ifdef LCB_TRACING
     lcb_set_tracer(self->instance, self->tracer );
+#endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err,
