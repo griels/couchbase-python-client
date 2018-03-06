@@ -20,16 +20,16 @@ from threading import Thread
 from time import sleep, time
 from couchbase.bucket import Bucket, FMT_BYTES
 from couchbase.transcoder import Transcoder
-
+from couchbase.bucket import LOCKMODE_NONE, LOCKMODE_WAIT
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-t', '--threads', default=4, type=int,
                 help="Number of threads to spawn. 0 means no threads "
-                "but workload will still run in the main thread")
+                     "but workload will still run in the main thread")
 
 ap.add_argument('-d', '--delay', default=0, type=float,
                 help="Number of seconds to wait between each op. "
-                "may be a fraction")
+                     "may be a fraction")
 
 ap.add_argument('-U', '--connstr', default='couchbase://localhost/default',
                 help="Connection string")
@@ -41,7 +41,7 @@ ap.add_argument('-D', '--duration', default=10, type=int,
 ap.add_argument('-T', '--transcoder', default=False,
                 action='store_true',
                 help="Use the Transcoder object rather than built-in "
-                "conversion routines")
+                     "conversion routines")
 
 ap.add_argument('--ksize', default=12, type=int,
                 help="Key size to use")
@@ -53,6 +53,8 @@ ap.add_argument('--iops', default=False, action='store_true',
 
 ap.add_argument('--batch', '-N', default=1, type=int,
                 help="Number of commands to schedule per iteration")
+ap.add_argument('--lockmode', default="LOCKMODE_EXC", type=str,
+                help="Lock mode to use")
 
 options = ap.parse_args()
 DO_UNLOCK_GIL = options.threads > 0
@@ -70,7 +72,8 @@ class Worker(Thread):
         self.wait_time = 0
         self.opcount = 0
         connopts = { "connstr" : options.connstr,
-                     "unlock_gil": DO_UNLOCK_GIL }
+                     "unlock_gil": DO_UNLOCK_GIL,
+                     "lockmode": eval(options.lockmode)}
         if options.iops:
             connopts["experimental_gevent_support"] = True
 

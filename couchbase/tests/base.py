@@ -27,6 +27,12 @@ try:
 except ImportError:
     import unittest
 import logging
+import gc
+
+import os
+
+if os.environ.get("PYCBC_TRACE_GC") in ['FULL','STATS_LEAK_ONLY']:
+    gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
 
 class ResourcedTestCase(ResourcedTestCaseReal):
@@ -83,11 +89,12 @@ class ClusterInformation(object):
         self.bucket_password = ""
         self.ipv6 = "disabled"
         self.protocol = "http"
+        self.enable_tracing = "off"
 
     @staticmethod
     def filter_opts(options):
         return {key: value for key, value in
-                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "compression", "log_redaction"] and value}
+                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "compression", "log_redaction", "enable_tracing"] and value}
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
@@ -146,6 +153,8 @@ class ConnectionConfiguration(object):
         info.certpath = config.get('realserver', 'certpath', fallback=None)
         info.keypath = config.get('realserver', 'keypath', fallback=None)
         info.protocol = config.get('realserver', 'protocol', fallback="http")
+        info.enable_tracing = config.get('realserver', 'tracing', fallback="off")
+        logging.info("info is "+str(info.__dict__))
         if config.getboolean('realserver', 'enabled'):
             self.realserver_info = info
         else:
@@ -203,6 +212,7 @@ class MockResourceManager(TestResourceManager):
         info.admin_username = "Administrator"
         info.admin_password = "password"
         info.mock = mock
+        info.enable_tracing = "on"
         self._info = info
         return info
 
@@ -408,7 +418,32 @@ class ConnectionTestCase(CouchbaseTestCase):
         import gc
         if platform.python_implementation() == 'PyPy':
             return
+        if os.environ.get("PYCBC_TRACE_GC") in ['FULL','GRAPH_ONLY']:
+            import objgraph
+            graphdir=os.path.join(os.getcwd(),"ref_graphs")
+            try:
+                os.makedirs(graphdir)
+            except:
+                pass
 
+            for attrib_name in ["cb.tracer.parent", "cb"]:
+                try:
+                    logging.info("evaluating "+attrib_name)
+                    attrib = eval("self." + attrib_name)
+                    options = dict(refcounts=True, max_depth=3, too_many=10, shortnames=False)
+                    objgraph.show_refs(attrib,
+                                       filename=os.path.join(graphdir, '{}_{}_refs.dot'.format(self._testMethodName,
+                                                                                               attrib_name)),
+                                       **options)
+                    objgraph.show_backrefs(attrib,
+                                           filename=os.path.join(graphdir,
+                                                                         '{}_{}_backrefs.dot'.format(self._testMethodName,
+                                                                                                     attrib_name)),
+                                           **options)
+                    logging.info("got referrents {}".format(repr(gc.get_referents(attrib))))
+                    logging.info("got referrers {}".format(repr(gc.get_referrers(attrib))))
+                except:
+                    pass
         gc.collect()
         for x in range(10):
             oldrc = sys.getrefcount(self.cb)
@@ -419,9 +454,9 @@ class ConnectionTestCase(CouchbaseTestCase):
         # commented out for now as GC seems to be unstable
         #self.assertEqual(oldrc, 2)
 
-    def setUp(self):
+    def setUp(self, **kwargs):
         super(ConnectionTestCase, self).setUp()
-        self.cb = self.make_connection()
+        self.cb = self.make_connection(**kwargs)
 
     def tearDown(self):
         super(ConnectionTestCase, self).tearDown()
@@ -432,6 +467,49 @@ class ConnectionTestCase(CouchbaseTestCase):
                 self.checkCbRefcount()
             finally:
                 del self.cb
+
+
+import time
+
+import logging
+from basictracer import BasicTracer, SpanRecorder
+import couchbase
+
+
+class LogRecorder(SpanRecorder):
+
+    def record_span(self, span):
+        logging.info("recording span: "+str(span.__dict__))
+
+
+
+class TracedCase(ConnectionTestCase):
+
+    _tracer = None
+    @property
+    def tracer(self):
+        if not TracedCase._tracer:
+            TracedCase._tracer = BasicTracer(recorder=LogRecorder())
+        return TracedCase._tracer
+
+    def setUp(self):
+        log_level = logging.INFO
+        logging.getLogger('').handlers = []
+        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
+
+        super(TracedCase, self).setUp(tracer=self.tracer)
+        couchbase.enable_logging()
+
+    def tearDown(self):
+        super(TracedCase,self).tearDown()
+
+        if self.tracer and getattr(self.tracer,"close", None):
+            time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+            try:
+                self.tracer.close()  # flush any buffered spans
+            except:
+                pass
+        couchbase.disable_logging()
 
 
 class RealServerTestCase(ConnectionTestCase):

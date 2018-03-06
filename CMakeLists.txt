@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(couchbase_python_client_2_3_1)
-
+add_definitions("-DPYCBC_TRACING_ENABLE -DPYCBC_DEBUG")
 set(LCB_ROOT ../libcouchbase)
 set(LCB_ROOT_SRC ${LCB_ROOT}/src)
 set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
@@ -8,32 +8,52 @@ set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
 set(LCB_IO ${LCB_ROOT}/src/lcbio)
+set(OT_ROOT thirdparty/opentracing-cpp)
+set(LCB_CJSON ${LCB_ROOT}/contrib/cJSON)
+set(TP_CJSON thirdparty/cJSON)
+set(LCB_TRACING_DIR ${LCB_ROOT}/src/tracing)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
 aux_source_directory(${LCB_ROOT}/include/libcouchbase/ LCB_INC)
 aux_source_directory(${LCB_ROOT}/contrib/lcb-jsoncpp LCB_JSON)
+aux_source_directory(${LCB_CJSON} LCB_CJSON_SRC )
 aux_source_directory(${LCB_ROOT}/src/ssl LCB_SSL)
 aux_source_directory(${LCB_ROOT}/src/mcserver LCB_MCSERVER)
 aux_source_directory(${LCB_IO} LCB_IO_A)
 aux_source_directory(${LCB_ROOT_SRC}/sasl LCB_SASL)
+aux_source_directory(${LCB_ROOT_SRC}/tracing LCB_TRACING_DIR)
 
 aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
 
+include(ExternalProject)
+add_definitions(-DLCB_TRACING=TRUE)
 
-ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
-ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
-ADD_LIBRARY(mcreq OBJECT ${LCB_MC_SRC})
-ADD_LIBRARY(rdb OBJECT ${LCB_RDB_SRC})
-ADD_LIBRARY(lcbio OBJECT ${LCB_IO_SRC})
-ADD_LIBRARY(lcbio-cxx OBJECT ${LCB_IO_CXXSRC})
-ADD_LIBRARY(lcbht OBJECT ${LCB_HT_SRC})
-ADD_LIBRARY(lcbcore OBJECT ${LCB_CORE_SRC})
-ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})
-include_directories( ${LCB_CORE}
+ExternalProject_Add (cJSON
+PREFIX ${OT_ROOT}
+GIT_REPOSITORY "https://github.com/DaveGamble/cJSON.git"
+
+BINARY_DIR ${TP_CJSON}
+SOURCE_DIR ${TP_CJSON}
+INSTALL_DIR ${TP_CJSON}/build
+)
+
+ExternalProject_Add (opentracing-cpp
+        PREFIX ${OT_ROOT}
+        GIT_REPOSITORY "https://github.com/griels/opentracing-cpp.git"
+
+        GIT_TAG "07779476cd362629fabce02a6a952d0fc478b5c1"
+        BINARY_DIR ${OT_ROOT}
+        SOURCE_DIR ${OT_ROOT}
+        INSTALL_DIR ${OT_ROOT}/build
+        )
+
+include(FindPythonLibs)
+
+include_directories( ${LCB_ROOT_SRC}
         ${LCB_ROOT}/include
         ${MCD_INC}
         ${HTTP}
@@ -49,8 +69,10 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
+        ${LCB_TRACING_DIR}
+        ${LCB_CJSON}
+        ${PYTHON_INCLUDE_DIRS}
         )
-include(ExternalProject)
 
 ExternalProject_Add(libcouchbase
         DOWNLOAD_COMMAND ""
@@ -95,19 +117,16 @@ link_directories(${LCB_ROOT}/lib)
 link_libraries(${LCB_ROOT}/../lib/
         )
 add_executable(couchbase_python_client_2_3_1
-        ${EXTRA_SOURCE_DIRS}
+        ${OT_ROOT}/src
         ${LCB_CORE}
         ${LCB_INC}
         ${MCD_INC}
         ${LCB_JSON}
         ${LCB_SSL}
-        ${LCB_ROOT}/src/ssl
-
-        ${LCB_IO}
+        ${LCB_CJSON_SRC}
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
-        ${LCB_ROOT_SRC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py

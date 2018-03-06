@@ -29,7 +29,7 @@ Bucket__init__(pycbc_Bucket *self,
                    PyObject *kwargs);
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self);
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs);
 
 static void
 Bucket_dtor(pycbc_Bucket *self);
@@ -163,6 +163,14 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
     return ret;
 }
 
+#ifdef PYCBC_TRACING
+static PyObject *
+Bucket_tracer(pycbc_Bucket *self, void *unused) {
+    PyObject* result = self->tracer?(PyObject*)self->tracer:Py_None;
+    PYCBC_INCREF(result);
+    return result;
+}
+#endif
 static PyObject *
 Bucket__instance_pointer(pycbc_Bucket *self, void *unused)
 {
@@ -382,7 +390,13 @@ static PyGetSetDef Bucket_TABLE_getset[] = {
                         "Note that this will still return true even if\n"
                         "it is subsequently closed via :meth:`_close`\n")
         },
-
+#ifdef PYCBC_TRACING
+        {"tracer",
+                (getter) Bucket_tracer,
+                NULL,
+                PyDoc_STR("Tracer used by bucket, if any.\n")
+        },
+#endif
         { "_instance_pointer",
                 (getter)Bucket__instance_pointer,
                 NULL,
@@ -554,7 +568,7 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 
         { "_connect",
                 (PyCFunction)Bucket__connect,
-                METH_NOARGS,
+                METH_VARARGS|METH_KEYWORDS,
                 PyDoc_STR(
                 "Connect this instance. This is typically called by one of\n"
                 "the wrapping constructors\n")
@@ -634,7 +648,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
-
+    PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
 
 
@@ -655,7 +669,8 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i") \
     X("_flags", &self->flags, "I") \
     X("_conntype", &conntype, "i") \
-    X("_iops", &iops_O, "O")
+    X("_iops", &iops_O, "O") \
+    X("tracer", &tracer, "O")
 
     static char *kwlist[] = {
         #define X(s, target, type) s,
@@ -691,7 +706,21 @@ Bucket__init__(pycbc_Bucket *self,
     if (unlock_gil_O && PyObject_IsTrue(unlock_gil_O) == 0) {
         self->unlock_gil = 0;
     }
-
+#ifdef PYCBC_TRACING
+    if (tracer){
+        PyObject *tracer_args = PyTuple_New(1);
+        PyTuple_SetItem(tracer_args, 0, tracer);
+        self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
+        PYCBC_DECREF(tracer_args);
+        if (PyErr_Occurred()) {
+            PYCBC_EXCEPTION_LOG_NOCLEAR;
+            self->tracer = NULL;
+        }
+        else {
+            PYCBC_XINCREF(self->tracer);
+        }
+    }
+#endif
     create_opts.version = 3;
     create_opts.v.v3.type = conntype;
 
@@ -734,6 +763,11 @@ Bucket__init__(pycbc_Bucket *self,
 #endif
 
     err = lcb_create(&self->instance, &create_opts);
+#ifdef PYCBC_TRACING
+    if (self->tracer) {
+        lcb_set_tracer(self->instance, self->tracer->tracer);
+    }
+#endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err,
@@ -757,7 +791,7 @@ Bucket__init__(pycbc_Bucket *self,
     pycbc_callbacks_init(self->instance);
     lcb_set_cookie(self->instance, self);
     {
-        const char *bucketstr;
+        char *bucketstr;
         err = lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_BUCKETNAME, &bucketstr);
         if (err == LCB_SUCCESS && bucketstr != NULL) {
             self->bucket = pycbc_SimpleStringZ(bucketstr);
@@ -765,12 +799,15 @@ Bucket__init__(pycbc_Bucket *self,
     }
 
     self->btype = pycbc_IntFromL(LCB_BTYPE_UNSPEC);
+
     return 0;
 }
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self)
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
+                                                                          self->tracer, "bucket.connect");
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
@@ -786,7 +823,7 @@ Bucket__connect(pycbc_Bucket *self)
         return NULL;
     }
 
-    pycbc_oputil_wait_common(self);
+    PYCBC_TRACE_WRAP(pycbc_oputil_wait_common, NULL, self);
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         err = lcb_get_bootstrap_status(self->instance);
         if (err != LCB_SUCCESS) {
@@ -808,6 +845,7 @@ Bucket__connect(pycbc_Bucket *self)
 static void
 Bucket_dtor(pycbc_Bucket *self)
 {
+    PYCBC_DEBUG_LOG("destroying %p",self);
     if (self->flags & PYCBC_CONN_F_CLOSED) {
         lcb_destroy(self->instance);
         self->instance = NULL;
@@ -829,6 +867,10 @@ Bucket_dtor(pycbc_Bucket *self)
     if (self->instance) {
         lcb_destroy(self->instance);
     }
+#ifdef PYCBC_TRACING
+    PYCBC_XDECREF((PyObject*)self->tracer);
+    self->tracer = NULL;
+#endif
 
 #ifdef WITH_THREAD
     if (self->lock) {
