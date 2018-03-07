@@ -210,13 +210,17 @@ observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts
 }
 
 PyObject *
-pycbc_Bucket_observe(pycbc_Bucket *self, PyObject *args, PyObject *kw)
+pycbc_Bucket_observe(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return observe_common(self, args, kw, PYCBC_ARGOPT_SINGLE, get_stack_context(kw));
+    PyObject* result;
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self, args, kwargs, PYCBC_ARGOPT_SINGLE);
+    return result;
 }
 
 PyObject *
-pycbc_Bucket_observe_multi(pycbc_Bucket *self, PyObject *args, PyObject *kw)
+pycbc_Bucket_observe_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return observe_common(self, args, kw, PYCBC_ARGOPT_MULTI, get_stack_context(kw));
+    PyObject* result;
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self, args, kwargs, PYCBC_ARGOPT_MULTI);
+    return result;
 }

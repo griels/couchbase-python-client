@@ -23,10 +23,10 @@ struct arithmetic_common_vars {
     int create;
 };
 
-static int
-handle_single_arith(pycbc_Bucket *self, struct pycbc_common_vars *cv,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
+handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
     int optype, PyObject *curkey, PyObject *curvalue, PyObject *options,
-    pycbc_Item *item, void *arg, pycbc_stack_context_handle context)
+    pycbc_Item *item, void *arg)
 {
     int rv = 0;
     lcb_error_t err;
@@ -141,7 +141,7 @@ arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     rv = pycbc_common_vars_init(&cv, self, argopts, ncmds, 0);
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = pycbc_oputil_iter_multi(self, seqtype, collection, &cv, optype,
+        rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, collection, &cv, optype,
             handle_single_arith, &global_params, context);
 
     } else {
@@ -165,7 +165,7 @@ arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return arithmetic_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
+    return arithmetic_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self)); \
 }
 
 DECLFUNC(counter, PYCBC_CMD_COUNTER, PYCBC_ARGOPT_SINGLE)

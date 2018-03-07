@@ -286,11 +286,11 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = pycbc_oputil_iter_multi(self, seqtype, kobj, &cv, optype,
-            handle_single_key_traced, &gv, context);
+        rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, kobj, &cv, optype,
+            handle_single_key, &gv, context);
 
     } else {
-        WRAP(rv,handle_single_key,self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
+        rv=WRAP(handle_single_key,kwargs, self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
     }
     if (rv < 0) {
         goto GT_DONE;
@@ -355,8 +355,8 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
         return NULL;
     }
 
-    if (pycbc_oputil_iter_multi(
-        self, seqtype, kobj, &cv, 0, handle_single_lookup_traced, NULL, context) != 0) {
+    if (PYCBC_OPUTIL_ITER_MULTI(
+        self, seqtype, kobj, &cv, 0, handle_single_lookup, NULL, context) != 0) {
         goto GT_DONE;
     }
 
@@ -374,19 +374,19 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
 PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, get_stack_context(kwargs));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, get_stack_context(kwargs));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self));
 }
 
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return get_common(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
+    return get_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self)); \
 }
 
 

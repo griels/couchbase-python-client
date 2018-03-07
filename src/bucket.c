@@ -669,7 +669,9 @@ Bucket__init__(pycbc_Bucket *self,
     #undef X
 
 #ifdef LCB_TRACING
-    self->tracer = pycbc_zipkin_new();
+    self->tracer = malloc(sizeof(pycbc_Tracer_t));
+    memset(self->tracer, 0, sizeof(pycbc_Tracer_t));
+    self->tracer->tracer=pycbc_zipkin_new();
 #endif
 
     if (self->init_called) {
@@ -739,7 +741,7 @@ Bucket__init__(pycbc_Bucket *self,
 
     err = lcb_create(&self->instance, &create_opts);
 #ifdef LCB_TRACING
-    lcb_set_tracer(self->instance, self->tracer );
+    lcb_set_tracer(self->instance, self->tracer->tracer );
 #endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;

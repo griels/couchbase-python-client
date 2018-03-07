@@ -168,10 +168,10 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = pycbc_oputil_iter_multi(self, seqtype, kobj, &cv, optype,
-                                     handle_single_keyop_traced, NULL, context);
+        rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, kobj, &cv, optype,
+                                     handle_single_keyop, NULL, context);
     } else {
-        WRAP(rv,handle_single_keyop,self, &cv, optype, kobj, casobj, NULL, NULL, NULL);
+        rv=WRAP(handle_single_keyop,kwargs,self, &cv, optype, kobj, casobj, NULL, NULL, NULL);
     }
 
     if (rv < 0) {
@@ -205,6 +205,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
 PyObject *
 pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self);
     int rv;
     Py_ssize_t ncmds;
     pycbc_seqtype_t seqtype;
@@ -258,8 +259,7 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         goto GT_DONE;
     }
 
-    rv = pycbc_oputil_iter_multi(self, seqtype, keys, &cv, PYCBC_CMD_ENDURE,
-                                 handle_single_keyop_traced, NULL, get_stack_context(kwargs));
+    rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, keys, &cv, PYCBC_CMD_ENDURE, handle_single_keyop, NULL, context);
     if (rv < 0) {
         goto GT_DONE;
     }
@@ -277,7 +277,9 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return keyop_common_traced(self, args, kwargs, operation, mode, get_stack_context(kwargs)); \
+    PyObject* result;\
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING,keyop_common, self, args, kwargs, operation, mode); \
+    return result;\
 }
 
 DECLFUNC(remove, PYCBC_CMD_DELETE, PYCBC_ARGOPT_SINGLE)

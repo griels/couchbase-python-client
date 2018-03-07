@@ -26,7 +26,7 @@ aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
-aux_source_directory(LCB_OT_ROOT ${OT_ROOT}/src)
+#aux_source_directory(LCB_OT_ROOT ${OT_ROOT}/src)
 
 #[[ADD_LIBRARY(netbuf OBJECT ${LCB_NETBUF_SRC})
 ADD_LIBRARY(netbuf-malloc OBJECT ${LCB_NETBUF_SRC})
@@ -40,6 +40,7 @@ ADD_LIBRARY(lcbcore-cxx OBJECT ${LCB_CORE_CXXSRC})]]
 
 
 include(ExternalProject)
+add_definitions(-DLCB_TRACING=TRUE)
 
 ExternalProject_Add (cJSON
 PREFIX ${OT_ROOT}
@@ -78,7 +79,7 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
-        ${OT_ROOT}/include/opentracing
+#        ${OT_ROOT}/include/opentracing
         ${LCB_CJSON}
         )
 
@@ -120,7 +121,7 @@ set(SOURCE
         ${LCB_SASL}
         ${LCB_CLI}
         ${LCB_ROOT_SRC}
-        ${OT_ROOT}/src
+#        ${OT_ROOT}/src
 
         )
 link_directories(${LCB_ROOT}/lib)

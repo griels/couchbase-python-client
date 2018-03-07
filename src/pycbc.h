@@ -272,6 +272,7 @@ enum {
             PYCBC_CONN_F_ASYNC_DTOR = 1 << 5
 };
 
+//#include "lcb_ot.h"
 typedef struct {
     char persist_to;
     char replicate_to;
@@ -280,10 +281,13 @@ typedef struct {
 typedef struct
 {
 #ifdef LCB_TRACING
-    lcbtrace_TRACER* tracer;
+    struct pycbc_Tracer_t* tracer;
     lcbtrace_SPAN* span;
+
 #endif
 } pycbc_stack_context;
+
+
 
 typedef pycbc_stack_context pycbc_stack_context_handle;
 
@@ -301,6 +305,11 @@ typedef struct {
     int init_called:1;
 } pycbc_Tracer_t;
 
+static PyTypeObject SpanType = {
+        PYCBC_POBJ_HEAD_INIT(NULL)
+        0
+};
+
 typedef struct {
     PyObject_HEAD
     lcbtrace_SPAN *span;
@@ -308,63 +317,42 @@ typedef struct {
 } pycbc_Span_t;
 
 
-
-
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
-typedef void (*encoding_fn)(void *context);
 
-typedef void (*decoding_fn)(void *context);
+pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
+#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
 
-void do_span(lcb_error_t *err, struct lcb_st *instance, lcbtrace_SPAN *span,
-             lcbtrace_TRACER *tracer);
-
-void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload);
-
-void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, decoding_fn fun, void *payload);
-
-void pycbc_do_get(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span);
-
-void pycbc_do_set(lcb_error_t *err, struct lcb_st *instance, const lcbtrace_SPAN *span);
-
-
-pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, struct lcbtrace_TRACER* tracer);
-#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, lcb_get_tracer(self->instance))
-pycbc_stack_context_handle
-new_stack_context(const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer);
 #else
 
 inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
     return pycbc_stack_context_handle();
 }
 
-#define get_stack_context(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, NULL)
+#define PYCBC_GET_STACK_CONTEXT(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, NULL)
 
 pycbc_stack_context_handle
-new_stack_context(const char *operation, uint64_t now, void *ref, void *tracer)
+new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
 {
     return pycbc_stack_context_handle();
 }
+#define new_stack_context(kwargs, CATEGORY) get_stack_context4(kwargs, CATEGORY, 0, NULL, NULL)
 
 #endif
 
-#define WRAP(RV,NAME,...) \
-{ pycbc_stack_context_handle sub_context = get_stack_context4(kwargs,NAME##_category,0,NULL,context.tracer);\
-RV=NAME##_traced(__VA_ARGS__,sub_context);\
-lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);};
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category,0))
+
+#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
+{\
+    pycbc_stack_context_handle sub_context = get_stack_context4(self->tracer, kwargs, CATEGORY, 0);\
+    RV=NAME(__VA_ARGS__,sub_context);\
+    lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);\
+};
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context);\
+    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context);\
     static const char* NAME##_category=#CATEGORY;\
-    QUALIFIERS RTYPE NAME##_traced(__VA_ARGS__, pycbc_stack_context_handle context)
-
-
-
-
-
-
-
-#define WRAP_TIMED(NAME,...)
+    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
 typedef struct {
     PyObject_HEAD
@@ -373,7 +361,7 @@ typedef struct {
     lcb_t instance;
 #ifdef LCB_TRACING
     /** Tracer **/
-    lcbtrace_TRACER *tracer;
+    pycbc_Tracer_t *tracer;
 #endif
     /** Transcoder object */
     PyObject *tc;

@@ -383,7 +383,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-        rv = handler(self, cv, optype, arg_k, v, options, itm, arg, context);
+        rv = handler.cb(self, cv, optype, arg_k, v, options, itm, arg, context);
 
         GT_ITER_DONE:
         Py_XDECREF(k);

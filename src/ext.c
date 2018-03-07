@@ -465,24 +465,25 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #ifdef LCB_TRACING
 
 pycbc_stack_context_handle
-get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer) {
+new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
+    pycbc_stack_context_handle context;
+    context.tracer = py_tracer;
+    context.span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
+    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    return context;
+}
+
+pycbc_stack_context_handle
+get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now) {
     pycbc_stack_context_handle *pcontext;
     PyObject *span = PyDict_GetItemString(kwargs, "span");
+    lcbtrace_REF* ref = NULL;
     if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
     {
         return *pcontext;
     } else{
-        return new_stack_context(operation, now, ref, tracer);
+        return new_stack_context4(py_tracer, operation, now, ref);
     }
-}
-
-pycbc_stack_context_handle
-new_stack_context(const char *operation, uint64_t now, lcbtrace_REF *ref, lcbtrace_TRACER *tracer) {
-    pycbc_stack_context_handle context;
-    context.tracer = tracer;
-    context.span = lcbtrace_span_start(tracer, operation, now, ref);
-    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    return context;
 }
 
 #endif
@@ -662,7 +663,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
             state->last->next = payload;
         }
         state->last = payload;
-        printf(payload);
+        //printf(payload);
         state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
         if (state->root == NULL) {
             state->root = payload;
@@ -747,6 +748,7 @@ lcbtrace_TRACER *pycbc_zipkin_new(void)
 }
 
 
+/*
 
 
 void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
@@ -778,7 +780,9 @@ void pycbc_encoding_function(void* encoding_time_us) { usleep((int)encoding_time
 void pycbc_decoding_function(void* encoding_time_us) { usleep((int)encoding_time_us); }
 
 void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
-             lcbtrace_TRACER *tracer) {/* Assign the handlers to be called for the operation types */
+             lcbtrace_TRACER *tracer) {*/
+/* Assign the handlers to be called for the operation types *//*
+
 
     span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
     lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
@@ -791,6 +795,7 @@ void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
 
     pycbc_zipkin_flush(tracer);
 }
+*/
 
 
 
