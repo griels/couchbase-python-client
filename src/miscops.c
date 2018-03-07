@@ -98,12 +98,14 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             rv = -1;
             goto GT_DONE;
         }
+        PYCBC_TRACECMD(ucmd.unl, context);
         err = lcb_unlock3(self->instance, cv->mres, &ucmd.unl);
 
     } else if (optype == PYCBC_CMD_ENDURE) {
         err = cv->mctx->addcmd(cv->mctx, &ucmd.base);
 
     } else {
+        PYCBC_TRACECMD(ucmd.rm,context);
         err = lcb_remove3(self->instance, cv->mres, &ucmd.rm);
     }
     if (err == LCB_SUCCESS) {
@@ -291,6 +293,7 @@ DECLFUNC(unlock_multi, PYCBC_CMD_UNLOCK, PYCBC_ARGOPT_MULTI)
 PyObject *
 pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self);
     int rv;
     int ii;
     Py_ssize_t ncmds;
@@ -342,11 +345,13 @@ pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
             if (is_keystats && PyObject_IsTrue(is_keystats)) {
                 cmd.cmdflags |= LCB_CMDSTATS_F_KV;
             }
+            PYCBC_TRACECMD(cmd, context);
             err = lcb_stats3(self->instance, cv.mres, &cmd);
             Py_XDECREF(newkey);
         }
 
     } else {
+        PYCBC_TRACECMD(cmd, context);
         err = lcb_stats3(self->instance, cv.mres, &cmd);
     }
 
@@ -368,6 +373,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
                              PyObject *args,
                              PyObject *kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
@@ -384,6 +390,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
     if (rv < 0) {
         return NULL;
     }
+    PYCBC_TRACECMD(cmd, context);
     lcb_sched_enter(self->instance);
     err = lcb_ping3(self->instance, cv.mres, &cmd);
 
@@ -405,6 +412,7 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
@@ -418,6 +426,8 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
     if (rv < 0) {
         return NULL;
     }
+
+    PYCBC_TRACECMD(cmd, context);
     lcb_sched_enter(self->instance);
     PYCBC_CONN_THR_BEGIN(self);
     err = lcb_diag(self->instance, cv.mres, &cmd);

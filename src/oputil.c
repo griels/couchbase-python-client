@@ -605,8 +605,8 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
     return -1;
 }
 
-int
-pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,, int,
+pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd)
 {
     int rv = 0;
@@ -659,6 +659,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
+        LCB_CMD_SET_TRACESPAN(cmd, context.span);
         err = lcb_subdoc3(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
             PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);

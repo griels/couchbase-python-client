@@ -121,14 +121,13 @@ handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     case PYCBC_CMD_GET:
         GT_GET:
         u_cmd.get.lock = lock;
-#ifdef LCB_TRACING
-        LCB_CMD_SET_TRACESPAN(&u_cmd.get, context.span);
-#endif
+        PYCBC_TRACECMD(u_cmd.get, context);
         err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
         break;
 
     case PYCBC_CMD_TOUCH:
         u_cmd.touch.exptime = ttl;
+        PYCBC_TRACECMD(u_cmd.touch, context);
         err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
         break;
 
@@ -137,6 +136,7 @@ handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     case PYCBC_CMD_GETREPLICA_ALL:
         u_cmd.rget.strategy = gv->u.replica.strategy;
         u_cmd.rget.index = gv->u.replica.index;
+        PYCBC_TRACECMD(u_cmd.rget,context);
         err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
         break;
     default:
@@ -326,7 +326,7 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
         return -1;
     }
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    rv = pycbc_sd_handle_speclist(self, cv->mres, curkey, curval, &cmd);
+    rv = WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
 }

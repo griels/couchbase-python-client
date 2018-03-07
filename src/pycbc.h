@@ -278,18 +278,6 @@ typedef struct {
     char replicate_to;
 } pycbc_dur_params;
 
-typedef struct
-{
-#ifdef LCB_TRACING
-    struct pycbc_Tracer_t* tracer;
-    lcbtrace_SPAN* span;
-
-#endif
-} pycbc_stack_context;
-
-
-
-typedef pycbc_stack_context pycbc_stack_context_handle;
 
 
 static PyTypeObject TracerType = {
@@ -322,12 +310,24 @@ typedef struct {
 #ifdef LCB_TRACING
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
+typedef struct
+{
+#ifdef LCB_TRACING
+    pycbc_Tracer_t* tracer;
+    lcbtrace_SPAN* span;
+
+#endif
+} pycbc_stack_context;
+
+
+
+typedef pycbc_stack_context pycbc_stack_context_handle;
 
 pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
-
+#define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
 #else
-
+#define PYCBC_TRACECMD
 inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
     return pycbc_stack_context_handle();
 }
@@ -343,7 +343,7 @@ new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
 
 #endif
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category,0))
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category(),0))
 
 #define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
 {\
@@ -353,8 +353,11 @@ new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
 };
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context);\
-    static const char* NAME##_category=#CATEGORY;\
+    const char* NAME##_category(){ return #CATEGORY; }\
+    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
+
+#define TRACED_FUNCTION_DECL(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
+    const char* NAME##_category();\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
 typedef struct {
