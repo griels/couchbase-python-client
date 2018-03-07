@@ -291,7 +291,7 @@ typedef struct
 
 typedef pycbc_stack_context pycbc_stack_context_handle;
 
-#ifdef LCB_TRACING
+
 static PyTypeObject TracerType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
         0
@@ -299,7 +299,9 @@ static PyTypeObject TracerType = {
 
 typedef struct {
     PyObject_HEAD
+#ifdef LCB_TRACING
     lcbtrace_TRACER *tracer;
+#endif
     lcb_t *instance;
 
     int init_called:1;
@@ -312,11 +314,12 @@ static PyTypeObject SpanType = {
 
 typedef struct {
     PyObject_HEAD
+#ifdef LCB_TRACING
     lcbtrace_SPAN *span;
-
+#endif
 } pycbc_Span_t;
 
-
+#ifdef LCB_TRACING
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
 

@@ -838,7 +838,9 @@ Bucket_dtor(pycbc_Bucket *self)
     if (self->instance) {
         lcb_destroy(self->instance);
     }
-
+#ifdef LCB_TRACING
+    free(self->tracer);
+#endif
 #ifdef WITH_THREAD
     if (self->lock) {
         PyThread_free_lock(self->lock);

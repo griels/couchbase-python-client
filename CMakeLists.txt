@@ -11,6 +11,7 @@ set(LCB_IO ${LCB_ROOT}/src/lcbio)
 set(OT_ROOT thirdparty/opentracing-cpp)
 set(LCB_CJSON ${LCB_ROOT}/contrib/cJSON)
 set(TP_CJSON thirdparty/cJSON)
+set(LCB_TRACING_DIR ${LCB_ROOT}/src/tracing)
 aux_source_directory(${LCB_ROOT}/src LCB_CORE)
 aux_source_directory(${LCB_ROOT}/src/http HTTP)
 aux_source_directory(${LCB_ROOT}/include/memcached/ MCD_INC)
@@ -21,6 +22,7 @@ aux_source_directory(${LCB_ROOT}/src/ssl LCB_SSL)
 aux_source_directory(${LCB_ROOT}/src/mcserver LCB_MCSERVER)
 aux_source_directory(${LCB_IO} LCB_IO_A)
 aux_source_directory(${LCB_ROOT_SRC}/sasl LCB_SASL)
+aux_source_directory(${LCB_ROOT_SRC}/tracing LCB_TRACING_DIR)
 
 aux_source_directory(LCB_VBUCKET ${LCB_ROOT}/src/vbucket)
 aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
@@ -63,7 +65,7 @@ ExternalProject_Add (opentracing-cpp
         INSTALL_DIR ${OT_ROOT}/build
         )
 
-include_directories( ${LCB_CORE}
+include_directories( ${LCB_ROOT_SRC}
         ${LCB_ROOT}/include
         ${MCD_INC}
         ${HTTP}
@@ -80,6 +82,7 @@ include_directories( ${LCB_CORE}
         ${LCB_SASL}/src
         ${LCB_ROOT_CONTRIB}
 #        ${OT_ROOT}/include/opentracing
+        ${LCB_TRACING_DIR}
         ${LCB_CJSON}
         )
 
