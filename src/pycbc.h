@@ -279,7 +279,6 @@ typedef struct {
 } pycbc_dur_params;
 
 
-
 static PyTypeObject TracerType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
         0
@@ -310,22 +309,21 @@ typedef struct {
 #ifdef LCB_TRACING
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
-typedef struct
-{
+typedef struct {
 #ifdef LCB_TRACING
-    pycbc_Tracer_t* tracer;
-    lcbtrace_SPAN* span;
+    pycbc_Tracer_t *tracer;
+    lcbtrace_SPAN *span;
 
 #endif
 } pycbc_stack_context;
 
 
-
 typedef pycbc_stack_context pycbc_stack_context_handle;
 
-pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
-#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
-#define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
+pycbc_stack_context_handle
+get_stack_context4(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation, uint64_t now);
+#define PYCBC_GET_STACK_CONTEXT(KWARGS, CATEGORY, BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
+#define PYCBC_TRACECMD(CMD, CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
 #else
 #define PYCBC_TRACECMD
 inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
@@ -343,22 +341,30 @@ new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
 
 #endif
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category(),0))
+#define WRAP(NAME, KWARGS, ...) NAME(get_stack_context4(context.tracer,KWARGS,NAME##_category(),0),__VA_ARGS__)
 
-#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
+#define WRAP_TOPLEVEL(RV, CATEGORY, NAME, ...) \
 {\
     pycbc_stack_context_handle sub_context = get_stack_context4(self->tracer, kwargs, CATEGORY, 0);\
-    RV=NAME(__VA_ARGS__,sub_context);\
+    RV=NAME(sub_context,__VA_ARGS__);\
     lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);\
 };
 
-#define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    const char* NAME##_category(){ return #CATEGORY; }\
-    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
+
+#define TRACED_FUNCTION(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
+    QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context, __VA_ARGS__);\
+\
+template<typename... Args>\
+QUALIFIERS RTYPE NAME(pycbc_stack_context_handle context, Args&&... args){\
+    return NAME##_real(context,std::forward<Args>(args)...);\
+}\
+const char* NAME##_category(){ return CATEGORY; }\
+    QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context,__VA_ARGS__)
+//extern "C" {
 
 #define TRACED_FUNCTION_DECL(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category();\
-    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
+    QUALIFIERS RTYPE NAME( pycbc_stack_context_handle context, __VA_ARGS__)
 
 typedef struct {
     PyObject_HEAD

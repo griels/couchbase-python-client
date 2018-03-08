@@ -292,7 +292,7 @@ add_executable(couchbase_python_client_2_3_1
         src/pipeline.c
         src/pycbc.h
         src/result.c
-        src/store.c
+        src/store.cpp
         src/typeutil.c
         src/views.c
         txcouchbase/tests/__init__.py

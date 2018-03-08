@@ -17,11 +17,12 @@
 
 #include "oputil.h"
 #include "pycbc.h"
-
+/*
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif*/
+#include <utility>
 
 struct storecmd_vars {
     int operation;
@@ -46,7 +47,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
     int rv;
     PyObject *ttl_O = NULL, *flagsobj_Oalt = NULL, *igncas_O = NULL;
     PyObject *frag_O = NULL;
-    static char *itm_optlist[] = {
+    static const char *itm_optlist[] = {
             "ttl", "format", "ignore_cas", "fragment", NULL};
 
     lcb_cas_t itmcas = itm->cas;
@@ -54,10 +55,10 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
     PyObject *pycbc_DummyTuple = PyTuple_New(0);
     if (options) {
         rv = PyArg_ParseTupleAndKeywords(pycbc_DummyTuple, options, "|OOOO",
-                                         itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
+                                         (char**)itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
         if (!rv) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0,
-                           "Couldn't parse item options");
+                           "Couldn't parse item o ptions");
             return -1;
         }
 
@@ -242,10 +243,6 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj) {
 }
 
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 
 
@@ -266,13 +263,13 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     char persist_to = 0, replicate_to = 0;
 
 
-    static char *kwlist_multi[] = {
+    static const char *kwlist_multi[] = {
             "kv", "ttl", "format",
             "persist_to", "replicate_to",
             NULL
     };
 
-    static char *kwlist_single[] = {
+    static const char *kwlist_single[] = {
             "key", "value", "cas", "ttl", "format",
             "persist_to", "replicate_to", "_sd_doc_flags",
             NULL
@@ -282,13 +279,13 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     scv.argopts = argopts;
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBB", kwlist_multi,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBB", (char**)kwlist_multi,
                                          &dict,
                                          &ttl_O, &scv.flagsobj,
                                          &persist_to, &replicate_to);
 
     } else {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBI", kwlist_single,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBI", (char**)kwlist_single,
                                          &key, &value,
                                          &scv.single_cas, &ttl_O, &scv.flagsobj,
                                          &persist_to, &replicate_to,
@@ -389,7 +386,8 @@ DECLFUNC(append, LCB_APPEND, PYCBC_ARGOPT_SINGLE)
 DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)
-
+/*
 #ifdef __cplusplus
 }
 #endif
+*/

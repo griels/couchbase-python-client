@@ -33,9 +33,11 @@ if sys.platform != 'win32':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
+        extoptions['extra_compile_args'] = ['-std=c++11']
+        extoptions['extra_link_args'] = ['--std=c++11']
         if os.environ.get('PYCBC_DEBUG'):
-            extoptions['extra_compile_args'] = ['-O0', '-g']
-            extoptions['extra_link_args'] = ['-O0', '-g']
+            extoptions['extra_compile_args']+=['-O0', '-g']
+            extoptions['extra_link_args'] += ['-O0', '-g']
 else:
     warnings.warn("I'm detecting you're running windows."
                   "You might want to modify "
@@ -66,7 +68,7 @@ else:
 
 
 SOURCEMODS = [
-        'store',
+        #'store',
         'exceptions',
         'ext',
         'result',
@@ -101,7 +103,7 @@ SOURCEMODS_CPP = [
 ]
 if platform.python_implementation() != 'PyPy':
     extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
-    #extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP ]
+    extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP ]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:

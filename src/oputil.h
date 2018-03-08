@@ -99,15 +99,16 @@ struct pycbc_common_vars {
  * Handler for iterations
  */
 typedef int (*pycbc_oputil_keyhandler_raw)
-        (pycbc_Bucket *self,
+        (
+                pycbc_stack_context_handle context,
+pycbc_Bucket *self,
          struct pycbc_common_vars *cv,
          int optype,
          PyObject *key,
          PyObject *value,
          PyObject *options,
          pycbc_Item *item,
-         void *arg,
-         pycbc_stack_context_handle context);
+         void *arg);
 
 typedef struct {
     const char* category;
@@ -207,7 +208,13 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            Py_ssize_t ncmds,
                            int want_vals);
 
-#define PYCBC_OPUTIL_KEYHANDLER(NAME) (pycbc_oputil_keyhandler){NAME, NAME##_category}
+static pycbc_oputil_keyhandler pycbc_get_keyhandler(pycbc_oputil_keyhandler_raw cb, const char* category){
+    pycbc_oputil_keyhandler handler;
+    handler.cb=cb;
+    handler.category=category;
+    return handler;
+}
+#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME, NAME##_category())
 
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
     pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)
