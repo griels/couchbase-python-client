@@ -511,7 +511,7 @@ typedef struct zipkin_state {
     zipkin_payload *root;
     zipkin_payload *last;
     size_t content_length;
-    lcb_t instance
+    lcb_t instance;
 } zipkin_state;
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
