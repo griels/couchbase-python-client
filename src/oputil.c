@@ -15,6 +15,8 @@
  **/
 
 #include "oputil.h"
+#include "pycbc.h"
+#include "structmember.h"
 
 void
 pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
@@ -250,7 +252,8 @@ pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
                            Py_ssize_t *dictpos,
                            int ii,
                            PyObject **key,
-                           PyObject **value)
+                           PyObject **value,
+                           pycbc_stack_context_handle context )
 {
     if (seqtype & PYCBC_SEQTYPE_DICT) {
         int rv = PyDict_Next(seqobj, dictpos, key, value);
@@ -345,7 +348,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         struct pycbc_common_vars *cv,
                         int optype,
                         pycbc_oputil_keyhandler handler,
-                        void *arg)
+                        void *arg,
+                        pycbc_stack_context_handle context)
 {
     int rv = 0;
     int ii;
@@ -364,7 +368,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
         pycbc_Item *itm = NULL;
 
         rv = pycbc_oputil_sequence_next(seqtype,
-                                        seqobj, &dictpos, ii, &k, &v);
+                                        seqobj, &dictpos, ii, &k, &v, context);
         if (rv < 0) {
             goto GT_ITER_DONE;
         }
@@ -379,7 +383,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-        rv = handler(self, cv, optype, arg_k, v, options, itm, arg);
+        rv = handler.cb(self, cv, optype, arg_k, v, options, itm, arg, context);
 
         GT_ITER_DONE:
         Py_XDECREF(k);
@@ -601,8 +605,8 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
     return -1;
 }
 
-int
-pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,, int,
+pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd)
 {
     int rv = 0;
@@ -655,6 +659,7 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
+        LCB_CMD_SET_TRACESPAN(cmd, context.span);
         err = lcb_subdoc3(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
             PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);

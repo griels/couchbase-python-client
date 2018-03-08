@@ -668,6 +668,12 @@ Bucket__init__(pycbc_Bucket *self,
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
 
+#ifdef LCB_TRACING
+    self->tracer = malloc(sizeof(pycbc_Tracer_t));
+    memset(self->tracer, 0, sizeof(pycbc_Tracer_t));
+    self->tracer->tracer=pycbc_zipkin_new();
+#endif
+
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
         return -1;
@@ -734,6 +740,9 @@ Bucket__init__(pycbc_Bucket *self,
 #endif
 
     err = lcb_create(&self->instance, &create_opts);
+#ifdef LCB_TRACING
+    lcb_set_tracer(self->instance, self->tracer->tracer );
+#endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err,
@@ -829,7 +838,9 @@ Bucket_dtor(pycbc_Bucket *self)
     if (self->instance) {
         lcb_destroy(self->instance);
     }
-
+#ifdef LCB_TRACING
+    free(self->tracer);
+#endif
 #ifdef WITH_THREAD
     if (self->lock) {
         PyThread_free_lock(self->lock);
