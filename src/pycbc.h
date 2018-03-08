@@ -38,6 +38,7 @@ extern "C"
 #endif
 
 #include <pythread.h>
+#include <stdbool.h>
 #include "mresdict.h"
 
 #define PYCBC_REFCNT_ASSERT pycbc_assert
@@ -397,54 +398,44 @@ typedef struct
 
 
 typedef pycbc_stack_context pycbc_stack_context_handle;
+int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
 pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
 #define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
+
+#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
+{\
+    int is_async_or_pipeline = pycbc_is_async_or_pipeline(self);\
+    pycbc_stack_context_handle sub_context = {0};\
+    if (!is_async_or_pipeline) {sub_context=get_stack_context4(self->tracer, kwargs, CATEGORY, 0);};\
+    RV=NAME(__VA_ARGS__,sub_context);\
+    if (!is_async_or_pipeline) lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);\
+};
 #else
 #define PYCBC_TRACECMD
 inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
     return pycbc_stack_context_handle();
 }
-
+#define PYCBC_TRACECMD(CMD,CONTEXT)
 #define PYCBC_GET_STACK_CONTEXT(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, NULL)
 
-pycbc_stack_context_handle
-new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
-{
-    return pycbc_stack_context_handle();
-}
-#define new_stack_context(kwargs, CATEGORY) get_stack_context4(kwargs, CATEGORY, 0, NULL, NULL)
-
+#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
+{\
+    pycbc_stack_context_handle sub_context = {0};\
+    RV=NAME(__VA_ARGS__,sub_context);\
+};
 #endif
 
 #define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category(),0))
 
-static inline void pycbc_defer_or_enact_span_completion(pycbc_Bucket* self, pycbc_stack_context_handle context, PyObject* args, PyObject* kwargs)
-{
-    if (self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue)
-    {
-
-    }
-    else
-    {
-        lcbtrace_span_finish(context.span, LCBTRACE_NOW);
-    }
-}
-#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
-{\
-    pycbc_stack_context_handle sub_context = get_stack_context4(self->tracer, kwargs, CATEGORY, 0);\
-    RV=NAME(__VA_ARGS__,sub_context);\
-    pycbc_defer_or_enact_span_completion(self,sub_context, args, kwargs);\
-};
-
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    const char* NAME##_category(){ return #CATEGORY; }\
+    const char* NAME##_category(void){ return #CATEGORY; }\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
 #define TRACED_FUNCTION_DECL(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    const char* NAME##_category();\
-    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
+    const char* NAME##_category(void);\
+    QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context);
 
 /*****************
  * Result Objects.

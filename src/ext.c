@@ -488,7 +488,7 @@ get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *oper
 
 #endif
 
-
+int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue; }
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
 
