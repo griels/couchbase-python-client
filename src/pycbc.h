@@ -395,13 +395,14 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
-
-
 typedef pycbc_stack_context pycbc_stack_context_handle;
+
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
 pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
+
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
+
 #define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
 
 #define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
