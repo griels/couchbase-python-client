@@ -832,8 +832,8 @@ static PyMethodDef pycbc_Tracer_TABLE_methods[] = {
 { #name, (PyCFunction)pycbc_Tracer_##name, METH_VARARGS|METH_KEYWORDS, \
     PyDoc_STR(doc) }
 
-        /*  *//** Basic Operations *//*
-        OPFUNC(upsert, "Unconditionally store a key in Couchbase"),
+          /** Basic Operations */
+       // OPFUNC(upsert, "Unconditionally store a key in Couchbase"),
 
 #undef OPFUNC
 /*
@@ -933,5 +933,5 @@ pycbc_##TYPENAME##Type_init(PyObject **ptr)\
     return PyType_Ready(p);\
 }
 
-PYCBC_TYPE_INIT(Tracer,"The connection object");
+PYCBC_TYPE_INIT(Tracer,"The tracer object");
 #endif
