@@ -800,7 +800,7 @@ void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
 
 
 
-static PyGetSetDef Tracer_TABLE_getset[] = {
+static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
         /*  { "default_format",
                   (getter)Tracer_get_format,
                   (setter)Tracer_set_format,
@@ -812,7 +812,7 @@ static PyGetSetDef Tracer_TABLE_getset[] = {
         { NULL }
 };
 
-static struct PyMemberDef Tracer_TABLE_members[] = {
+static struct PyMemberDef pycbc_Tracer_TABLE_members[] = {
         /*  { "quiet", T_UINT, offsetof(pycbc_Tracer, quiet),
                   0,
                   PyDoc_STR("Whether to suppress errors when keys are not found "
@@ -826,7 +826,7 @@ static struct PyMemberDef Tracer_TABLE_members[] = {
         { NULL }
 };
 
-static PyMethodDef Tracer_TABLE_methods[] = {
+static PyMethodDef pycbc_Tracer_TABLE_methods[] = {
 
 #define OPFUNC(name, doc) \
 { #name, (PyCFunction)pycbc_Tracer_##name, METH_VARARGS|METH_KEYWORDS, \
@@ -850,7 +850,7 @@ static PyMethodDef Tracer_TABLE_methods[] = {
 
         { NULL, NULL, 0, NULL }
 };
-/*
+
 
 static int
 Tracer__init__(pycbc_Tracer_t *self,
@@ -861,11 +861,11 @@ Tracer__init__(pycbc_Tracer_t *self,
     self->tracer=pycbc_zipkin_new();
     pycbc_Bucket* bucket;
     lcb_t instance;
-    *//**
+    /*
      * This xmacro enumerates the constructor keywords, targets, and types.
      * This was converted into an xmacro to ease the process of adding or
      * removing various parameters.
-     *//*
+     */
 #define XCTOR_ARGS(X) \
     X("bucket", "O!",  &bucket)
 
@@ -898,39 +898,40 @@ Tracer__init__(pycbc_Tracer_t *self,
 static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
-
-   *//* Py_XDECREF(self->dtorcb);
-*//*
     lcbtrace_destroy(self->tracer);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
-int
-pycbc_TracerType_init(PyObject **ptr)
-{
-    PyTypeObject *p = &TracerType;
-    *ptr = (PyObject*)p;
 
-    if (p->tp_name) {
-        return 0;
-    }
+#define PYCBC_TYPE_INIT(TYPENAME,TYPE_DOC)\
+int\
+pycbc_##TYPENAME##Type_init(PyObject **ptr)\
+{\
+    PyTypeObject *p = &TYPENAME##Type;\
+    *ptr = (PyObject*)p;\
+\
+    if (p->tp_name) {\
+        return 0;\
+    }\
+\
+    p->tp_name = #TYPENAME;\
+    p->tp_new = PyType_GenericNew;\
+    p->tp_init = (initproc)TYPENAME##__init__;\
+    p->tp_dealloc = (destructor)TYPENAME##_dtor;\
+\
+    p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;\
+    p->tp_doc = PyDoc_STR(TYPE_DOC);\
+\
+    p->tp_basicsize = sizeof(pycbc_##TYPENAME##_t);\
+\
+    p->tp_methods = pycbc_##TYPENAME##_TABLE_methods;\
+    p->tp_members = pycbc_##TYPENAME##_TABLE_members;\
+    p->tp_getset = pycbc_##TYPENAME##_TABLE_getset;\
+    \
+    pycbc_DummyTuple = PyTuple_New(0);\
+    pycbc_DummyKeywords = PyDict_New();\
+\
+    return PyType_Ready(p);\
+}
 
-    p->tp_name = "Tracer";
-    p->tp_new = PyType_GenericNew;
-    p->tp_init = (initproc)Tracer__init__;
-    p->tp_dealloc = (destructor)Tracer_dtor;
-
-    p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-    p->tp_doc = PyDoc_STR("The connection object");
-
-    p->tp_basicsize = sizeof(pycbc_Tracer_t);
-
-    p->tp_methods = Tracer_TABLE_methods;
-    p->tp_members = Tracer_TABLE_members;
-    p->tp_getset = Tracer_TABLE_getset;
-
-    pycbc_DummyTuple = PyTuple_New(0);
-    pycbc_DummyKeywords = PyDict_New();
-
-    return PyType_Ready(p);
-}*/
+PYCBC_TYPE_INIT(Tracer,"The connection object");
 #endif
