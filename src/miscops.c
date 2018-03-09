@@ -194,7 +194,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
         }
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
 
@@ -266,7 +266,7 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         goto GT_DONE;
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
 
@@ -360,7 +360,7 @@ pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         goto GT_DONE;
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
 
@@ -399,7 +399,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
         goto GT_DONE;
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
     lcb_sched_leave(self->instance);
@@ -438,7 +438,7 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
         goto GT_DONE;
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
     lcb_sched_leave(self->instance);

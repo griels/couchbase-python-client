@@ -243,15 +243,17 @@ void pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *self
  * Wait for the operation to complete
  * @return 0 on success, -1 on failure.
  */
-int pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self);
+TRACED_FUNCTION_DECL(,
+int,
+pycbc_common_vars_wait, struct pycbc_common_vars *cv, pycbc_Bucket *self);
 
 
 /**
  * Wrapper around lcb_wait(). This ensures threading contexts are properly
  * initialized.
  */
-void
-pycbc_oputil_wait_common(pycbc_Bucket *self);
+TRACED_FUNCTION_DECL(,void,
+pycbc_oputil_wait_common, pycbc_Bucket *self);
 
 
 /**
@@ -286,8 +288,9 @@ int
 pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
                         pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf);
 
-TRACED_FUNCTION_DECL(LCBTRACE_OP_REQUEST_ENCODING,, int,
-                pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
+TRACED_FUNCTION_DECL(,
+int,
+pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
                 PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd);
 
 /**

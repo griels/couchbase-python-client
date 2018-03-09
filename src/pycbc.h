@@ -395,7 +395,7 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
-typedef pycbc_stack_context pycbc_stack_context_handle;
+typedef pycbc_stack_context* pycbc_stack_context_handle;
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
@@ -403,16 +403,28 @@ pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *
 
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
 
-#define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
+#define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
+
+#define PYCBC_TRACING_POP_CONTEXT(CONTEXT) \
+if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->span) {\
+    lcbtrace_span_finish(context->span, LCBTRACE_NOW)\
+    lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent(context->span);\
+    context->span = parent_span;\
+}
 
 #define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
 {\
     int is_async_or_pipeline = pycbc_is_async_or_pipeline(self);\
-    pycbc_stack_context_handle sub_context = {0};\
+    pycbc_stack_context_handle sub_context = NULL;\
     if (!is_async_or_pipeline) {sub_context=get_stack_context4(self->tracer, kwargs, CATEGORY, 0);};\
     RV=NAME(__VA_ARGS__,sub_context);\
-    if (!is_async_or_pipeline) lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);\
+    if (!is_async_or_pipeline) {\
+        free(sub_context);\
+        lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
+    }\
 };
+
+#define WRAP_TOPLEVEL_NO_KWARGS()
 #else
 #define PYCBC_TRACECMD
 inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
@@ -428,13 +440,13 @@ inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const cha
 };
 #endif
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,get_stack_context4(context.tracer,KWARGS,NAME##_category(),0))
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,context?context:get_stack_context4(self->tracer,KWARGS,NAME##_category(),0))
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void){ return #CATEGORY; }\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
-#define TRACED_FUNCTION_DECL(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
+#define TRACED_FUNCTION_DECL(QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void);\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context);
 

@@ -199,7 +199,7 @@ observe_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopts
     }
 
     cv.is_seqcmd = 1;
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
 

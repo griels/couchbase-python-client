@@ -191,9 +191,8 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     cmd.operation = (lcb_storage_t) scv->operation;
     cmd.exptime = skc.ttl;
 
-#ifdef LCB_TRACING
     PYCBC_TRACECMD(cmd, context);
-#endif
+
     err = lcb_store3(self->instance, cv->mres, &cmd);
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -351,7 +350,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         goto GT_DONE;
     }
 
-    if (-1 == pycbc_common_vars_wait(&cv, self)) {
+    if (-1 == WRAP(pycbc_common_vars_wait, kwargs, &cv, self)) {
         goto GT_DONE;
     }
 

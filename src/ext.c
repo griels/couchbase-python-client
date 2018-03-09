@@ -445,12 +445,6 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h> /* strlen */
-#ifdef _WIN32
-#define PRIx64 "I64x"
-#define PRId64 "I64d"
-#else
-#include <inttypes.h>
-#endif
 
 #include <netdb.h>
 #include <sys/types.h>
@@ -460,33 +454,41 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <libcouchbase/tracing.h>
 //#include "include/opentracing/lcb_ot.h"
 #include "../contrib/cJSON/cJSON.h"
+#ifdef _WIN32
+#define PRIx64 "I64x"
+#define PRId64 "I64d"
+#else
+#include <inttypes.h>
+#endif
+
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
 
 pycbc_stack_context_handle
 new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
-    pycbc_stack_context_handle context;
-    context.tracer = py_tracer;
-    context.span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
-    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
+    context->tracer = py_tracer;
+    context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
+    lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
     return context;
 }
 
 pycbc_stack_context_handle
 get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now) {
-    pycbc_stack_context_handle *pcontext;
+    pycbc_stack_context_handle pcontext;
     PyObject *span = kwargs?PyDict_GetItemString(kwargs, "span"):NULL;
     lcbtrace_REF* ref = NULL;
     if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
     {
-        return *pcontext;
+        return pcontext;
     } else{
         return new_stack_context4(py_tracer, operation, now, ref);
     }
 }
 
 #endif
+
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue; }
 

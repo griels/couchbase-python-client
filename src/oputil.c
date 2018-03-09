@@ -33,8 +33,9 @@ pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
     }
 }
 
-int
-pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self)
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,,
+int,
+pycbc_common_vars_wait, struct pycbc_common_vars *cv, pycbc_Bucket *self)
 {
     Py_ssize_t nsched = cv->is_seqcmd ? 1 : cv->ncmds;
 
@@ -60,7 +61,7 @@ pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self)
         Py_INCREF(Py_None);
         return 0;
     }
-    pycbc_oputil_wait_common(self);
+    WRAP(pycbc_oputil_wait_common, NULL, self);
 
     if (!pycbc_assert(self->nremaining == 0)) {
         fprintf(stderr, "Remaining count != 0. Adjusting");
@@ -444,8 +445,8 @@ pycbc_oputil_conn_unlock(pycbc_Bucket *self)
     PyThread_release_lock(self->lock);
 }
 
-void
-pycbc_oputil_wait_common(pycbc_Bucket *self)
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,,void,
+pycbc_oputil_wait_common,pycbc_Bucket *self)
 {
     /**
      * If we have a 'lockmode' specified, check to see that nothing else is
@@ -463,6 +464,11 @@ pycbc_oputil_wait_common(pycbc_Bucket *self)
 
     PYCBC_CONN_THR_BEGIN(self);
     lcb_wait3(self->instance, LCB_WAIT_NOCHECK);
+    PYCBC_TRACING_POP_CONTEXT(context);
+    if (!pycbc_is_async_or_pipeline(self) && context->tracer && context->span)
+    {
+        context->span = lcbtrace_span_start(context->tracer->tracer,LCBTRACE_OP_RESPONSE_DECODING,0,NULL);
+    }
     PYCBC_CONN_THR_END(self);
 }
 

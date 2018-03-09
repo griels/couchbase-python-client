@@ -795,7 +795,7 @@ Bucket__connect(pycbc_Bucket *self)
         return NULL;
     }
 
-    pycbc_oputil_wait_common(self);
+    WRAP(pycbc_oputil_wait_common, NULL, self);
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         err = lcb_get_bootstrap_status(self->instance);
         if (err != LCB_SUCCESS) {
