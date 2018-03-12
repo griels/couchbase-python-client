@@ -261,11 +261,11 @@ class Bucket(_Base):
             if not _no_connect_exceptions:
                 raise
 
-    def _do_ctor_connect(self):
+    def _do_ctor_connect(self, *args, **kwargs):
         """This should be overidden by subclasses which want to use a
         different sort of connection behavior
         """
-        self._connect()
+        self._connect(args, **kwargs)
 
     def pipeline(self):
         """

@@ -401,13 +401,13 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
 pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
 
-#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
+#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER) get_stack_context4(TRACER, KWARGS, CATEGORY, 0 )
 
 #define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
 
 #define PYCBC_TRACING_POP_CONTEXT(CONTEXT) \
 if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->span) {\
-    lcbtrace_span_finish(context->span, LCBTRACE_NOW)\
+    lcbtrace_span_finish(context->span, LCBTRACE_NOW);\
     lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent(context->span);\
     context->span = parent_span;\
 }
@@ -418,9 +418,9 @@ if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->
     pycbc_stack_context_handle sub_context = NULL;\
     if (!is_async_or_pipeline) {sub_context=get_stack_context4(self->tracer, kwargs, CATEGORY, 0);};\
     RV=NAME(__VA_ARGS__,sub_context);\
-    if (!is_async_or_pipeline) {\
+    if (!is_async_or_pipeline && sub_context) {\
+        if (sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
         free(sub_context);\
-        lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
     }\
 };
 

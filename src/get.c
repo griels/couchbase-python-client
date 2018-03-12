@@ -374,19 +374,19 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
 PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return get_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self)); \
+    return get_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer)); \
 }
 
 

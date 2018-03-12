@@ -68,7 +68,6 @@ class LCBSpan(Span):
             return self.context.baggage.get(key)
 
 
-
 class LCBTracer(Tracer):
 
     def __init__(self, recorder=None, sampler=None):

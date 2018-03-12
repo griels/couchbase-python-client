@@ -29,7 +29,7 @@ Bucket__init__(pycbc_Bucket *self,
                    PyObject *kwargs);
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self);
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs);
 
 static void
 Bucket_dtor(pycbc_Bucket *self);
@@ -554,7 +554,7 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 
         { "_connect",
                 (PyCFunction)Bucket__connect,
-                METH_NOARGS,
+                METH_VARARGS|METH_KEYWORDS,
                 PyDoc_STR(
                 "Connect this instance. This is typically called by one of\n"
                 "the wrapping constructors\n")
@@ -778,8 +778,9 @@ Bucket__init__(pycbc_Bucket *self,
 }
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self)
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {

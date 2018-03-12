@@ -39,6 +39,7 @@ pycbc_Bucket__start_pipeline(pycbc_Bucket *self)
 PyObject *
 pycbc_Bucket__end_pipeline(pycbc_Bucket *self)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT( NULL, LCBTRACE_OP_RESPONSE_DECODING, self->tracer);
     PyObject *rv;
     int ii;
 
