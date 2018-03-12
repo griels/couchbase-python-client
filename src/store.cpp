@@ -338,10 +338,12 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
+        pycbc_get_keyhandler(handle_single_kv,
+                             handle_single_kv_category());
         rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, dict, &cv, 0, handle_single_kv, &scv, context);
 
     } else {
-        rv = handle_single_kv(self, &cv, 0, key, value, NULL, NULL, &scv, context);
+        rv = handle_single_kv(context, self, &cv, 0, key, value, NULL, NULL, &scv);
     }
 
     if (rv < 0) {

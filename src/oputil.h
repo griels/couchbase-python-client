@@ -101,19 +101,20 @@ struct pycbc_common_vars {
 typedef int (*pycbc_oputil_keyhandler_raw)
         (
                 pycbc_stack_context_handle context,
-pycbc_Bucket *self,
-         struct pycbc_common_vars *cv,
-         int optype,
-         PyObject *key,
-         PyObject *value,
-         PyObject *options,
-         pycbc_Item *item,
-         void *arg);
+                pycbc_Bucket *self,
+                struct pycbc_common_vars *cv,
+                int optype,
+                PyObject *key,
+                PyObject *value,
+                PyObject *options,
+                pycbc_Item *item,
+                void *arg);
 
 typedef struct {
-    const char* category;
+    const char *category;
     pycbc_oputil_keyhandler_raw cb;
 } pycbc_oputil_keyhandler;
+
 /**
  * Examine the 'quiet' parameter and see if we should set the MultiResult's
  * 'no_raise_enoent' flag.
@@ -208,12 +209,21 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            Py_ssize_t ncmds,
                            int want_vals);
 
-static pycbc_oputil_keyhandler pycbc_get_keyhandler(pycbc_oputil_keyhandler_raw cb, const char* category){
+}
+
+template <typename CB>
+static pycbc_oputil_keyhandler pycbc_get_keyhandler(CB cb, const char* category){
     pycbc_oputil_keyhandler handler;
     handler.cb=cb;
     handler.category=category;
     return handler;
 }
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME, NAME##_category())
 
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\

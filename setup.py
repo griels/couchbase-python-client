@@ -33,8 +33,8 @@ if sys.platform != 'win32':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
-        extoptions['extra_compile_args'] = ['-std=c++11']
-        extoptions['extra_link_args'] = ['--std=c++11']
+        extoptions['extra_compile_args'] = ['-std=c++1z']
+        extoptions['extra_link_args'] = ['-std=c++1z']
         if os.environ.get('PYCBC_DEBUG'):
             extoptions['extra_compile_args']+=['-O0', '-g']
             extoptions['extra_link_args'] += ['-O0', '-g']
