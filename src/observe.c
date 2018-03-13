@@ -213,7 +213,7 @@ PyObject *
 pycbc_Bucket_observe(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     PyObject* result;
-    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self, args, kwargs, PYCBC_ARGOPT_SINGLE);
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self->tracer, self, args, kwargs, PYCBC_ARGOPT_SINGLE);
     return result;
 }
 
@@ -221,6 +221,6 @@ PyObject *
 pycbc_Bucket_observe_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     PyObject* result;
-    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self, args, kwargs, PYCBC_ARGOPT_MULTI);
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING, observe_common, self->tracer, self, args, kwargs, PYCBC_ARGOPT_MULTI);
     return result;
 }

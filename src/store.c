@@ -363,7 +363,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) {\
         PyObject* result;\
-        WRAP_TOPLEVEL(result, LCBTRACE_OP_REQUEST_ENCODING, set_common, self, args, kwargs, operation, mode);\
+        WRAP_TOPLEVEL(result, LCBTRACE_OP_REQUEST_ENCODING, set_common, self->tracer, self, args, kwargs, operation, mode);\
         return result;\
 }
 

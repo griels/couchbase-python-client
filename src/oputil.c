@@ -464,8 +464,8 @@ pycbc_oputil_wait_common,pycbc_Bucket *self)
 
     PYCBC_CONN_THR_BEGIN(self);
     lcb_wait3(self->instance, LCB_WAIT_NOCHECK);
-    PYCBC_TRACING_POP_CONTEXT(context);
-    if (!pycbc_is_async_or_pipeline(self) && context->tracer && context->span)
+    //PYCBC_TRACING_POP_CONTEXT(context);
+    if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->span)
     {
         context->span = lcbtrace_span_start(context->tracer->tracer,LCBTRACE_OP_RESPONSE_DECODING,0,NULL);
     }

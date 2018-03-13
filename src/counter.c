@@ -168,7 +168,7 @@ arithmetic_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
-    return arithmetic_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer)); \
+    return arithmetic_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer)); \
 }
 
 DECLFUNC(counter, PYCBC_CMD_COUNTER, PYCBC_ARGOPT_SINGLE)

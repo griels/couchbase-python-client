@@ -475,15 +475,16 @@ new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t no
 }
 
 pycbc_stack_context_handle
-get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now) {
-    pycbc_stack_context_handle pcontext;
+get_stack_context(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now, pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
+
+
     PyObject *span = kwargs?PyDict_GetItemString(kwargs, "span"):NULL;
-    lcbtrace_REF* ref = NULL;
-    if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
+    if (context || span && PyArg_ParseTuple(span, "O!", &TracerType, &context) && context )
     {
-        return pcontext;
-    } else{
-        return new_stack_context4(py_tracer, operation, now, ref);
+        lcbtrace_REF ref;
+        ref.type = ref_type;
+        ref.span = context->span;
+        return new_stack_context4(py_tracer, operation, now, &ref);
     }
 }
 

@@ -207,7 +207,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
 PyObject *
 pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
     int rv;
     Py_ssize_t ncmds;
     pycbc_seqtype_t seqtype;
@@ -280,7 +280,7 @@ pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
     PyObject* result;\
-    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING,keyop_common, self, args, kwargs, operation, mode); \
+    WRAP_TOPLEVEL(result,#operation,keyop_common, self->tracer, self, args, kwargs, operation, mode); \
     return result;\
 }
 
@@ -293,7 +293,7 @@ DECLFUNC(unlock_multi, PYCBC_CMD_UNLOCK, PYCBC_ARGOPT_MULTI)
 PyObject *
 pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
     int rv;
     int ii;
     Py_ssize_t ncmds;
@@ -373,7 +373,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
                              PyObject *args,
                              PyObject *kwargs)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
@@ -412,7 +412,7 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;

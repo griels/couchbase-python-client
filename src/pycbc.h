@@ -399,9 +399,9 @@ typedef pycbc_stack_context* pycbc_stack_context_handle;
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
-pycbc_stack_context_handle get_stack_context4(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now);
-
-#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER) get_stack_context4(TRACER, KWARGS, CATEGORY, 0 )
+pycbc_stack_context_handle get_stack_context(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now, pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type);
+#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) get_stack_context(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
+#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) get_stack_context(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
 
 #define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
 
@@ -412,14 +412,14 @@ if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->
     context->span = parent_span;\
 }
 
-#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
+#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,TRACER,...) \
 {\
     int is_async_or_pipeline = pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
-    if (!is_async_or_pipeline) {sub_context=get_stack_context4(self->tracer, kwargs, CATEGORY, 0);};\
+    if (!is_async_or_pipeline) {sub_context=PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER);};\
     RV=NAME(__VA_ARGS__,sub_context);\
     if (!is_async_or_pipeline && sub_context) {\
-        if (sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
+        if (0 && sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
         free(sub_context);\
     }\
 };
@@ -440,7 +440,7 @@ inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const cha
 };
 #endif
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__,context?context:get_stack_context4(self->tracer,KWARGS,NAME##_category(),0))
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, get_stack_context(self->tracer,KWARGS,NAME##_category(),0, context, LCBTRACE_REF_CHILD_OF))
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void){ return #CATEGORY; }\
