@@ -224,7 +224,7 @@ extern "C"
 {
 #endif
 
-#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME, NAME##_category())
+#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME##_real, NAME##_category())
 
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
     pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)

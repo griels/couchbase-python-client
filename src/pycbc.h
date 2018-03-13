@@ -349,14 +349,22 @@ new_stack_context4(const char *operation, uint64_t now, void *ref, void *tracer)
     RV=NAME(sub_context,__VA_ARGS__);\
     lcbtrace_span_finish(sub_context.span, LCBTRACE_NOW);\
 };
-
-
+/*
+template<typename Fn, Fn fn, typename... Args>
+typename std::result_of<Fn(Args...)>::type
+wrapper(Args&&... args) {
+return fn(std::forward<Args>(args)...);
+}*/
+#define TRACED_FUNCTION_KV(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
+const char* NAME##_category(){ return CATEGORY; }\
+    QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context,__VA_ARGS__)
+#define WRAPPER(FUNC) pycbc_spy_fn<decltype(&FUNC), &FUNC>
 #define TRACED_FUNCTION(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
     QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context, __VA_ARGS__);\
 \
 template<typename... Args>\
-QUALIFIERS RTYPE NAME(pycbc_stack_context_handle context, Args&&... args){\
-    return NAME##_real(context,std::forward<Args>(args)...);\
+QUALIFIERS RTYPE NAME(pycbc_stack_context_handle context, Args... args){\
+    return WRAPPER(NAME##_real)(context,std::forward<Args>(args)...);\
 }\
 const char* NAME##_category(){ return CATEGORY; }\
     QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context,__VA_ARGS__)

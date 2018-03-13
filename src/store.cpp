@@ -23,6 +23,11 @@ extern "C"
 {
 #endif*/
 #include <utility>
+#include <type_traits>
+template<typename Fn, Fn fn, typename... Args>
+typename std::result_of<Fn(Args...)>::type pycbc_spy_fn(Args&&... args){
+    return fn(std::forward<Args>(args)...);
+}
 
 struct storecmd_vars {
     int operation;
@@ -137,7 +142,11 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
 }
-
+#include <tuple>
+template <size_t N, typename... Args>
+decltype(auto) magic_get(Args&&... as) noexcept {
+    return std::get<N>(std::forward_as_tuple(std::forward<Args>(as)...));
+}
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
@@ -338,12 +347,12 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        pycbc_get_keyhandler(handle_single_kv,
-                             handle_single_kv_category());
+
         rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, dict, &cv, 0, handle_single_kv, &scv, context);
 
     } else {
-        rv = handle_single_kv(context, self, &cv, 0, key, value, NULL, NULL, &scv);
+
+        rv = handle_single_kv(context, self, &cv, 0, key, value, nullptr, nullptr, &scv);
     }
 
     if (rv < 0) {
