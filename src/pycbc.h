@@ -536,6 +536,7 @@ typedef struct {
     PyObject *rows;
     long rows_per_call;
     char has_parse_error;
+    pycbc_Tracer_t* py_tracer;
 } pycbc_ViewResult;
 
 

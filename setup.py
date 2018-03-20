@@ -29,13 +29,14 @@ pkgversion = couchbase_version.get_version()
 LCB_NAME = None
 if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase']
+    if os.environ.get('PYCBC_DEBUG'):
+        extoptions['extra_compile_args'] = ['-O0', '-g3']
+        extoptions['extra_link_args'] = ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
-        if os.environ.get('PYCBC_DEBUG'):
-            extoptions['extra_compile_args'] = ['-O0', '-g']
-            extoptions['extra_link_args'] = ['-O0', '-g']
+
 else:
     warnings.warn("I'm detecting you're running windows."
                   "You might want to modify "

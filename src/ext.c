@@ -486,6 +486,10 @@ get_stack_context(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *opera
         ref.span = context->span;
         return new_stack_context4(py_tracer, operation, now, &ref);
     }
+    else
+    {
+        return new_stack_context4(py_tracer, operation, now, NULL);
+    }
 }
 
 #endif
@@ -553,7 +557,7 @@ void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
         printf("flushing\n");
         while (ptr) {
             zipkin_payload *tmp = ptr;
-            printf(tmp->data);
+            printf("%s",tmp->data);
 //            lcb_log(LOGARGS(instance, ERROR),tmp->data);
 
             // pycbc_loop_send(sock, ptr->data, strlen(ptr->data));
