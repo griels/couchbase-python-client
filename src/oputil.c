@@ -18,9 +18,15 @@
 #include "pycbc.h"
 #include "structmember.h"
 
+static pycbc_oputil_keyhandler pycbc_get_keyhandler(pycbc_oputil_keyhandler_raw cb, const char* category) {
+    pycbc_oputil_keyhandler handler;
+    handler.cb = cb;
+    handler.category = category;
+    return handler;
+}
+
 void
-pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
-{
+pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn) {
     if (cv->mctx) {
         cv->mctx->fail(cv->mctx);
         cv->mctx = NULL;
@@ -34,8 +40,7 @@ pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
 }
 
 int
-pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self)
-{
+pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self) {
     Py_ssize_t nsched = cv->is_seqcmd ? 1 : cv->ncmds;
 
     if (cv->mctx) {
@@ -47,8 +52,8 @@ pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self)
 
     if (self->flags & PYCBC_CONN_F_ASYNC) {
         /** For async, just do the right thing :) */
-        cv->ret = (PyObject *)cv->mres;
-        ((pycbc_AsyncResult *)cv->mres)->nops = nsched;
+        cv->ret = (PyObject *) cv->mres;
+        ((pycbc_AsyncResult *) cv->mres)->nops = nsched;
 
         /** INCREF once more so it's alive in the event loop */
         Py_INCREF(cv->ret);
@@ -87,14 +92,13 @@ pycbc_common_vars_init(struct pycbc_common_vars *cv,
                        pycbc_Bucket *self,
                        int argopts,
                        Py_ssize_t ncmds,
-                       int want_vals)
-{
+                       int want_vals) {
     if (-1 == pycbc_oputil_conn_lock(self)) {
         return -1;
     }
 
     cv->ncmds = ncmds;
-    cv->mres = (pycbc_MultiResult*)pycbc_multiresult_new(self);
+    cv->mres = (pycbc_MultiResult *) pycbc_multiresult_new(self);
     cv->argopts = argopts;
 
     if (argopts & PYCBC_ARGOPT_SINGLE) {
@@ -120,8 +124,7 @@ int
 pycbc_oputil_check_sequence(PyObject *sequence,
                             int allow_list,
                             Py_ssize_t *ncmds,
-                            pycbc_seqtype_t *seqtype)
-{
+                            pycbc_seqtype_t *seqtype) {
     int ret = 0;
     pycbc_seqtype_t dummy;
     if (!seqtype) {
@@ -136,7 +139,7 @@ pycbc_oputil_check_sequence(PyObject *sequence,
         ret = 0;
 
     } else if (allow_list == 0 &&
-            PyObject_IsInstance(sequence, pycbc_helpers.itmcoll_base_type) == 0) {
+               PyObject_IsInstance(sequence, pycbc_helpers.itmcoll_base_type) == 0) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
                            "Keys must be a dictionary",
                            sequence);
@@ -196,8 +199,7 @@ pycbc_oputil_check_sequence(PyObject *sequence,
 }
 
 int
-pycbc_maybe_set_quiet(pycbc_MultiResult *mres, PyObject *quiet)
-{
+pycbc_maybe_set_quiet(pycbc_MultiResult *mres, PyObject *quiet) {
     /**
      * If quiet is 'None', then we default to Connection.quiet
      */
@@ -224,14 +226,13 @@ PyObject *
 pycbc_oputil_iter_prepare(pycbc_seqtype_t seqtype,
                           PyObject *sequence,
                           PyObject **iter,
-                          Py_ssize_t *dictpos)
-{
+                          Py_ssize_t *dictpos) {
     if (seqtype & PYCBC_SEQTYPE_GENERIC) {
         *iter = PyObject_GetIter(sequence);
         if (!*iter) {
             PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
                                "Couldn't get iterator from object. Object "
-                               "should implement __iter__",
+                                       "should implement __iter__",
                                sequence);
         }
         return *iter;
@@ -253,8 +254,7 @@ pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
                            int ii,
                            PyObject **key,
                            PyObject **value,
-                           pycbc_stack_context_handle context )
-{
+                           pycbc_stack_context_handle context) {
     if (seqtype & PYCBC_SEQTYPE_DICT) {
         int rv = PyDict_Next(seqobj, dictpos, key, value);
         if (rv < 1) {
@@ -291,8 +291,7 @@ static int
 extract_item_params(struct pycbc_common_vars *cv,
                     PyObject *k,
                     pycbc_Item **itm,
-                    PyObject **options)
-{
+                    PyObject **options) {
     /** Key will always be an item */
     Py_ssize_t tsz;
 
@@ -309,9 +308,9 @@ extract_item_params(struct pycbc_common_vars *cv,
     }
 
     *itm = (pycbc_Item *) PyTuple_GET_ITEM(k, 0);
-    if (!PyObject_IsInstance((PyObject*)*itm, (PyObject *)&pycbc_ItemType)) {
+    if (!PyObject_IsInstance((PyObject *) *itm, (PyObject *) &pycbc_ItemType)) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
-                           "Expected 'Item' instance", (PyObject*)*itm);
+                           "Expected 'Item' instance", (PyObject *) *itm);
         return -1;
     }
 
@@ -328,15 +327,15 @@ extract_item_params(struct pycbc_common_vars *cv,
         }
     }
 
-    if (! (*itm)->key) {
+    if (!(*itm)->key) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
-                           "Item is missing key", (PyObject *)*itm);
+                           "Item is missing key", (PyObject *) *itm);
         return -1;
     }
 
     /** Store the item inside the mres dictionary */
     PyDict_SetItem(pycbc_multiresult_dict(cv->mres),
-                   (*itm)->key, (PyObject *)*itm);
+                   (*itm)->key, (PyObject *) *itm);
     cv->mres->mropts |= PYCBC_MRES_F_UALLOCED;
     return 0;
 }
@@ -349,8 +348,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         int optype,
                         pycbc_oputil_keyhandler handler,
                         void *arg,
-                        pycbc_stack_context_handle context)
-{
+                        pycbc_stack_context_handle context) {
     int rv = 0;
     int ii;
     PyObject *iterobj;
@@ -399,8 +397,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
 }
 
 int
-pycbc_oputil_conn_lock(pycbc_Bucket *self)
-{
+pycbc_oputil_conn_lock(pycbc_Bucket *self) {
     int status;
     int mode;
 
@@ -415,7 +412,7 @@ pycbc_oputil_conn_lock(pycbc_Bucket *self)
          * access the Connection (and thus unlock it).
          */
         Py_BEGIN_ALLOW_THREADS
-        status = PyThread_acquire_lock(self->lock, mode);
+            status = PyThread_acquire_lock(self->lock, mode);
         Py_END_ALLOW_THREADS
     } else {
         status = PyThread_acquire_lock(self->lock, mode);
@@ -425,19 +422,18 @@ pycbc_oputil_conn_lock(pycbc_Bucket *self)
         PYCBC_EXC_WRAP(PYCBC_EXC_THREADING,
                        0,
                        "Couldn't lock. If LOCKMODE_WAIT was passed, "
-                       "then this means that something has gone wrong "
-                       "internally. Otherwise, this means you are using "
-                       "the Connection object from multiple threads. This "
-                       "is not allowed (without an explicit "
-                       "lockmode=LOCKMODE_WAIT constructor argument");
+                               "then this means that something has gone wrong "
+                               "internally. Otherwise, this means you are using "
+                               "the Connection object from multiple threads. This "
+                               "is not allowed (without an explicit "
+                               "lockmode=LOCKMODE_WAIT constructor argument");
         return -1;
     }
     return 0;
 }
 
 void
-pycbc_oputil_conn_unlock(pycbc_Bucket *self)
-{
+pycbc_oputil_conn_unlock(pycbc_Bucket *self) {
     if (!self->lockmode) {
         return;
     }
@@ -445,8 +441,7 @@ pycbc_oputil_conn_unlock(pycbc_Bucket *self)
 }
 
 void
-pycbc_oputil_wait_common(pycbc_Bucket *self)
-{
+pycbc_oputil_wait_common(pycbc_Bucket *self) {
     /**
      * If we have a 'lockmode' specified, check to see that nothing else is
      * using us. We lock in any event.
@@ -474,8 +469,7 @@ int
 pycbc_handle_durability_args(pycbc_Bucket *self,
                              pycbc_dur_params *params,
                              char persist_to,
-                             char replicate_to)
-{
+                             char replicate_to) {
     if (self->dur_global.persist_to || self->dur_global.replicate_to) {
         if (persist_to == 0 && replicate_to == 0) {
             persist_to = self->dur_global.persist_to;
@@ -501,8 +495,7 @@ pycbc_handle_durability_args(pycbc_Bucket *self,
 
 int
 pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
-                      pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf)
-{
+                        pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf) {
     PyObject *kobj, *pthobj;
     int rv;
 
@@ -528,8 +521,7 @@ pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
 
 static int
 sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
-    pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf)
-{
+                pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf) {
     PyObject *path = NULL;
     PyObject *val = NULL;
     int op = 0;
@@ -557,15 +549,14 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
         if (PyObject_IsInstance(val, pycbc_helpers.sd_multival_type)) {
             /* Verify the operation allows it */
             switch (op) {
-            case LCB_SDCMD_ARRAY_ADD_FIRST:
-            case LCB_SDCMD_ARRAY_ADD_LAST:
-            case LCB_SDCMD_ARRAY_INSERT:
-                is_multival = 1;
-                break;
-            default:
-                PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
-                    "MultiValue not supported for operation", pyspec);
-                goto GT_ERROR;
+                case LCB_SDCMD_ARRAY_ADD_FIRST:
+                case LCB_SDCMD_ARRAY_ADD_LAST:
+                case LCB_SDCMD_ARRAY_INSERT:
+                    is_multival = 1;
+                    break;
+                default: PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
+                                            "MultiValue not supported for operation", pyspec);
+                    goto GT_ERROR;
             }
         }
 
@@ -575,17 +566,17 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
 
         if (is_multival) {
             /* Strip first and last [ */
-            const char *buf = (const char *)valbuf->buffer;
+            const char *buf = (const char *) valbuf->buffer;
             size_t len = valbuf->length;
 
             for (; isspace(*buf) && len; len--, buf++) {
             }
-            for (; len && isspace(buf[len-1]); len--) {
+            for (; len && isspace(buf[len - 1]); len--) {
             }
-            if (len < 3 || buf[0] != '[' || buf[len-1] != ']') {
+            if (len < 3 || buf[0] != '[' || buf[len - 1] != ']') {
                 PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ENCODING, 0,
-                    "Serialized MultiValue shows invalid JSON (maybe empty?)",
-                    pyspec);
+                                   "Serialized MultiValue shows invalid JSON (maybe empty?)",
+                                   pyspec);
                 goto GT_ERROR;
             }
 
@@ -605,16 +596,15 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
     return -1;
 }
 
-TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,, int,
-pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
-    PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd)
-{
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, , int,
+                pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
+                PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd) {
     int rv = 0;
     lcb_error_t err = LCB_SUCCESS;
     Py_ssize_t nspecs = 0;
     pycbc__SDResult *newitm = NULL;
-    lcb_SDSPEC *specs = NULL, spec_s = { 0 };
-    pycbc_pybuffer pathbuf_s = { NULL }, valbuf_s = { NULL };
+    lcb_SDSPEC *specs = NULL, spec_s = {0};
+    pycbc_pybuffer pathbuf_s = {NULL}, valbuf_s = {NULL};
     pycbc_pybuffer *pathbufs = NULL, *valbufs = NULL;
 
     if (!PyTuple_Check(spectuple)) {
@@ -662,7 +652,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         LCB_CMD_SET_TRACESPAN(cmd, context.span);
         err = lcb_subdoc3(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
-            PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);
+            PyDict_SetItem((PyObject *) mres, key, (PyObject *) newitm);
             pycbc_assert(Py_REFCNT(newitm) == 2);
         }
     }

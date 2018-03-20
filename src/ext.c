@@ -464,28 +464,6 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
 
-pycbc_stack_context_handle
-new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
-    pycbc_stack_context_handle context;
-    context.tracer = py_tracer;
-    context.span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
-    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    return context;
-}
-
-pycbc_stack_context_handle
-get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now) {
-    pycbc_stack_context_handle *pcontext;
-    PyObject *span = PyDict_GetItemString(kwargs, "span");
-    lcbtrace_REF* ref = NULL;
-    if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
-    {
-        return *pcontext;
-    } else{
-        return new_stack_context4(py_tracer, operation, now, ref);
-    }
-}
-
 #endif
 
 

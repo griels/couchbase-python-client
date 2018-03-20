@@ -36,8 +36,8 @@ if sys.platform != 'win32':
         extoptions['extra_compile_args'] = ['-std=c++1z']
         extoptions['extra_link_args'] = ['-std=c++1z']
         if os.environ.get('PYCBC_DEBUG'):
-            extoptions['extra_compile_args']+=['-O0', '-g']
-            extoptions['extra_link_args'] += ['-O0', '-g']
+            extoptions['extra_compile_args']+=['-O0', '-g3']
+            extoptions['extra_link_args'] += ['-O0', '-g3']
 else:
     warnings.warn("I'm detecting you're running windows."
                   "You might want to modify "

@@ -13,11 +13,6 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  **/
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #ifndef PYCBC_OPUTIL_H
 #define PYCBC_OPUTIL_H
 
@@ -115,6 +110,7 @@ typedef struct {
     pycbc_oputil_keyhandler_raw cb;
 } pycbc_oputil_keyhandler;
 
+extern "C" {
 /**
  * Examine the 'quiet' parameter and see if we should set the MultiResult's
  * 'no_raise_enoent' flag.
@@ -204,29 +200,16 @@ int pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
  * used to determine if the 'encvals' field should be allocated
  */
 int pycbc_common_vars_init(struct pycbc_common_vars *cv,
-                           pycbc_Bucket *self,
-                           int argopts,
-                           Py_ssize_t ncmds,
-                           int want_vals);
+                                      pycbc_Bucket *self,
+                                      int argopts,
+                                      Py_ssize_t ncmds,
+                                      int want_vals);
 
-}
 
-template <typename CB>
-static pycbc_oputil_keyhandler pycbc_get_keyhandler(CB cb, const char* category){
-    pycbc_oputil_keyhandler handler;
-    handler.cb=cb;
-    handler.category=category;
-    return handler;
-}
+extern "C" pycbc_oputil_keyhandler pycbc_get_keyhandler(pycbc_oputil_keyhandler_raw cb, const char *category);
+#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME, NAME##_category())
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_get_keyhandler(NAME##_real, NAME##_category())
-
-#define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
+#define PYCBC_OPUTIL_ITER_MULTI(SELF, SEQTYPE, COLLECTION, CV, OPTYPE, HANDLER, ...)\
     pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)
 
 /**
@@ -239,7 +222,7 @@ extern "C"
  * @param handler the actual handler to call for each key-value-item pair
  * @param arg an opaque pointer passed to the handler
  */
-int
+extern "C" int
 pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         pycbc_seqtype_t seqtype,
                         PyObject *collection,
@@ -254,13 +237,18 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
  * Clean up the 'common_vars' structure and free/decref any data. This
  * automatically DECREFs any PyObject enckeys and encvaks.
  */
+}
+#ifdef __cplusplus
+extern "C"
+#endif
 void pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *self);
 
+extern "C" {
 /**
  * Wait for the operation to complete
  * @return 0 on success, -1 on failure.
  */
-int pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self);
+extern "C" int pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self);
 
 
 /**
@@ -303,9 +291,9 @@ int
 pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
                         pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf);
 
-TRACED_FUNCTION_DECL(LCBTRACE_OP_REQUEST_ENCODING,, int,
-                pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
-                PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd);
+TRACED_FUNCTION_DECL(LCBTRACE_OP_REQUEST_ENCODING, , int,
+                     pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
+                     PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd);
 
 /**
  * Macro to declare prototypes for entry points.
@@ -421,6 +409,4 @@ PYCBC_DECL_OP(_ixwatch);
 
 #endif /* PYCBC_OPUTIL_H */
 
-#ifdef __cplusplus
 }
-#endif

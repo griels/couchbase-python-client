@@ -307,6 +307,7 @@ typedef struct {
 } pycbc_Span_t;
 
 #ifdef LCB_TRACING
+
 lcbtrace_TRACER *pycbc_zipkin_new(void);
 
 typedef struct {
@@ -320,8 +321,29 @@ typedef struct {
 
 typedef pycbc_stack_context pycbc_stack_context_handle;
 
-pycbc_stack_context_handle
-get_stack_context4(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation, uint64_t now);
+
+static pycbc_stack_context_handle
+new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
+    pycbc_stack_context_handle context;
+    context.tracer = py_tracer;
+    context.span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
+    lcbtrace_span_add_tag_str(context.span, LCBTRACE_TAG_COMPONENT, "PYCBC");
+    return context;
+}
+
+static pycbc_stack_context_handle
+get_stack_context4(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now) {
+    pycbc_stack_context_handle *pcontext;
+    PyObject *span = PyDict_GetItemString(kwargs, "span");
+    lcbtrace_REF* ref = NULL;
+    if (!operation && span && PyArg_ParseTuple(span, "O!", &TracerType, &pcontext) && pcontext)
+    {
+        return *pcontext;
+    } else{
+        return new_stack_context4(py_tracer, operation, now, ref);
+    }
+}
+
 #define PYCBC_GET_STACK_CONTEXT(KWARGS, CATEGORY, BUCKET) get_stack_context4(BUCKET->tracer, KWARGS, CATEGORY, 0 )
 #define PYCBC_TRACECMD(CMD, CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT).span);
 #else
@@ -358,17 +380,25 @@ return fn(std::forward<Args>(args)...);
 #define TRACED_FUNCTION_KV(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
 const char* NAME##_category(){ return CATEGORY; }\
     QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context,__VA_ARGS__)
+#ifdef FISH
+
 #define WRAPPER(FUNC) pycbc_spy_fn<decltype(&FUNC), &FUNC>
 #define TRACED_FUNCTION(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
     QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context, __VA_ARGS__);\
-\
 template<typename... Args>\
 QUALIFIERS RTYPE NAME(pycbc_stack_context_handle context, Args... args){\
     return WRAPPER(NAME##_real)(context,std::forward<Args>(args)...);\
 }\
 const char* NAME##_category(){ return CATEGORY; }\
     QUALIFIERS RTYPE NAME##_real(pycbc_stack_context_handle context,__VA_ARGS__)
-//extern "C" {
+#else
+
+
+#define TRACED_FUNCTION(CATEGORY, QUALIFIERS, RTYPE, NAME, ...)\
+const char* NAME##_category(){ return CATEGORY; }\
+    QUALIFIERS RTYPE NAME(pycbc_stack_context_handle context,__VA_ARGS__)
+
+#endif
 
 #define TRACED_FUNCTION_DECL(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category();\
@@ -1027,7 +1057,7 @@ PyObject *pycbc_multiresult_get_result(pycbc_MultiResult *self);
 
 /**
  * Invokes a callback when an operation has been completed. This will either
- * invoke the operation's "error callback" or the operation's "result callback"
+ * invoke the operation's "errofr callback" or the operation's "result callback"
  * depending on the state.
  */
 void pycbc_asyncresult_invoke(pycbc_AsyncResult *mres,

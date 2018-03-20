@@ -14,20 +14,27 @@
  *   limitations under the License.
  **/
 
+#include <utility>
+#include <type_traits>
+template<typename Fn, Fn fn, typename... Args>
+typename std::result_of<Fn(Args...)>::type pycbc_spy_fn(Args &&... args) {
+    return fn(std::forward<Args>(args)...);
+}
+extern "C" {
 
 #include "oputil.h"
 #include "pycbc.h"
+
+//extern "C" void pycbc_common_vars_finalize(struct pycbc_common_vars *, pycbc_Bucket *);
+//#endif
+
+
 /*
 #ifdef __cplusplus
 extern "C"
 {
-#endif*/
-#include <utility>
-#include <type_traits>
-template<typename Fn, Fn fn, typename... Args>
-typename std::result_of<Fn(Args...)>::type pycbc_spy_fn(Args&&... args){
-    return fn(std::forward<Args>(args)...);
-}
+#endif
+*/
 
 struct storecmd_vars {
     int operation;
@@ -60,7 +67,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
     PyObject *pycbc_DummyTuple = PyTuple_New(0);
     if (options) {
         rv = PyArg_ParseTupleAndKeywords(pycbc_DummyTuple, options, "|OOOO",
-                                         (char**)itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
+                                         (char **) itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
         if (!rv) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0,
                            "Couldn't parse item o ptions");
@@ -116,7 +123,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
     return 0;
 }
 
-TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
                 handle_multi_mutate, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
                 void *arg) {
@@ -138,20 +145,15 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     cmd.exptime = scv->ttl;
     cmd.cmdflags |= scv->sd_doc_flags;
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    rv = WRAP(pycbc_sd_handle_speclist,NULL,self, cv->mres, curkey, curvalue, &cmd);
+    rv = WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
 }
-#include <tuple>
-template <size_t N, typename... Args>
-decltype(auto) magic_get(Args&&... as) noexcept {
-    return std::get<N>(std::forward_as_tuple(std::forward<Args>(as)...));
-}
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
-handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-                 PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
-                 void *arg) {
+                handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+                PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
+                void *arg) {
     int rv;
     const struct storecmd_vars *scv = (struct storecmd_vars *) arg;
     struct single_key_context skc = {NULL};
@@ -225,7 +227,7 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj) {
     unsigned long val = 0;
 
     if (*flagsobj == NULL || *flagsobj == Py_None) {
-        *flagsobj = pycbc_helpers.fmt_utf8_flags;
+        //  *flagsobj = pycbc_helpers.fmt_utf8_flags;
         return 0;
     }
 
@@ -252,13 +254,10 @@ handle_append_flags(pycbc_Bucket *self, PyObject **flagsobj) {
 }
 
 
-
-
-
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
-        static, PyObject *,
-set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
-           int operation, int argopts) {
+                static, PyObject *,
+                set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
+                int operation, int argopts) {
     int rv;
 
     Py_ssize_t ncmds = 0;
@@ -288,13 +287,13 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     scv.argopts = argopts;
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBB", (char**)kwlist_multi,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBB", (char **) kwlist_multi,
                                          &dict,
                                          &ttl_O, &scv.flagsobj,
                                          &persist_to, &replicate_to);
 
     } else {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBI", (char**)kwlist_single,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBI", (char **) kwlist_single,
                                          &key, &value,
                                          &scv.single_cas, &ttl_O, &scv.flagsobj,
                                          &persist_to, &replicate_to,
@@ -364,7 +363,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     }
 
     GT_DONE:
-    pycbc_common_vars_finalize(&cv, self);
+    // pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
 
@@ -398,7 +397,9 @@ DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)
 /*
+
 #ifdef __cplusplus
 }
 #endif
 */
+}
