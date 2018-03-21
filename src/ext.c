@@ -479,7 +479,7 @@ get_stack_context(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *opera
 
 
     PyObject *span = kwargs?PyDict_GetItemString(kwargs, "span"):NULL;
-    if (context || span && PyArg_ParseTuple(span, "O!", &TracerType, &context) && context )
+    if (context || (span && PyArg_ParseTuple(span, "O!", &TracerType, &context) && context ) )
     {
         lcbtrace_REF ref;
         ref.type = ref_type;
@@ -863,13 +863,11 @@ static int
 Tracer__init__(pycbc_Tracer_t *self,
                PyObject *args, PyObject *kwargs)
 {
-    lcb_error_t err;
     int rv = 0;
     self->tracer=pycbc_zipkin_new();
-    pycbc_Bucket* bucket;
-    lcb_t instance;
-    /*
-     * This xmacro enumerates the constructor keywords, targets, and types.
+#ifdef TRACER_BUCKET
+    {    pycbc_Bucket* bucket;
+    /* This xmacro enumerates the constructor keywords, targets, and types.
      * This was converted into an xmacro to ease the process of adding or
      * removing various parameters.
      */
@@ -897,7 +895,8 @@ Tracer__init__(pycbc_Tracer_t *self,
                                      XCTOR_ARGS(X) NULL);
 #undef X
     lcb_set_tracer(bucket->instance, self->tracer);
-
+    }
+#endif
 
     return rv;
 }
@@ -910,7 +909,7 @@ Tracer_dtor(pycbc_Tracer_t *self)
 }
 
 #define PYCBC_TYPE_INIT(TYPENAME,TYPE_DOC)\
-int\
+int \
 pycbc_##TYPENAME##Type_init(PyObject **ptr)\
 {\
     PyTypeObject *p = &TYPENAME##Type;\

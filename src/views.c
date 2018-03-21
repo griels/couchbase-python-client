@@ -320,7 +320,9 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     }
 
     if (!self->base.done) {
-        pycbc_oputil_wait_common(bucket,PYCBC_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, NULL));
+        pycbc_oputil_wait_common(bucket,
+                                 get_stack_context(self->py_tracer, ((void *) 0), "response_decoding", 0, ((void *) 0),
+                                                   LCBTRACE_REF_NONE));
     }
 
     if (pycbc_multiresult_maybe_raise(mres)) {
@@ -334,12 +336,39 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     pycbc_oputil_conn_unlock(bucket);
     return ret;
 }
+static int
+ViewResult__init__(PyObject *self_raw,
+                   PyObject *args, PyObject *kwargs)
+{
+    pycbc_ViewResult* self = (pycbc_ViewResult*)(self_raw);
+#ifdef LCB_TRACING
+
+    self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
+    if (self->py_tracer) {
+        self->own_tracer = false;
+    }
+    else
+    {
+        self->own_tracer = true;
+        self->py_tracer= (pycbc_Tracer_t*)malloc(sizeof(pycbc_Tracer_t));
+        //assert(self->py_tracer);
+        self->py_tracer->tracer = pycbc_zipkin_new();
+    }
+#endif
+    return 0;
+}
 
 static void
 ViewResult_dealloc(pycbc_ViewResult *vres)
 {
     Py_CLEAR(vres->rows);
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);
+#ifdef LCB_TRACING
+    if (vres->own_tracer) {
+        vres->py_tracer->tracer->destructor(vres->py_tracer->tracer);
+        free(vres->py_tracer);
+    }
+#endif
 }
 
 PyTypeObject pycbc_ViewResultType = {
@@ -366,6 +395,7 @@ static struct PyMethodDef ViewResult_TABLE_methods[] = {
         { NULL }
 };
 
+
 int
 pycbc_ViewResultType_init(PyObject **ptr)
 {
@@ -378,6 +408,7 @@ pycbc_ViewResultType_init(PyObject **ptr)
     p->tp_name = "ViewResult";
     p->tp_doc = PyDoc_STR("Low level view result object");
     p->tp_new = PyType_GenericNew;
+    p->tp_init = ViewResult__init__;
     p->tp_dealloc = (destructor)ViewResult_dealloc;
     p->tp_basicsize = sizeof(pycbc_ViewResult);
     p->tp_members = ViewResult_TABLE_members;

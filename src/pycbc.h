@@ -537,6 +537,7 @@ typedef struct {
     long rows_per_call;
     char has_parse_error;
     pycbc_Tracer_t* py_tracer;
+    bool own_tracer;
 } pycbc_ViewResult;
 
 
@@ -904,8 +905,17 @@ int pycbc_ViewResultType_init(PyObject **ptr);
 /**
  * Calls the type's constructor with no arguments:
  */
-#define PYCBC_TYPE_CTOR(t) PyObject_CallFunction((PyObject*)t, NULL, NULL)
+//#define PYCBC_TYPE_CTOR(t,...) PyObject_CallFunction((PyObject*)t, NULL, NULL)
+#define PYCBC_TYPE_CTOR_1_args(t)              PyObject_CallFunction((PyObject*)t, 0, 0)
+#define PYCBC_TYPE_CTOR_2_args(t, args)        PyObject_CallFunction((PyObject*)t, args, 0)
+#define PYCBC_TYPE_CTOR_3_args(t, args, kwargs) PyObject_CallFunction((PyObject*)t, args, kwargs)
 
+#define GET_4TH_ARG(arg1, arg2, arg3, arg4, ...) arg4
+#define PYCBC_TYPE_CTOR_CHOOSER(...) \
+    GET_4TH_ARG(__VA_ARGS__, PYCBC_TYPE_CTOR_3_args, \
+                PYCBC_TYPE_CTOR_2_args, PYCBC_TYPE_CTOR_1_args, )
+
+#define PYCBC_TYPE_CTOR(...) PYCBC_TYPE_CTOR_CHOOSER(__VA_ARGS__)(__VA_ARGS__)
 
 /**
  * Allocators for result functions. See callbacks.c:get_common
