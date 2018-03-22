@@ -98,14 +98,14 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             rv = -1;
             goto GT_DONE;
         }
-        PYCBC_TRACECMD(ucmd.unl, context);
+        PYCBC_TRACECMD(ucmd.unl, context, cv->mres, curkey, self);
         err = lcb_unlock3(self->instance, cv->mres, &ucmd.unl);
 
     } else if (optype == PYCBC_CMD_ENDURE) {
         err = cv->mctx->addcmd(cv->mctx, &ucmd.base);
 
     } else {
-        PYCBC_TRACECMD(ucmd.rm,context);
+        PYCBC_TRACECMD(ucmd.rm,context, cv->mres, curkey, self);
         err = lcb_remove3(self->instance, cv->mres, &ucmd.rm);
     }
     if (err == LCB_SUCCESS) {
@@ -347,13 +347,13 @@ pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
             if (is_keystats && PyObject_IsTrue(is_keystats)) {
                 cmd.cmdflags |= LCB_CMDSTATS_F_KV;
             }
-            PYCBC_TRACECMD(cmd, context);
+            PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
             err = lcb_stats3(self->instance, cv.mres, &cmd);
             Py_XDECREF(newkey);
         }
 
     } else {
-        PYCBC_TRACECMD(cmd, context);
+        PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
         err = lcb_stats3(self->instance, cv.mres, &cmd);
     }
 
@@ -393,7 +393,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
     if (rv < 0) {
         return NULL;
     }
-    PYCBC_TRACECMD(cmd, context);
+    PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
     lcb_sched_enter(self->instance);
     err = lcb_ping3(self->instance, cv.mres, &cmd);
 
@@ -431,7 +431,7 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
         return NULL;
     }
 
-    PYCBC_TRACECMD(cmd, context);
+    PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
     lcb_sched_enter(self->instance);
     PYCBC_CONN_THR_BEGIN(self);
     err = lcb_diag(self->instance, cv.mres, &cmd);

@@ -665,7 +665,11 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
-        PYCBC_TRACECMD((*cmd), context);
+        PYCBC_TRACECMD_PURE((*cmd), context);
+#ifdef LCB_TRACING
+        newitm->tracing_context = context;
+        newitm->is_tracing_stub = 0;
+#endif
         err = lcb_subdoc3(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
             PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);

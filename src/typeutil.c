@@ -22,9 +22,6 @@
 #include "oputil.h"
 #include "pycbc.h"
 
-void pycbc_init_traced_result(const pycbc_Bucket *self, const struct pycbc_common_vars *cv, const PyObject *curkey,
-                              pycbc_stack_context_handle context);
-
 #if PY_MAJOR_VERSION == 2
 
 unsigned PY_LONG_LONG
@@ -208,11 +205,3 @@ pycbc_get_u32(PyObject *obj, lcb_uint32_t *out)
 
 }
 
-void pycbc_init_traced_result(const pycbc_Bucket *self, const struct pycbc_common_vars *cv, const PyObject *curkey,
-                              pycbc_stack_context_handle context) {
-    PyObject* mres_dict=pycbc_multiresult_dict(cv->mres);
-    pycbc_ValueResult *item = pycbc_valresult_new(self);
-    item->tracing_context = context;
-    item->is_tracing_stub = 1;
-    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
-}

@@ -83,7 +83,7 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
     cmd.initial = my_params.initial;
     cmd.exptime = my_params.ttl;
 
-    PYCBC_TRACECMD(cmd,context);
+    PYCBC_TRACECMD(cmd,context,cv->mres,curkey, self);
     err = lcb_counter3(self->instance, cv->mres, &cmd);
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);

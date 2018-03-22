@@ -404,7 +404,11 @@ pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObj
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
 #define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
 
-#define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
+#define PYCBC_DEFAULT_TRACING_KEY Py_None
+
+#define PYCBC_TRACECMD_PURE(CMD,CONTEXT)  LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
+#define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
+pycbc_init_traced_result(BUCKET, pycbc_multiresult_dict(MRES), CURKEY, context);
 
 #define PYCBC_TRACING_POP_CONTEXT(CONTEXT) \
 if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->span) {\
@@ -424,6 +428,9 @@ if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->
         free(sub_context);\
     }\
 };
+
+void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
+                              pycbc_stack_context_handle context);
 
 #define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,NAME##_category(),0, context, LCBTRACE_REF_CHILD_OF))
 #else
@@ -1289,6 +1296,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
 PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs);
+
 
 /**
  * Flag to check if logging is enabled for the library via Python's logging

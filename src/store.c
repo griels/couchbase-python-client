@@ -190,8 +190,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     cmd.cas = skc.cas;
     cmd.operation = (lcb_storage_t) scv->operation;
     cmd.exptime = skc.ttl;
-
-    PYCBC_TRACECMD(cmd, context);
+    PYCBC_TRACECMD(cmd, context, cv->mres, curkey, self);
 
     err = lcb_store3(self->instance, cv->mres, &cmd);
     if (err == LCB_SUCCESS) {

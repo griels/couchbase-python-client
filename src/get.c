@@ -101,9 +101,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         }
     }
     u_cmd.base.exptime = ttl;
-#ifdef LCB_TRACING
-    pycbc_init_traced_result(self, cv, curkey, context);
-#endif
+
     switch (optype) {
     case PYCBC_CMD_GAT:
         if (!ttl) {
@@ -125,13 +123,13 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     case PYCBC_CMD_GET:
         GT_GET:
         u_cmd.get.lock = lock;
-        PYCBC_TRACECMD(u_cmd.get, context);
+        PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
         err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
         break;
 
     case PYCBC_CMD_TOUCH:
         u_cmd.touch.exptime = ttl;
-        PYCBC_TRACECMD(u_cmd.touch, context);
+        PYCBC_TRACECMD(u_cmd.touch, context, cv->mres, curkey, self);
         err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
         break;
 
@@ -140,7 +138,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     case PYCBC_CMD_GETREPLICA_ALL:
         u_cmd.rget.strategy = gv->u.replica.strategy;
         u_cmd.rget.index = gv->u.replica.index;
-        PYCBC_TRACECMD(u_cmd.rget,context);
+        PYCBC_TRACECMD(u_cmd.rget,context, cv->mres, curkey, self);
         err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
         break;
     default:

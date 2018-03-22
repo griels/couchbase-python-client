@@ -464,6 +464,14 @@ static void log_handler(struct lcb_logprocs_st *procs,
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
+#include "oputil.h"
+void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
+                              pycbc_stack_context_handle context) {
+    pycbc_ValueResult *item = pycbc_valresult_new(self);
+    item->tracing_context = context;
+    item->is_tracing_stub = 1;
+    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+}
 
 pycbc_stack_context_handle
 pycbc_Tracer_span_start_real(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
