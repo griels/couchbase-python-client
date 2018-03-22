@@ -780,7 +780,8 @@ Bucket__init__(pycbc_Bucket *self,
 static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer);
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
+                                                                          self->tracer);
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {

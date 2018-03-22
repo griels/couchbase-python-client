@@ -27,6 +27,8 @@ static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
  */
 static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error_t rc, size_t ix);
 
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres);
+
 static void
 cb_thr_end(pycbc_Bucket *self)
 {
@@ -176,7 +178,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     PyObject *hkey;
     PyObject *mrdict;
     int rv;
-
+#ifdef LCB_TRACING
+    pycbc_stack_context_handle stack_context_handle = NULL;
+#endif
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
     *mres = (pycbc_MultiResult*)resp->cookie;
     *conn = (*mres)->parent;
@@ -193,7 +197,18 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     mrdict = pycbc_multiresult_dict(*mres);
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+#ifdef LCB_TRACING
+    assert(*res);
+    if ( (*res)->is_tracing_stub)
+    {
+        stack_context_handle = pycbc_Tracer_span_start(stack_context_handle->tracer, NULL,
+                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+        PyDict_DelItem(mrdict, hkey);
 
+        *res = NULL;
+    }
+#endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
                 ( (*mres)->mropts & PYCBC_MRES_F_UALLOCED);
@@ -224,24 +239,14 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
     if (*res == NULL) {
         /* Now, get/set the result object */
-        if ( (*mres)->mropts & PYCBC_MRES_F_ITEMS) {
-            *res = (pycbc_Result*)pycbc_item_new(*conn);
-
-        } else if (restype & RESTYPE_BASE) {
-            *res = (pycbc_Result*)pycbc_result_new(*conn);
-
-        } else if (restype & RESTYPE_OPERATION) {
-            *res = (pycbc_Result*)pycbc_opresult_new(*conn);
-
-        } else if (restype & RESTYPE_VALUE) {
-            *res = (pycbc_Result*)pycbc_valresult_new(*conn);
-
-        } else {
+        pycbc_new_result(conn, res, restype, mres);
+        if (*res == NULL){
             abort();
         }
-
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
-
+#ifdef LCB_TRACING
+        (*res)->tracing_context = stack_context_handle;
+#endif
         (*res)->key = hkey;
         Py_DECREF(*res);
     }
@@ -255,6 +260,22 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
 
     return 0;
+}
+
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres) {
+    if ((*mres)->mropts & PYCBC_MRES_F_ITEMS) {
+            *res = (pycbc_Result*)pycbc_item_new(*conn);
+
+        } else if (restype & RESTYPE_BASE) {
+            *res = (pycbc_Result*)pycbc_result_new(*conn);
+
+        } else if (restype & RESTYPE_OPERATION) {
+            *res = (pycbc_Result*)pycbc_opresult_new(*conn);
+
+        } else if (restype & RESTYPE_VALUE) {
+            *res = (pycbc_Result*)pycbc_valresult_new(*conn);
+
+        }
 }
 
 static void
@@ -794,6 +815,7 @@ static void ping_callback(lcb_t instance,
         Py_DECREF(struct_services_dict);
     }
     if (resp->njson) {
+
         pycbc_dict_add_text_kv(resultdict, "services_json", resp->json);
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {

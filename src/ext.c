@@ -466,7 +466,7 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #ifdef LCB_TRACING
 
 pycbc_stack_context_handle
-new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
+pycbc_Tracer_span_start_real(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
@@ -475,23 +475,32 @@ new_stack_context4(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t no
 }
 
 pycbc_stack_context_handle
-get_stack_context(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now, pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
+pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now,
+                        pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
 
+    PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
+    if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &TracerType, &py_tracer) && py_tracer)))
+    {
+        abort();
+    }
 
-    PyObject *span = kwargs?PyDict_GetItemString(kwargs, "span"):NULL;
-    if (context || (span && PyArg_ParseTuple(span, "O!", &TracerType, &context) && context ) )
+    if (context )
     {
         lcbtrace_REF ref;
         ref.type = ref_type;
         ref.span = context->span;
-        return new_stack_context4(py_tracer, operation, now, &ref);
+        return pycbc_Tracer_span_start_real(py_tracer, operation, now, &ref);
     }
     else
     {
-        return new_stack_context4(py_tracer, operation, now, NULL);
+        return pycbc_Tracer_span_start_real(py_tracer, operation, now, NULL);
     }
 }
-
+#else
+pycbc_stack_context_handle
+pycbc_Tracer_span_start(pycbc_Tracer_t *, PyObject *, const char *, uint64_t , pycbc_stack_context_handle , lcbtrace_REF_TYPE ) {
+    return NULL;
+}
 #endif
 
 

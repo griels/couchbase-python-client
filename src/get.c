@@ -15,6 +15,8 @@
  **/
 
 #include "oputil.h"
+#include "pycbc.h"
+
 /**
  * Covers 'lock', 'touch', and 'get_and_touch'
  */
@@ -31,10 +33,10 @@ struct getcmd_vars_st {
     } u;
 };
 
-TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
-handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-    PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
-    void *arg)
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
+                handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+                PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
+                void *arg)
 {
     int rv;
     unsigned int lock = 0;
@@ -99,7 +101,9 @@ handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         }
     }
     u_cmd.base.exptime = ttl;
-
+#ifdef LCB_TRACING
+    pycbc_init_traced_result(self, cv, curkey, context);
+#endif
     switch (optype) {
     case PYCBC_CMD_GAT:
         if (!ttl) {
@@ -290,7 +294,7 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
             handle_single_key, &gv, context);
 
     } else {
-        rv=WRAP(handle_single_key,kwargs, self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
+        rv= WRAP(handle_single_key, kwargs, self, &cv, optype, kobj, NULL, NULL, NULL, &gv);
     }
     if (rv < 0) {
         goto GT_DONE;
@@ -364,7 +368,7 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
         goto GT_DONE;
     }
 
-    WRAP(pycbc_common_vars_wait,kwargs, &cv, self);
+    WRAP(pycbc_common_vars_wait, kwargs, &cv, self);
 
     GT_DONE:
     pycbc_common_vars_finalize(&cv, self);
@@ -374,13 +378,15 @@ sdlookup_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int argopt
 PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE,
+                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
-    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
+    return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI,
+                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
 #define DECLFUNC(name, operation, mode) \

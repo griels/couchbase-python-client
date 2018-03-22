@@ -391,7 +391,6 @@ typedef struct
 #ifdef LCB_TRACING
     pycbc_Tracer_t* tracer;
     lcbtrace_SPAN* span;
-
 #endif
 } pycbc_stack_context;
 
@@ -399,9 +398,11 @@ typedef pycbc_stack_context* pycbc_stack_context_handle;
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
-pycbc_stack_context_handle get_stack_context(pycbc_Tracer_t* tracer, PyObject *kwargs, const char *operation, uint64_t now, pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type);
-#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) get_stack_context(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
-#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) get_stack_context(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
+pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
+                                                   uint64_t now, pycbc_stack_context_handle context,
+                                                   lcbtrace_REF_TYPE ref_type);
+#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
+#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
 
 #define PYCBC_TRACECMD(CMD,CONTEXT) LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
 
@@ -414,33 +415,30 @@ if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->
 
 #define WRAP_TOPLEVEL(RV,CATEGORY,NAME,TRACER,...) \
 {\
-    int is_async_or_pipeline = pycbc_is_async_or_pipeline(self);\
+    int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
-    if (!is_async_or_pipeline) {sub_context=PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER);};\
+    if (should_trace) {sub_context=PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, #NAME, TRACER);};\
     RV=NAME(__VA_ARGS__,sub_context);\
-    if (!is_async_or_pipeline && sub_context) {\
+    if (should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
         if (0 && sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
         free(sub_context);\
     }\
 };
 
-#define WRAP_TOPLEVEL_NO_KWARGS()
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,NAME##_category(),0, context, LCBTRACE_REF_CHILD_OF))
 #else
-#define PYCBC_TRACECMD
-inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const char *operation, uint64_t now, void *dummy, void *dummy2){
-    return pycbc_stack_context_handle();
-}
+
 #define PYCBC_TRACECMD(CMD,CONTEXT)
-#define PYCBC_GET_STACK_CONTEXT(kwargs) get_stack_context4(kwargs, "GENERIC", 0, NULL, NULL)
+#define PYCBC_GET_STACK_CONTEXT(CATEGORY,TRACER, PARENT_CONTEXT) NULL
 
 #define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
 {\
     pycbc_stack_context_handle sub_context = {0};\
     RV=NAME(__VA_ARGS__,sub_context);\
 };
-#endif
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, get_stack_context(self->tracer,KWARGS,NAME##_category(),0, context, LCBTRACE_REF_CHILD_OF))
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, NULL))
+#endif
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void){ return #CATEGORY; }\
@@ -460,10 +458,19 @@ inline pycbc_stack_context_handle get_stack_context4(PyObject *kwargs, const cha
  * See result.c and opresult.c
  */
 
+#ifdef LCB_TRACING
+#define TRACING_DATA \
+    pycbc_stack_context_handle tracing_context;\
+    int is_tracing_stub;
+#else
+#define TRACING_DATA
+#endif
+
 #define pycbc_Result_HEAD \
     PyObject_HEAD \
     lcb_error_t rc; \
-    PyObject *key;
+    PyObject *key; \
+    TRACING_DATA
 
 #define pycbc_OpResult_HEAD \
     pycbc_Result_HEAD \
@@ -603,7 +610,9 @@ typedef struct pycbc_MultiResult_st {
     int mropts;
 
     pycbc_enhanced_err_info *err_info;
-
+#ifdef LCB_TRACING
+    PyObject* tracing_contexts;
+#endif
 } pycbc_MultiResult;
 
 typedef struct {

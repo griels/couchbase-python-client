@@ -132,7 +132,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     cmd.exptime = scv->ttl;
     cmd.cmdflags |= scv->sd_doc_flags;
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    rv = WRAP(pycbc_sd_handle_speclist,NULL,self, cv->mres, curkey, curvalue, &cmd);
+    rv = WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
 }
