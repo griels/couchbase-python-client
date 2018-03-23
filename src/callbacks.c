@@ -14,6 +14,7 @@
  *   limitations under the License.
  **/
 
+#include <libcouchbase/api3.h>
 #include "pycbc.h"
 
 #define CB_THREADS
@@ -199,11 +200,13 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef LCB_TRACING
     assert(*res);
+    printf("\n&res %p:  coming back from callback on key %.*s\n",res, (int)resp->nkey, (const char*)resp->key);
     if ( (*res)->is_tracing_stub)
     {
         stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
                                                        LCBTRACE_OP_RESPONSE_DECODING, 0,
                                                        (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+        printf("res %p: starting new context on key %.*s\n",*res, (int)resp->nkey, (const char*)resp->key);
         PyDict_DelItem(mrdict, hkey);
 
         *res = NULL;
@@ -246,6 +249,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
 #ifdef LCB_TRACING
         (*res)->tracing_context = stack_context_handle;
+        (*res)->is_tracing_stub = 0;
 #endif
         (*res)->key = hkey;
         Py_DECREF(*res);

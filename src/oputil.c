@@ -14,6 +14,7 @@
  *   limitations under the License.
  **/
 
+//#include <libcouchbase/subdoc.h>
 #include "oputil.h"
 #include "pycbc.h"
 #include "structmember.h"

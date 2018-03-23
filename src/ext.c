@@ -470,6 +470,15 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     pycbc_ValueResult *item = pycbc_valresult_new(self);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
+    printf("\nres %p: binding context %p to ", item, context);
+#if PYTHON_ABI_VERSION>=3
+    {
+        Py_ssize_t length;
+        const char *keyname = PyUnicode_AsUTF8AndSize(curkey, &length);
+        printf("%.*s", (int)length, keyname);
+    }
+#endif
+    printf("\n");
     PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
 }
 

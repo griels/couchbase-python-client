@@ -406,7 +406,7 @@ pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObj
 
 #define PYCBC_DEFAULT_TRACING_KEY Py_None
 
-#define PYCBC_TRACECMD_PURE(CMD,CONTEXT)  LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);
+#define PYCBC_TRACECMD_PURE(CMD,CONTEXT)  { printf("\nsetting trace span on %.*s\n",(int)(CMD).key.contig.nbytes,(const char*)(CMD).key.contig.bytes); LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);};
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
 pycbc_init_traced_result(BUCKET, pycbc_multiresult_dict(MRES), CURKEY, context);
 
