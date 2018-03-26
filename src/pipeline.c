@@ -39,6 +39,8 @@ pycbc_Bucket__start_pipeline(pycbc_Bucket *self)
 PyObject *
 pycbc_Bucket__end_pipeline(pycbc_Bucket *self)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING,
+                                                                          self->tracer);
     PyObject *rv;
     int ii;
 
@@ -54,7 +56,7 @@ pycbc_Bucket__end_pipeline(pycbc_Bucket *self)
         goto GT_DONE;
     }
 
-    pycbc_oputil_wait_common(self);
+    WRAP(pycbc_oputil_wait_common, NULL, self);
 
     pycbc_assert(self->nremaining == 0);
 
