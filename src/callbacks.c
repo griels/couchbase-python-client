@@ -199,6 +199,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef LCB_TRACING
+    pycbc_print_string(PyObject_Str(mrdict));
     assert(*res);
     printf("\n&res %p:  coming back from callback on key %.*s\n",res, (int)resp->nkey, (const char*)resp->key);
     if ( (*res)->is_tracing_stub)

@@ -465,13 +465,21 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
 #include "oputil.h"
+
+
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_ValueResult *item = pycbc_valresult_new(self);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
     printf("\nres %p: binding context %p to ", item, context);
-#if PYTHON_ABI_VERSION>=3
+    pycbc_print_string(curkey);
+    printf("\n");
+    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+}
+
+void pycbc_print_string(const PyObject *curkey) {
+#if PYTHON_ABI_VERSION >= 3
     {
         Py_ssize_t length;
         const char *keyname = PyUnicode_AsUTF8AndSize(curkey, &length);
@@ -482,8 +490,6 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
         printf("%s",PyString_AsString(curkey));
     };
 #endif
-    printf("\n");
-    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
 }
 
 pycbc_stack_context_handle

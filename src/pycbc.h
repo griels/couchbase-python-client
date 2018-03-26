@@ -394,6 +394,8 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
+void pycbc_print_string(const PyObject *curkey);
+
 typedef pycbc_stack_context* pycbc_stack_context_handle;
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
