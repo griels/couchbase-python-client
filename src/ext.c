@@ -470,12 +470,16 @@ static void log_handler(struct lcb_logprocs_st *procs,
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_ValueResult *item = pycbc_valresult_new(self);
+    Py_IncRef(item);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
-    printf("\nres %p: binding context %p to ", item, context);
-    pycbc_print_string(curkey);
-    printf("\n");
+    printf("\nres %p: binding context %p to [", item, context);
+    pycbc_print_repr(curkey);
+    printf("]\n");
+    Py_IncRef(curkey);
+    Py_IncRef(item);
     PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+    pycbc_print_repr(mres_dict);
 }
 
 void pycbc_print_string(const PyObject *curkey) {
@@ -490,6 +494,12 @@ void pycbc_print_string(const PyObject *curkey) {
         printf("%s",PyString_AsString(curkey));
     };
 #endif
+}
+
+
+void pycbc_print_repr(const PyObject *pobj) {
+    pycbc_print_string(PyObject_Str(pobj));
+
 }
 
 pycbc_stack_context_handle

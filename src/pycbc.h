@@ -395,6 +395,7 @@ typedef struct
 } pycbc_stack_context;
 
 void pycbc_print_string(const PyObject *curkey);
+void pycbc_print_repr(const PyObject *pobj);
 
 typedef pycbc_stack_context* pycbc_stack_context_handle;
 
