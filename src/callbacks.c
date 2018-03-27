@@ -14,6 +14,7 @@
  *   limitations under the License.
  **/
 
+#include <libcouchbase/api3.h>
 #include "pycbc.h"
 
 #define CB_THREADS
@@ -26,6 +27,9 @@ static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
  * Add the sub-document error to the result list
  */
 static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error_t rc, size_t ix);
+
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres);
+
 
 static void
 cb_thr_end(pycbc_Bucket *self)
@@ -176,7 +180,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     PyObject *hkey;
     PyObject *mrdict;
     int rv;
-
+#ifdef LCB_TRACING
+    pycbc_stack_context_handle stack_context_handle = NULL;
+#endif
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
     *mres = (pycbc_MultiResult*)resp->cookie;
     *conn = (*mres)->parent;
@@ -193,7 +199,37 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     mrdict = pycbc_multiresult_dict(*mres);
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+#ifdef LCB_TRACING
+    pycbc_print_repr(mrdict);
+    printf("\n decoding key with repr [");
+    pycbc_print_repr(hkey);
+    printf("]\n");
 
+    printf("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
+    pycbc_print_string(hkey);
+    printf("]\nres %p",*res);
+    if(*res)
+    {
+        if ( (*res)->is_tracing_stub)
+        {
+            stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
+                                                           LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                           (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+            printf("res %p: starting new context on key %.*s\n",*res, (int)resp->nkey, (const char*)resp->key);
+            PyDict_DelItem(mrdict, hkey);
+
+            *res = NULL;
+        }
+        else
+        {
+            rv = pycbc_tc_decode_key(*conn, resp->key, resp->nkey, &hkey);
+            printf("\nWarning: Got null result from dict for [");
+            pycbc_print_string(hkey);
+            printf("]\n");
+        }
+    }
+
+#endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
                 ( (*mres)->mropts & PYCBC_MRES_F_UALLOCED);
@@ -224,24 +260,12 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
     if (*res == NULL) {
         /* Now, get/set the result object */
-        if ( (*mres)->mropts & PYCBC_MRES_F_ITEMS) {
-            *res = (pycbc_Result*)pycbc_item_new(*conn);
-
-        } else if (restype & RESTYPE_BASE) {
-            *res = (pycbc_Result*)pycbc_result_new(*conn);
-
-        } else if (restype & RESTYPE_OPERATION) {
-            *res = (pycbc_Result*)pycbc_opresult_new(*conn);
-
-        } else if (restype & RESTYPE_VALUE) {
-            *res = (pycbc_Result*)pycbc_valresult_new(*conn);
-
-        } else {
-            abort();
-        }
-
+        pycbc_new_result(conn, res, restype, mres);
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
-
+#ifdef LCB_TRACING
+        (*res)->tracing_context = stack_context_handle;
+        (*res)->is_tracing_stub = 0;
+#endif
         (*res)->key = hkey;
         Py_DECREF(*res);
     }
@@ -255,6 +279,23 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
 
     return 0;
+}
+
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres) {
+    if ((*mres)->mropts & PYCBC_MRES_F_ITEMS) {
+        *res = (pycbc_Result *) pycbc_item_new(*conn);
+
+    } else if (restype & RESTYPE_BASE) {
+        *res = (pycbc_Result *) pycbc_result_new(*conn);
+
+    } else if (restype & RESTYPE_OPERATION) {
+        *res = (pycbc_Result *) pycbc_opresult_new(*conn);
+
+    } else if (restype & RESTYPE_VALUE) {
+        *res = (pycbc_Result *) pycbc_valresult_new(*conn);
+    } else {
+        abort();
+    }
 }
 
 static void
@@ -794,6 +835,7 @@ static void ping_callback(lcb_t instance,
         Py_DECREF(struct_services_dict);
     }
     if (resp->njson) {
+
         pycbc_dict_add_text_kv(resultdict, "services_json", resp->json);
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {

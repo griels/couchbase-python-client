@@ -137,6 +137,15 @@ class UpsertTest(ConnectionTestCase):
         JSONobj = json.loads(JSONstr)
         self.cb.upsert("documentID", JSONobj, format=FMT_JSON)
 
+    def test_certauth(self):
+        from couchbase.bucket import Bucket
+        bucket = Bucket(
+            "couchbases://{hostname}/{bucket}?certpath={certpath}&keypath={keypath}".format(
+                hostname="10.142.171.101",
+                bucket="default",
+                certpath="/Users/GVR/SSLCA/clientdir/chain.pem",
+                keypath="/Users/GVR/SSLCA/clientdir/client.key"))
+
 
 if __name__ == '__main__':
     unittest.main()

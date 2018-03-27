@@ -24,6 +24,7 @@ from couchbase.transcoder import TranscoderPP, LegacyTranscoderPP
 
 BLOB_ORIG =  b'\xff\xfe\xe9\x05\xdc\x05\xd5\x05\xdd\x05'
 
+
 class EncodingTest(ConnectionTestCase):
 
     def test_default_format(self):

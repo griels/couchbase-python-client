@@ -29,7 +29,7 @@ Bucket__init__(pycbc_Bucket *self,
                    PyObject *kwargs);
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self);
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs);
 
 static void
 Bucket_dtor(pycbc_Bucket *self);
@@ -554,7 +554,7 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 
         { "_connect",
                 (PyCFunction)Bucket__connect,
-                METH_NOARGS,
+                METH_VARARGS|METH_KEYWORDS,
                 PyDoc_STR(
                 "Connect this instance. This is typically called by one of\n"
                 "the wrapping constructors\n")
@@ -668,6 +668,12 @@ Bucket__init__(pycbc_Bucket *self,
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
 
+#ifdef LCB_TRACING
+    self->tracer = malloc(sizeof(pycbc_Tracer_t));
+    memset(self->tracer, 0, sizeof(pycbc_Tracer_t));
+    self->tracer->tracer=pycbc_zipkin_new();
+#endif
+
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
         return -1;
@@ -734,6 +740,9 @@ Bucket__init__(pycbc_Bucket *self,
 #endif
 
     err = lcb_create(&self->instance, &create_opts);
+#ifdef LCB_TRACING
+    lcb_set_tracer(self->instance, self->tracer->tracer );
+#endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err,
@@ -769,8 +778,10 @@ Bucket__init__(pycbc_Bucket *self,
 }
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self)
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
+                                                                          self->tracer);
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
@@ -786,7 +797,7 @@ Bucket__connect(pycbc_Bucket *self)
         return NULL;
     }
 
-    pycbc_oputil_wait_common(self);
+    WRAP(pycbc_oputil_wait_common, NULL, self);
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         err = lcb_get_bootstrap_status(self->instance);
         if (err != LCB_SUCCESS) {
@@ -829,7 +840,9 @@ Bucket_dtor(pycbc_Bucket *self)
     if (self->instance) {
         lcb_destroy(self->instance);
     }
-
+#ifdef LCB_TRACING
+    free(self->tracer);
+#endif
 #ifdef WITH_THREAD
     if (self->lock) {
         PyThread_free_lock(self->lock);
