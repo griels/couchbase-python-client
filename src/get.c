@@ -33,10 +33,10 @@ struct getcmd_vars_st {
     } u;
 };
 
-TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
-                handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
-                PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
-                void *arg)
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
+handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+    PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
+    void *arg)
 {
     int rv;
     unsigned int lock = 0;
