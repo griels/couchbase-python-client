@@ -474,20 +474,25 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     item->tracing_context = context;
     item->is_tracing_stub = 1;
     printf("\nres %p: binding context %p to [", item, context);
-    pycbc_print_repr(curkey);
+    //pycbc_print_repr(curkey);
     printf("]\n");
     Py_IncRef(curkey);
-    Py_IncRef(item);
-    //PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+    printf("\nPrior to insertion:[");
     pycbc_print_repr(mres_dict);
+    printf("]\n");
+    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+    printf("After insertion:[");
+    pycbc_print_repr(mres_dict);
+    printf("]\n");
+    //pycbc_print_repr(mres_dict);
 }
 
 void pycbc_print_string(const PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
         Py_ssize_t length;
-        const char *keyname = PyUnicode_AsUTF8AndSize(curkey, &length);
-        printf("%.*s", (int)length, keyname);
+        const char *keyname = PyUnicode_AsUTF8(curkey);
+        printf("%s",  keyname);//(int)length, keyname);
     }
 #else
     {

@@ -201,31 +201,31 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 #ifdef LCB_TRACING
     pycbc_print_repr(mrdict);
     printf("\n decoding key with repr [");
-    pycbc_print_repr(hkey);
+    //pycbc_print_repr(hkey);
     printf("]\n");
 
     printf("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
     //pycbc_print_string(hkey);
     printf("]\nres %p",*res);
-    if(*res)
-    {
-        if ( (*res)->is_tracing_stub)
-        {
+    if(*res) {
+        if ((*res)->is_tracing_stub) {
             stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
                                                            LCBTRACE_OP_RESPONSE_DECODING, 0,
                                                            (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
-            printf("res %p: starting new context on key %.*s\n",*res, (int)resp->nkey, (const char*)resp->key);
+            printf("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
             PyDict_DelItem(mrdict, hkey);
 
             *res = NULL;
-        }
-        else
-        {
-            printf("\nWarning: Got null result from dict for [");
-            pycbc_print_string(hkey);
-            printf("]\n");
+
         }
     }
+    else
+    {
+        printf("\nWarning: Got null result from dict for [");
+        //pycbc_print_string(hkey);
+        printf("]\n");
+    }
+
 #endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
