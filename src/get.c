@@ -157,6 +157,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
     GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
+    PYCBC_TRACING_POP_CONTEXT(context);
     return rv;
 }
 
@@ -387,12 +388,19 @@ pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwarg
                            PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
-#define DECLFUNC(name, operation, mode) \
+#define DECLFUNCOLD(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
     return get_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer)); \
 }
 
+#define DECLFUNC(name, operation, mode) \
+    PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
+                                      PyObject *args, PyObject *kwargs) { \
+                                      PyObject* result;\
+    WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING,get_common, self->tracer, self, args, kwargs, operation, mode); \
+    return result;\
+}
 
 DECLFUNC(get, PYCBC_CMD_GET, PYCBC_ARGOPT_SINGLE)
 DECLFUNC(touch, PYCBC_CMD_TOUCH, PYCBC_ARGOPT_SINGLE)

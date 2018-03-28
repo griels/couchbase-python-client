@@ -451,7 +451,7 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
 #endif
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
-    const char* NAME##_category(void){ return #CATEGORY; }\
+    const char* NAME##_category(void){ return CATEGORY; }\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
 #define TRACED_FUNCTION_DECL(QUALIFIERS,RTYPE,NAME,...)\
