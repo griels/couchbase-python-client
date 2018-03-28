@@ -478,7 +478,7 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     printf("]\n");
     Py_IncRef(curkey);
     Py_IncRef(item);
-    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+    //PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
     pycbc_print_repr(mres_dict);
 }
 
