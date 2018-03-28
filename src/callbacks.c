@@ -208,11 +208,11 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     //pycbc_print_string(hkey);
     printf("]\nres %p",*res);
     if(*res) {
+        stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
+                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+        printf("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
         if ((*res)->is_tracing_stub) {
-            stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
-                                                           LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                           (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
-            printf("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
             PyDict_DelItem(mrdict, hkey);
 
             *res = NULL;
@@ -269,6 +269,8 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         (*res)->key = hkey;
         Py_DECREF(*res);
     }
+
+    PYCBC_TRACING_POP_CONTEXT(stack_context_handle);
 
     if (resp->rc) {
         (*res)->rc = resp->rc;

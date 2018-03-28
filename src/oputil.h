@@ -208,7 +208,7 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            int want_vals);
 
 #define PYCBC_OPUTIL_KEYHANDLER(NAME) (pycbc_oputil_keyhandler){NAME##_category(), NAME}
-
+#define PYCBC_OPUTIL_KEYHANDLER_INVOKE(NAME,...) WRAP_EXPLICIT(NAME.cb,NAME.category)
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
     pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)
 

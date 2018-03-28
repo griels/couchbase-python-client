@@ -388,12 +388,6 @@ pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwarg
                            PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
 }
 
-#define DECLFUNCOLD(name, operation, mode) \
-    PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
-                                      PyObject *args, PyObject *kwargs) { \
-    return get_common(self, args, kwargs, operation, mode, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer)); \
-}
-
 #define DECLFUNC(name, operation, mode) \
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \

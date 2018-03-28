@@ -365,6 +365,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
     }
 
     for (ii = 0; ii < cv->ncmds; ii++) {
+
         PyObject *k, *v = NULL, *options = NULL;
         PyObject *arg_k = NULL;
         pycbc_Item *itm = NULL;
@@ -385,7 +386,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-        rv = handler.cb(self, cv, optype, arg_k, v, options, itm, arg, context);
+        rv = WRAP_EXPLICIT(handler.cb, handler.category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
 
         GT_ITER_DONE:
         Py_XDECREF(k);
@@ -465,11 +466,6 @@ pycbc_oputil_wait_common,pycbc_Bucket *self)
 
     PYCBC_CONN_THR_BEGIN(self);
     lcb_wait3(self->instance, LCB_WAIT_NOCHECK);
-    //PYCBC_TRACING_POP_CONTEXT(context);
-    if (context && !pycbc_is_async_or_pipeline(self) && context->tracer && context->span)
-    {
-        context->span = lcbtrace_span_start(context->tracer->tracer,LCBTRACE_OP_RESPONSE_DECODING,0,NULL);
-    }
     PYCBC_CONN_THR_END(self);
 }
 
