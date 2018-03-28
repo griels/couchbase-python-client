@@ -469,6 +469,9 @@ static void log_handler(struct lcb_logprocs_st *procs,
 
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
+    lcb_KEYBUF keybuf={0};
+    pycbc_tc_encode_key(self, curkey, &keybuf);
+    pycbc_tc_decode_key(self, keybuf.contig.bytes, keybuf.contig.nbytes, &curkey);
     pycbc_ValueResult *item = pycbc_valresult_new(self);
     Py_IncRef(item);
     item->tracing_context = context;
