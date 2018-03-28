@@ -498,8 +498,9 @@ void pycbc_print_string(const PyObject *curkey) {
 
 
 void pycbc_print_repr(const PyObject *pobj) {
-    pycbc_print_string(PyObject_Str(pobj));
-
+    PyObject *curkey = PyObject_Str(pobj);
+    pycbc_print_string(curkey);
+    Py_DecRef(curkey);
 }
 
 pycbc_stack_context_handle
