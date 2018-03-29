@@ -355,12 +355,6 @@ typedef struct {
 } pycbc_Bucket;
 
 
-
-static PyTypeObject TracerType = {
-        PYCBC_POBJ_HEAD_INIT(NULL)
-        0
-};
-
 typedef struct pycbc_Tracer {
     PyObject_HEAD
 #ifdef LCB_TRACING
@@ -394,8 +388,8 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
-void pycbc_print_string(const PyObject *curkey);
-void pycbc_print_repr(const PyObject *pobj);
+void pycbc_print_string( PyObject *curkey);
+void pycbc_print_repr( PyObject *pobj);
 
 typedef pycbc_stack_context* pycbc_stack_context_handle;
 
@@ -746,6 +740,13 @@ enum {
  */
 int pycbc_ResultType_ready(PyTypeObject *p, int flags);
 
+/**
+ * Types uses for tracing
+ */
+#define PYCBC_TRACING_TYPES(X)\
+    X(Tracer, "The Tracer Object") \
+
+//    X(Span, "The Span Object")
 
 /**
  * Extern PyTypeObject declaraions.
@@ -768,6 +769,12 @@ extern PyTypeObject pycbc__SDResultType;
 /* views.c */
 extern PyTypeObject pycbc_ViewResultType;
 
+/* ext.c */
+#define PYCBC_EXTERN(X,DOC)\
+extern PyTypeObject pycbc_##X##Type;
+
+PYCBC_TRACING_TYPES(PYCBC_EXTERN);
+#undef PYCBC_EXTERN
 /**
  * Result type check macros
  */
@@ -922,13 +929,21 @@ int pycbc_IOPSWrapperType_init(PyObject **ptr);
 
 int pycbc_ViewResultType_init(PyObject **ptr);
 
+#define PYCBC_TYPE_INIT_DECL(TYPENAME,TYPE_DOC)\
+int \
+pycbc_##TYPENAME##Type_init(PyObject **ptr);\
+extern PyTypeObject pycbc_##TYPENAME##Type;
+
+PYCBC_TRACING_TYPES(PYCBC_TYPE_INIT_DECL);
+
+#undef PYCBC_TYPE_INIT_DECL
 /**
  * Calls the type's constructor with no arguments:
  */
 //#define PYCBC_TYPE_CTOR(t,...) PyObject_CallFunction((PyObject*)t, NULL, NULL)
-#define PYCBC_TYPE_CTOR_1_args(t)              PyObject_CallFunction((PyObject*)t, 0, 0)
-#define PYCBC_TYPE_CTOR_2_args(t, args)        PyObject_CallFunction((PyObject*)t, args, 0)
-#define PYCBC_TYPE_CTOR_3_args(t, args, kwargs) PyObject_CallFunction((PyObject*)t, args, kwargs)
+#define PYCBC_TYPE_CTOR_1_args(t)               PyObject_CallFunction((PyObject*)t, 0)
+#define PYCBC_TYPE_CTOR_2_args(t, args)         PyObject_CallFunction((PyObject*)t, "O", args)
+#define PYCBC_TYPE_CTOR_3_args(t, args, kwargs) PyObject_CallFunction((PyObject*)t, "OO", args, kwargs)
 
 #define GET_4TH_ARG(arg1, arg2, arg3, arg4, ...) arg4
 #define PYCBC_TYPE_CTOR_CHOOSER(...) \

@@ -340,7 +340,7 @@ ViewResult__init__(PyObject *self_raw,
 {
     pycbc_ViewResult* self = (pycbc_ViewResult*)(self_raw);
 #ifdef LCB_TRACING
-
+    printf("in ur view making ur tracer\n");
     self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
     if (self->py_tracer) {
         self->own_tracer = false;

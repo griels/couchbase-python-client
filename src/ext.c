@@ -331,7 +331,8 @@ init_libcouchbase(void)
     X(TimerEvent,       pycbc_TimerEventType_init) \
     X(AsyncResult,      pycbc_AsyncResultType_init) \
     X(_IOPSWrapper,     pycbc_IOPSWrapperType_init) \
-    X(_SDResult,        pycbc_SDResultType_init)
+    X(_SDResult,        pycbc_SDResultType_init) \
+    X(Tracer,           pycbc_TracerType_init)
 
 #define X(name, inf) PyObject *cls_##name;
     X_PYTYPES(X)
@@ -469,11 +470,11 @@ static void log_handler(struct lcb_logprocs_st *procs,
 
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
-    lcb_KEYBUF keybuf={0};
+    pycbc_pybuffer keybuf={0};
     pycbc_tc_encode_key(self, curkey, &keybuf);
-    pycbc_tc_decode_key(self, keybuf.contig.bytes, keybuf.contig.nbytes, &curkey);
+    pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
     pycbc_ValueResult *item = pycbc_valresult_new(self);
-    Py_IncRef(item);
+    //Py_IncRef(item);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
     printf("\nres %p: binding context %p to [", item, context);
@@ -490,10 +491,9 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     //pycbc_print_repr(mres_dict);
 }
 
-void pycbc_print_string(const PyObject *curkey) {
+void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
-        Py_ssize_t length;
         const char *keyname = PyUnicode_AsUTF8(curkey);
         printf("%s",  keyname);//(int)length, keyname);
     }
@@ -505,7 +505,7 @@ void pycbc_print_string(const PyObject *curkey) {
 }
 
 
-void pycbc_print_repr(const PyObject *pobj) {
+void pycbc_print_repr( PyObject *pobj) {
     PyObject *curkey = PyObject_Str(pobj);
     pycbc_print_string(curkey);
     Py_DecRef(curkey);
@@ -525,7 +525,7 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
                         pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
-    if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &TracerType, &py_tracer) && py_tracer)))
+    if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))
     {
         abort();
     }
@@ -862,6 +862,7 @@ void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
 
 
 
+
 static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
         /*  { "default_format",
                   (getter)Tracer_get_format,
@@ -919,6 +920,7 @@ Tracer__init__(pycbc_Tracer_t *self,
                PyObject *args, PyObject *kwargs)
 {
     int rv = 0;
+    printf("I'm in ur tracer init\n");
     self->tracer=pycbc_zipkin_new();
 #ifdef TRACER_BUCKET
     {    pycbc_Bucket* bucket;
@@ -959,15 +961,21 @@ Tracer__init__(pycbc_Tracer_t *self,
 static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
-    lcbtrace_destroy(self->tracer);
+//    lcb_set_tracer()
+  //  lcbtrace_destroy(self->tracer);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 #define PYCBC_TYPE_INIT(TYPENAME,TYPE_DOC)\
+PyTypeObject pycbc_##TYPENAME##Type = {\
+        PYCBC_POBJ_HEAD_INIT(NULL)\
+        0\
+};\
+\
 int \
 pycbc_##TYPENAME##Type_init(PyObject **ptr)\
 {\
-    PyTypeObject *p = &TYPENAME##Type;\
+    PyTypeObject *p = &pycbc_##TYPENAME##Type;\
     *ptr = (PyObject*)p;\
 \
     if (p->tp_name) {\
@@ -993,6 +1001,6 @@ pycbc_##TYPENAME##Type_init(PyObject **ptr)\
 \
     return PyType_Ready(p);\
 }
-
-PYCBC_TYPE_INIT(Tracer,"The tracer object");
+PYCBC_TRACING_TYPES(PYCBC_TYPE_INIT);
+//PYCBC_TYPE_INIT(Tracer,"The tracer object");
 #endif

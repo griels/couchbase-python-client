@@ -669,9 +669,8 @@ Bucket__init__(pycbc_Bucket *self,
     #undef X
 
 #ifdef LCB_TRACING
-    self->tracer = malloc(sizeof(pycbc_Tracer_t));
-    memset(self->tracer, 0, sizeof(pycbc_Tracer_t));
-    self->tracer->tracer=pycbc_zipkin_new();
+    self->tracer=(pycbc_Tracer_t*)PyObject_CallFunction(&pycbc_TracerType, 0);
+    //PYCBC_TYPE_CTOR(&TracerType, args, kwargs);
 #endif
 
     if (self->init_called) {
@@ -841,7 +840,7 @@ Bucket_dtor(pycbc_Bucket *self)
         lcb_destroy(self->instance);
     }
 #ifdef LCB_TRACING
-    free(self->tracer);
+    Py_DecRef(self->tracer);
 #endif
 #ifdef WITH_THREAD
     if (self->lock) {
@@ -856,6 +855,7 @@ Bucket_dtor(pycbc_Bucket *self)
 int
 pycbc_BucketType_init(PyObject **ptr)
 {
+    printf("i'm in ur initializer\n");
     PyTypeObject *p = &BucketType;
     *ptr = (PyObject*)p;
 
