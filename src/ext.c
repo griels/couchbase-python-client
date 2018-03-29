@@ -917,7 +917,7 @@ static PyMethodDef pycbc_Tracer_TABLE_methods[] = {
 
 static int
 Tracer__init__(pycbc_Tracer_t *self,
-               PyObject *args, PyObject *kwargs)
+               PyObject *tracer)
 {
     int rv = 0;
     printf("I'm in ur tracer init\n");

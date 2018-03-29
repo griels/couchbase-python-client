@@ -634,7 +634,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
-
+    PyObject *tracer = Py_None;
     struct lcb_create_st create_opts = { 0 };
 
 
@@ -655,7 +655,8 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i") \
     X("_flags", &self->flags, "I") \
     X("_conntype", &conntype, "i") \
-    X("_iops", &iops_O, "O")
+    X("_iops", &iops_O, "O") \
+    X("tracer", &tracer, "O")
 
     static char *kwlist[] = {
         #define X(s, target, type) s,
@@ -669,7 +670,7 @@ Bucket__init__(pycbc_Bucket *self,
     #undef X
 
 #ifdef LCB_TRACING
-    self->tracer=(pycbc_Tracer_t*)PyObject_CallFunction(&pycbc_TracerType, 0);
+    self->tracer=(pycbc_Tracer_t*)PyObject_CallFunction((PyObject*)&pycbc_TracerType, "O", tracer);
     //PYCBC_TYPE_CTOR(&TracerType, args, kwargs);
 #endif
 
@@ -840,7 +841,7 @@ Bucket_dtor(pycbc_Bucket *self)
         lcb_destroy(self->instance);
     }
 #ifdef LCB_TRACING
-    Py_DecRef(self->tracer);
+    Py_DecRef((PyObject*)self->tracer);
 #endif
 #ifdef WITH_THREAD
     if (self->lock) {
