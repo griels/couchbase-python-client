@@ -130,7 +130,7 @@ try:
 except:
     pass
 #_Base=decorate_class(_Base)
-#@decorate_class
+@decorate_class
 class Bucket(_Base):
     def __init__(self, *args, **kwargs):
         """Connect to a bucket.

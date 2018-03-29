@@ -574,6 +574,7 @@ typedef struct zipkin_state {
     zipkin_payload *last;
     size_t content_length;
     lcb_t instance;
+    PyObject* parent;
 } zipkin_state;
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
@@ -791,7 +792,7 @@ int zipkin_init_dump(const zipkin_state *state) {
     return sock;
 }
 
-lcbtrace_TRACER *pycbc_zipkin_new(void)
+lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     zipkin_state *zipkin = calloc(1, sizeof(zipkin_state));
@@ -806,6 +807,7 @@ lcbtrace_TRACER *pycbc_zipkin_new(void)
     zipkin->last = NULL;
     zipkin->content_length = 0;
     tracer->cookie = zipkin;
+    zipkin->parent = parent;
     return tracer;
 }
 
@@ -921,7 +923,8 @@ Tracer__init__(pycbc_Tracer_t *self,
 {
     int rv = 0;
     printf("I'm in ur tracer init\n");
-    self->tracer=pycbc_zipkin_new();
+    self->tracer=pycbc_zipkin_new(tracer);
+    self->parent=tracer!=Py_None?tracer:NULL;
 #ifdef TRACER_BUCKET
     {    pycbc_Bucket* bucket;
     /* This xmacro enumerates the constructor keywords, targets, and types.

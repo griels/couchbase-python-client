@@ -419,9 +419,9 @@ class ConnectionTestCase(CouchbaseTestCase):
         # commented out for now as GC seems to be unstable
         #self.assertEqual(oldrc, 2)
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         super(ConnectionTestCase, self).setUp()
-        self.cb = self.make_connection()
+        self.cb = self.make_connection(**kwargs)
 
     def tearDown(self):
         super(ConnectionTestCase, self).tearDown()

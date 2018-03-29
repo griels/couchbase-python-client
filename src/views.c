@@ -348,9 +348,7 @@ ViewResult__init__(PyObject *self_raw,
     else
     {
         self->own_tracer = true;
-        self->py_tracer= (pycbc_Tracer_t*)malloc(sizeof(pycbc_Tracer_t));
-        //assert(self->py_tracer);
-        self->py_tracer->tracer = pycbc_zipkin_new();
+        self->py_tracer = (pycbc_Tracer_t*)PyObject_CallFunction((PyObject*)&pycbc_TracerType, "O", Py_None);
     }
 #endif
     return 0;

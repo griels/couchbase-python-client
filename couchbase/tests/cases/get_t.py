@@ -38,8 +38,6 @@ from opentracing_instrumentation import traced_function
 
 class GetTest(ConnectionTestCase):
     def setUp(self):
-        super(GetTest, self).setUp()
-        couchbase.enable_logging()
         log_level = logging.DEBUG
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
@@ -56,6 +54,9 @@ class GetTest(ConnectionTestCase):
         )
         # this call also sets opentracing.tracer
         self.tracer = config.initialize_tracer()
+        super(GetTest, self).setUp(tracer=self.tracer)
+
+        couchbase.enable_logging()
 
     def tearDown(self):
         super(GetTest,self).tearDown()
@@ -244,11 +245,11 @@ class GetTest(ConnectionTestCase):
             self.cb.get('fish')
         except:
             pass
-
-        with tracer.start_span('TestSpan') as span:
+        print(self.tracer.__dict__)
+        with self.tracer.start_span('TestSpan') as span:
             span.log_event('test message', payload={'life': 42})
 
-            with tracer.start_span('ChildSpan', child_of=span) as child_span:
+            with self.tracer.start_span('ChildSpan', child_of=span) as child_span:
                 span.log_event('down below')
 
             import opentracing_instrumentation

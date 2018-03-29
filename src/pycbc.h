@@ -359,6 +359,7 @@ typedef struct pycbc_Tracer {
     PyObject_HEAD
 #ifdef LCB_TRACING
     lcbtrace_TRACER *tracer;
+    PyObject* parent;
 #endif
     lcb_t *instance;
 
@@ -378,7 +379,6 @@ typedef struct {
 } pycbc_Span_t;
 
 #ifdef LCB_TRACING
-lcbtrace_TRACER *pycbc_zipkin_new(void);
 
 typedef struct
 {
