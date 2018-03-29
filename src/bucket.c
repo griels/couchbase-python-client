@@ -669,10 +669,7 @@ Bucket__init__(pycbc_Bucket *self,
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
 
-#ifdef LCB_TRACING
-    self->tracer=(pycbc_Tracer_t*)PyObject_CallFunction((PyObject*)&pycbc_TracerType, "O", tracer);
-    //PYCBC_TYPE_CTOR(&TracerType, args, kwargs);
-#endif
+
 
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
@@ -697,7 +694,17 @@ Bucket__init__(pycbc_Bucket *self,
     if (unlock_gil_O && PyObject_IsTrue(unlock_gil_O) == 0) {
         self->unlock_gil = 0;
     }
-
+#ifdef LCB_TRACING
+    {
+        PyObject *tracer_args = PyTuple_New(2);
+        PyTuple_SetItem(tracer_args, 0, tracer);
+        PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
+        printf("Tracer %p, bucket %p\n", tracer, self);
+        self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
+        //Py_DecRef(tracer_args);
+    }
+    //PYCBC_TYPE_CTOR(&TracerType, args, kwargs);
+#endif
     create_opts.version = 3;
     create_opts.v.v3.type = conntype;
 

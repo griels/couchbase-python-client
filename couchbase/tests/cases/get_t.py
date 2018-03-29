@@ -35,7 +35,7 @@ import logging
 
 from opentracing_instrumentation import traced_function
 
-
+import jaeger_client.tracer
 class GetTest(ConnectionTestCase):
     def setUp(self):
         log_level = logging.DEBUG
@@ -54,6 +54,9 @@ class GetTest(ConnectionTestCase):
         )
         # this call also sets opentracing.tracer
         self.tracer = config.initialize_tracer()
+        logging.info("my tracer is: ["+str(self.tracer)+":"+str(dir(self.tracer))+"]")
+        #jaeger_client.tracer.Tracer.start_span()
+#       self.tracer = BasicTracer()
         super(GetTest, self).setUp(tracer=self.tracer)
 
         couchbase.enable_logging()
@@ -245,7 +248,6 @@ class GetTest(ConnectionTestCase):
             self.cb.get('fish')
         except:
             pass
-        print(self.tracer.__dict__)
         with self.tracer.start_span('TestSpan') as span:
             span.log_event('test message', payload={'life': 42})
 

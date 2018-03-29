@@ -388,6 +388,7 @@ typedef struct
 #endif
 } pycbc_stack_context;
 
+void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
 void pycbc_print_string( PyObject *curkey);
 void pycbc_print_repr( PyObject *pobj);
 

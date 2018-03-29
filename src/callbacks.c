@@ -119,6 +119,8 @@ static void operation_completed3(pycbc_Bucket *self,
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {
+    if (!key || !value || !dict) return;
+    printf("adding %s to %s on %p\n", key, value, dict);
     PyObject *valstr = pycbc_SimpleStringZ(value);
     PyDict_SetItemString(dict, key, valstr);
     Py_DECREF(valstr);
@@ -271,7 +273,6 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
 
     PYCBC_TRACING_POP_CONTEXT(stack_context_handle);
-
     if (resp->rc) {
         (*res)->rc = resp->rc;
     }
