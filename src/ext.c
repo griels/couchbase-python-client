@@ -484,7 +484,7 @@ void pycbc_print_string( PyObject *curkey) {
 
 
 void pycbc_print_repr( PyObject *pobj) {
-    PyObject *curkey = PyObject_Str(pobj);
+    PyObject *curkey = PyObject_Repr(pobj);
     pycbc_print_string(curkey);
     Py_DecRef(curkey);
 }
@@ -536,10 +536,15 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
 
 void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id);
 
+
 struct zipkin_payload;
 
 typedef struct zipkin_payload {
     char *data;
+    PyObject* span_start_args;
+    PyObject* span_tags_args;
+    PyObject* span_finish_args;
+
     struct zipkin_payload *next;
 } zipkin_payload;
 
@@ -555,7 +560,9 @@ typedef struct zipkin_state {
     size_t content_length;
     pycbc_Bucket* bucket;
     PyObject* parent;
+    PyObject *start_span_method;
 } zipkin_state;
+
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 {
@@ -567,86 +574,9 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
         free(tracer);
     }
 }
-//#include "../../libcouchbase/src/config_static.h"
-//#include "../../libcouchbase/build/generated/config.h"
-//#include "../../libcouchbase/src/internal.h"
+
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
-void pycbc_zipkin_flush(lcbtrace_TRACER *tracer)
-{
-    zipkin_state *state = NULL;
-    //int sock;
 
-    if (tracer == NULL) {
-        return;
-    }
-    state = tracer->cookie;
-    if (state == NULL) {
-        return;
-    }
-    if (state->root == NULL || state->content_length == 0) {
-        return;
-    }
-    //sock = zipkin_init_dump(state);
-    {
-        zipkin_payload *ptr = state->root;
-        //pycbc_loop_send(sock, "[", 1);
-        printf("flushing\n");
-        while (ptr) {
-            zipkin_payload *tmp = ptr;
-            printf("%s",tmp->data);
-//            lcb_log(LOGARGS(instance, ERROR),tmp->data);
-
-            // pycbc_loop_send(sock, ptr->data, strlen(ptr->data));
-            ptr = ptr->next;
-            if (ptr) {
-                //   pycbc_loop_send(sock, ",", 1);
-            }
-            free(tmp->data);
-            free(tmp);
-        }
-        // pycbc_loop_send(sock, "]", 1);
-    }
-    //close(sock);
-    state->root = state->last = NULL;
-    state->content_length = 0;
-}
-#include <libcouchbase/api3.h>
-static void
-cb_thr_end(pycbc_Bucket *self)
-{
-    PYCBC_CONN_THR_END(self);
-    Py_INCREF((PyObject *)self);
-}
-
-static void
-cb_thr_begin(pycbc_Bucket *self)
-{
-    if (Py_REFCNT(self) > 1) {
-        Py_DECREF(self);
-        PYCBC_CONN_THR_BEGIN(self);
-        return;
-    }
-
-    pycbc_assert(self->unlock_gil == 0);
-    Py_DECREF(self);
-}
-
-PyObject* g_span_args = NULL;
-PyObject* g_tags_p = NULL;
-static PyObject* init_span_args(zipkin_state* tracer,lcbtrace_SPAN* span)
-{
-    if (!g_span_args){g_span_args=PyDict_New();} else PyDict_Clear(g_span_args);
-    if (!g_tags_p){ g_tags_p=PyDict_New();} else PyDict_Clear(g_tags_p);
-    PyDict_SetItemString(g_span_args, "tags", g_tags_p);
-    return g_span_args;
-}
-
-static PyObject* getDict(zipkin_state* tracer,lcbtrace_SPAN* span)
-{
-
-
-    return g_span_args;
-}
 
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
@@ -668,8 +598,21 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     printf("After insertion:[");
     pycbc_print_repr(mres_dict);
     printf("]\n");
-    init_span_args(context->tracer->tracer->cookie, context->span);
     //pycbc_print_repr(mres_dict);
+}
+
+void pycbc_set_dict_kv_object(PyObject *dict, char *key_str, PyObject *item) {
+    PyObject *key = pycbc_SimpleStringZ(key_str);
+    PyDict_SetItem(dict, key, item);
+    Py_DECREF(key);
+}
+
+void pycbc_init_span_args(zipkin_payload* payload)
+{
+    payload->span_start_args=PyDict_New();
+    payload->span_tags_args=PyDict_New();
+    payload->span_finish_args=PyDict_New();
+    pycbc_set_dict_kv_object(payload->span_start_args, "tags", payload->span_tags_args);
 }
 
 #define CB_THR_END cb_thr_end
@@ -682,9 +625,6 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         return;
     }
     state = tracer->cookie;
-    //CB_THR_END(state->bucket);
-    //PYCBC_CONN_THR_BEGIN(state->bucket);
-    //PYCBC_CONN_THR_END(state->instance);
     if (state == NULL) {
         return;
     }
@@ -696,11 +636,8 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 #define add_text(...) pycbc_dict_add_text_kv(__VA_ARGS__)
 #define add_ull(...) pycbc_set_kv_ull(__VA_ARGS__)
 
-#define add_object(...) PyDict_SetItemString(__VA_ARGS__)
-#define dealloc(...)
+#define dereference(...)
         //Py_DecRef(__VA_ARGS__)
-#define allocdict() NULL;
-        //PyDict_New()
 
 #define BUFSZ 1000
         size_t nbuf = BUFSZ;
@@ -708,8 +645,10 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         lcbtrace_SPAN *parent;
         uint64_t start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
-        PyObject* span_args=getDict(state,span);
-        PyObject* tags_p = PyDict_GetItemString(span_args,"tags");
+        pycbc_init_span_args(payload);
+        PyObject* span_args = payload->span_start_args;
+        PyObject* tags_p = payload->span_tags_args;
+        PyObject* finish_p = payload->span_finish_args;
         printf("got span %p\n",span);
         cJSON *json = cJSON_CreateObject();
 
@@ -732,6 +671,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
 
         cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
+        add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
         add_ull(span_args, "start_time", start);
         {
             cJSON *endpoint = cJSON_CreateObject();
@@ -787,18 +727,8 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 cJSON_Delete(tags);
             }
         }
-        dealloc(tags_p);
-        if (0 && state->parent) {
-
-            PyObject* fresh_span=PyObject_CallMethod(state->parent, "start_span", "O", span_args);
-            PyObject* span_finish_args = PyDict_New();
-            pycbc_assert(fresh_span);
-            add_ull(span_finish_args, "finish_time", lcbtrace_span_get_finish_ts(span));
-            pycbc_assert(PyObject_CallMethod(fresh_span, "finish", "O",span_finish_args ));
-            dealloc(span_finish_args);
-            dealloc(fresh_span);
-        }
-        dealloc(span_args);
+        dereference(tags_p);
+        dereference(span_args);
         free(buf);
 
 
@@ -815,9 +745,64 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         }
     }
 
+}
+
+
+void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *payload) {
+    zipkin_state *state = (zipkin_state *) tracer->tracer->cookie;
+    pycbc_assert(state->parent && PyObject_IsTrue(state->parent));
+    printf("\nabout to call: %p[\n", state->start_span_method);
+    printf("] on %p=[", state->parent);
+    pycbc_print_repr(state->parent);
+    printf("] with args %p=[", payload->span_start_args);
+    pycbc_print_repr(payload->span_start_args);
+    printf("]\n");
+    if (state->start_span_method) {
+        PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "OO", state->parent,
+                                                     payload->span_start_args);
+        pycbc_assert(fresh_span);
+        PyObject *finish_method = PyObject_GetAttr(PyObject_Type(fresh_span), pycbc_SimpleStringZ("finish"));
+        pycbc_assert(PyObject_CallFunction(finish_method, "OO", fresh_span, payload->span_finish_args));
+        Py_DECREF(finish_method);
+        dereference(span_finish_args);
+        dereference(fresh_span);
+    }
+}
+void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
+{
+    zipkin_state *state = NULL;
+
+    if (tracer == NULL) {
+        return;
+    }
+    state = tracer->tracer->cookie;
+    if (state == NULL) {
+        return;
+    }
+    if (state->root == NULL || state->content_length == 0) {
+        return;
+    }
+    {
+        zipkin_payload *ptr = state->root;
+        printf("flushing\n");
+        while (ptr) {
+            zipkin_payload *tmp = ptr;
+            //printf("%s",tmp->data);
+            pycbc_Tracer_propagate_span(tracer, tmp);
+            ptr = ptr->next;
+            Py_DECREF(tmp->span_finish_args);
+            Py_DECREF(tmp->span_tags_args);
+            Py_DECREF(tmp->span_start_args);
+            free(tmp->data);
+            free(tmp);
+        }
+    }
+    state->root = state->last = NULL;
+    state->content_length = 0;
+}
+
+void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
     pycbc_zipkin_flush(tracer);
-    //CB_THR_BEGIN(state->bucket);
-    //PYCBC_CONN_THR_END(state->bucket);
 }
 
 void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id) {
@@ -828,62 +813,6 @@ void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id) {
     Py_DECREF(keystr);
 }
 
-
-int zipkin_init_dump(const zipkin_state *state) {
-    int rv;
-    int sock;
-    {
-        struct addrinfo hints, *addr, *a;
-
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        rv = getaddrinfo(state->json_api_host, state->json_api_port, &hints, &addr);
-        if (rv != 0) {
-            fprintf(stderr, "failed to resolve zipkin address getaddrinfo: %s\n", gai_strerror(rv));
-            //exit(EXIT_FAILURE);
-        }
-        for (a = addr; a != NULL; a = a->ai_next) {
-            sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
-            if (sock == -1) {
-                perror("failed to create socket for zipkin: ");
-                continue;
-            }
-            rv = connect(sock, a->ai_addr, a->ai_addrlen);
-            if (rv == -1) {
-                perror("failed to connect socket for zipkin: ");
-                continue;
-            }
-            break;
-        }
-        if (a == NULL) {
-            fprintf(stderr, "unable to connect to zipkin. terminating\n");
-            //exit(EXIT_FAILURE);
-        }
-        freeaddrinfo(addr);
-    }
-    {
-        char preamble[1000] = "";
-        size_t size;
-
-        snprintf(preamble, sizeof(preamble),
-                 "POST /api/v2/spans HTTP/1.1\r\n"
-                         "Content-Type: application/json\r\n"
-                         "Accept: */*\r\n"
-                         "Connection: close\r\n"
-                         "Host: %s:%s\r\n"
-                         "Content-Length: %ld\r\n\r\n",
-                 state->json_api_host, state->json_api_port, (long)state->content_length + 1 /* for open bracket */);
-        size = strlen(preamble);
-
-        rv = send(sock, preamble, size, 0);
-        if (rv == -1) {
-            perror("failed to send HTTP headers to zipkin: ");
-            //exit(EXIT_FAILURE);
-        }
-    }
-    return sock;
-}
 
 lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent, pycbc_Bucket* bucket)
 {
@@ -901,63 +830,16 @@ lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent, pycbc_Bucket* bucket)
     zipkin->content_length = 0;
     tracer->cookie = zipkin;
     zipkin->parent = parent;
+    if (parent && PyObject_IsTrue(parent)) {
+        zipkin->start_span_method = PyObject_GetAttrString(PyObject_Type(parent), "start_span");
+        pycbc_assert(zipkin->start_span_method && PyObject_IsTrue(zipkin->start_span_method));
+        printf("got start_span method:[");
+        pycbc_print_repr(zipkin->start_span_method);
+        printf("]\n");
+    }
     zipkin->bucket=bucket;
     return tracer;
 }
-
-
-/*
-
-
-void pycbc_do_encoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, encoding_fn fun, void *payload) {
-    lcbtrace_SPAN *encoding;
-    lcbtrace_REF ref;
-    ref.type = LCBTRACE_REF_CHILD_OF;
-    ref.span = span;
-
-    encoding = lcbtrace_span_start(tracer, LCBTRACE_OP_REQUEST_ENCODING, 0, &ref);
-    lcbtrace_span_add_tag_str(encoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    fun(payload);
-    lcbtrace_span_finish(encoding, LCBTRACE_NOW);
-}
-
-void pycbc_do_decoding(lcbtrace_SPAN *span, lcbtrace_TRACER *tracer, decoding_fn fun, void* payload) {
-    lcbtrace_SPAN *decoding;
-    lcbtrace_REF ref;
-
-    ref.type = LCBTRACE_REF_CHILD_OF;
-    ref.span = span;
-
-    decoding = lcbtrace_span_start(tracer, LCBTRACE_OP_RESPONSE_DECODING, 0, &ref);
-    lcbtrace_span_add_tag_str(decoding, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-    fun(payload);
-    lcbtrace_span_finish(decoding, LCBTRACE_NOW);
-}
-
-void pycbc_encoding_function(void* encoding_time_us) { usleep((int)encoding_time_us); }
-void pycbc_decoding_function(void* encoding_time_us) { usleep((int)encoding_time_us); }
-
-void do_span(lcb_error_t *err, lcb_t instance, lcbtrace_SPAN *span,
-             lcbtrace_TRACER *tracer) {*/
-/* Assign the handlers to be called for the operation types *//*
-
-
-    span = lcbtrace_span_start(tracer, "transaction", 0, NULL);
-    lcbtrace_span_add_tag_str(span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
-
-    pycbc_do_encoding(span, tracer, pycbc_encoding_function, NULL);
-
-    pycbc_do_decoding(span, tracer, pycbc_decoding_function, NULL);
-
-    lcbtrace_span_finish(span, LCBTRACE_NOW);
-
-    pycbc_zipkin_flush(tracer);
-}
-*/
-
-
-
-
 
 static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
         /*  { "default_format",
@@ -1060,8 +942,6 @@ Tracer__init__(pycbc_Tracer_t *self,
 static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
-//    lcb_set_tracer()
-  //  lcbtrace_destroy(self->tracer);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -1101,5 +981,4 @@ pycbc_##TYPENAME##Type_init(PyObject **ptr)\
     return PyType_Ready(p);\
 }
 PYCBC_TRACING_TYPES(PYCBC_TYPE_INIT);
-//PYCBC_TYPE_INIT(Tracer,"The tracer object");
 #endif

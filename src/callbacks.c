@@ -30,6 +30,7 @@ static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error
 
 void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres);
 
+
 static void
 cb_thr_end(pycbc_Bucket *self)
 {
@@ -96,6 +97,9 @@ static void operation_completed3(pycbc_Bucket *self,
 {
     pycbc_assert(self->nremaining);
     --self->nremaining;
+#ifdef LCB_TRACING
+    pycbc_Tracer_propagate(self->tracer);
+#endif
     if (mres) {
         mres->err_info = err_info;
         Py_XINCREF(err_info);
@@ -116,6 +120,7 @@ static void operation_completed3(pycbc_Bucket *self,
         pycbc_asyncresult_invoke(ares, err_info);
     }
 }
+
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {

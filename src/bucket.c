@@ -699,11 +699,8 @@ Bucket__init__(pycbc_Bucket *self,
         PyObject *tracer_args = PyTuple_New(2);
         PyTuple_SetItem(tracer_args, 0, tracer);
         PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
-        printf("Tracer %p, bucket %p\n", tracer, self);
         self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
-        //Py_DecRef(tracer_args);
     }
-    //PYCBC_TYPE_CTOR(&TracerType, args, kwargs);
 #endif
     create_opts.version = 3;
     create_opts.v.v3.type = conntype;
