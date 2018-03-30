@@ -122,8 +122,10 @@ void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
     if (!key || !value || !dict) return;
     printf("adding %s to %s on %p\n", key, value, dict);
     PyObject *valstr = pycbc_SimpleStringZ(value);
-    PyDict_SetItemString(dict, key, valstr);
+    PyObject *keystr = pycbc_SimpleStringZ(key);
+    PyDict_SetItem(dict, keystr, valstr);
     Py_DECREF(valstr);
+    Py_DECREF(keystr);
 }
 
 void pycbc_enhanced_err_register_entry(PyObject **dict,

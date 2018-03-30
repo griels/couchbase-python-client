@@ -468,28 +468,6 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include "oputil.h"
 
 
-void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
-                              pycbc_stack_context_handle context) {
-    pycbc_pybuffer keybuf={0};
-    pycbc_tc_encode_key(self, curkey, &keybuf);
-    pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
-    pycbc_ValueResult *item = pycbc_valresult_new(self);
-    //Py_IncRef(item);
-    item->tracing_context = context;
-    item->is_tracing_stub = 1;
-    printf("\nres %p: binding context %p to [", item, context);
-    //pycbc_print_repr(curkey);
-    printf("]\n");
-    Py_IncRef(curkey);
-    printf("\nPrior to insertion:[");
-    pycbc_print_repr(mres_dict);
-    printf("]\n");
-    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
-    printf("After insertion:[");
-    pycbc_print_repr(mres_dict);
-    printf("]\n");
-    //pycbc_print_repr(mres_dict);
-}
 
 void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
@@ -653,6 +631,47 @@ cb_thr_begin(pycbc_Bucket *self)
     Py_DECREF(self);
 }
 
+PyObject* g_span_args = NULL;
+PyObject* g_tags_p = NULL;
+static PyObject* init_span_args(zipkin_state* tracer,lcbtrace_SPAN* span)
+{
+    if (!g_span_args){g_span_args=PyDict_New();} else PyDict_Clear(g_span_args);
+    if (!g_tags_p){ g_tags_p=PyDict_New();} else PyDict_Clear(g_tags_p);
+    PyDict_SetItemString(g_span_args, "tags", g_tags_p);
+    return g_span_args;
+}
+
+static PyObject* getDict(zipkin_state* tracer,lcbtrace_SPAN* span)
+{
+
+
+    return g_span_args;
+}
+
+void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
+                              pycbc_stack_context_handle context) {
+    pycbc_pybuffer keybuf={0};
+    pycbc_tc_encode_key(self, curkey, &keybuf);
+    pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
+    pycbc_ValueResult *item = pycbc_valresult_new(self);
+    //Py_IncRef(item);
+    item->tracing_context = context;
+    item->is_tracing_stub = 1;
+    printf("\nres %p: binding context %p to [", item, context);
+    //pycbc_print_repr(curkey);
+    printf("]\n");
+    Py_IncRef(curkey);
+    printf("\nPrior to insertion:[");
+    pycbc_print_repr(mres_dict);
+    printf("]\n");
+    PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
+    printf("After insertion:[");
+    pycbc_print_repr(mres_dict);
+    printf("]\n");
+    init_span_args(context->tracer->tracer->cookie, context->span);
+    //pycbc_print_repr(mres_dict);
+}
+
 #define CB_THR_END cb_thr_end
 #define CB_THR_BEGIN cb_thr_begin
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
@@ -674,18 +693,14 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     }
 
     {
-#define add_text(...)
-        //pycbc_dict_add_text_kv(__VA_ARGS__)
-#define add_ull(...)
-//pycbc_set_kv_ull(__VA_ARGS__)
+#define add_text(...) pycbc_dict_add_text_kv(__VA_ARGS__)
+#define add_ull(...) pycbc_set_kv_ull(__VA_ARGS__)
 
-#define add_object(...)
-//PyDict_SetItemString(__VA_ARGS__)
-#define dealloc(...) Py_DecRef(__VA_ARGS__)
+#define add_object(...) PyDict_SetItemString(__VA_ARGS__)
+#define dealloc(...)
+        //Py_DecRef(__VA_ARGS__)
 #define allocdict() NULL;
         //PyDict_New()
-        PyObject *span_args = allocdict();
-        PyObject *tags_p = allocdict();
 
 #define BUFSZ 1000
         size_t nbuf = BUFSZ;
@@ -693,8 +708,11 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         lcbtrace_SPAN *parent;
         uint64_t start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
+        PyObject* span_args=getDict(state,span);
+        PyObject* tags_p = PyDict_GetItemString(span_args,"tags");
         printf("got span %p\n",span);
         cJSON *json = cJSON_CreateObject();
+
 
         buf = calloc(nbuf, sizeof(char));
         cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
@@ -765,7 +783,6 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
             }
             if (cJSON_GetArraySize(tags) > 0)  {
                 cJSON_AddItemToObject(json, "tags", tags);
-                add_object(span_args, "tags", tags_p);
             } else {
                 cJSON_Delete(tags);
             }
@@ -805,8 +822,10 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
 void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id) {
     PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
-    PyDict_SetItemString(span_args, key, pULL);
-    Py_DecRef(pULL);
+    PyObject* keystr = pycbc_SimpleStringZ(key);
+    PyDict_SetItem(span_args, keystr, pULL);
+    Py_DECREF(pULL);
+    Py_DECREF(keystr);
 }
 
 
