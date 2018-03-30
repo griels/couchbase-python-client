@@ -125,7 +125,7 @@ static void operation_completed3(pycbc_Bucket *self,
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {
     if (!key || !value || !dict) return;
-    printf("adding %s to %s on %p\n", key, value, dict);
+    printf("adding %s to %s on %p\n", value, key, dict);
     PyObject *valstr = pycbc_SimpleStringZ(value);
     PyObject *keystr = pycbc_SimpleStringZ(key);
     PyDict_SetItem(dict, keystr, valstr);

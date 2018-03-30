@@ -37,28 +37,33 @@ from opentracing_instrumentation import traced_function
 
 import jaeger_client.tracer
 class GetTest(ConnectionTestCase):
+    config = Config(
+        config={ # usually read from some yaml config
+            'sampler': {
+                'type': 'const',
+                'param': 1,
+            },
+            'logging': True,
+        },
+        service_name='your-app-name',
+    )
+
+    _tracer = None
+    @property
+    def tracer(self):
+        if not GetTest._tracer:
+            GetTest._tracer = GetTest.config.initialize_tracer()
+        return GetTest._tracer
+
     def setUp(self):
         log_level = logging.DEBUG
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
 
-        config = Config(
-            config={ # usually read from some yaml config
-                'sampler': {
-                    'type': 'const',
-                    'param': 1,
-                },
-                'logging': True,
-            },
-            service_name='your-app-name',
-        )
-        # this call also sets opentracing.tracer
-        self.tracer = config.initialize_tracer()
-        logging.info("my tracer is: ["+str(self.tracer)+":"+str(dir(self.tracer))+"]")
-        #jaeger_client.tracer.Tracer.start_span()
-#       self.tracer = BasicTracer()
-        super(GetTest, self).setUp(tracer=self.tracer)
 
+        # this call also sets opentracing.tracer
+        logging.info("my tracer is: ["+str(self.tracer)+":"+str(dir(self.tracer))+"]")
+        super(GetTest, self).setUp(tracer=self.tracer)
         couchbase.enable_logging()
 
     def tearDown(self):
@@ -231,7 +236,7 @@ class GetTest(ConnectionTestCase):
     def test_get_span(self):
         couchbase.enable_logging()
         tracer=couchbase.get_tracer()
-        tracer=BasicTracer()
+        #tracer=BasicTracer()
         import opentracing_instrumentation
         span=opentracing_instrumentation.get_current_span()
         span=tracer.start_span(operation_name="fred")

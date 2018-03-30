@@ -421,6 +421,7 @@ class ConnectionTestCase(CouchbaseTestCase):
 
     def setUp(self, *args, **kwargs):
         super(ConnectionTestCase, self).setUp()
+        print("initialissing CTC with "+str(kwargs))
         self.cb = self.make_connection(**kwargs)
 
     def tearDown(self):

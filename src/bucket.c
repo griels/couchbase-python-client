@@ -634,7 +634,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
-    PyObject *tracer = Py_None;
+    PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
 
 
@@ -700,6 +700,7 @@ Bucket__init__(pycbc_Bucket *self,
         PyTuple_SetItem(tracer_args, 0, tracer);
         PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
         self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
+        printf("got %p back from bucket constructor\n", self->tracer);
     }
 #endif
     create_opts.version = 3;
@@ -745,7 +746,14 @@ Bucket__init__(pycbc_Bucket *self,
 
     err = lcb_create(&self->instance, &create_opts);
 #ifdef LCB_TRACING
-    lcb_set_tracer(self->instance, self->tracer->tracer );
+    if (self->tracer) {
+        lcb_set_tracer(self->instance, self->tracer->tracer);
+    }
+    else
+    {
+        printf("self->tracer is null!\n");
+    }
+
 #endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;

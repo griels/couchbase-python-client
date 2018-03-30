@@ -655,7 +655,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
         buf = calloc(nbuf, sizeof(char));
         cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
-        add_text(span_args,"operation_name","fish");//lcbtrace_span_get_operation(span));
+        add_text(span_args,"operation_name",lcbtrace_span_get_operation(span));
         snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_span_id(span));
         cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
         snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_trace_id(span));
@@ -750,15 +750,15 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
 void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *payload) {
     zipkin_state *state = (zipkin_state *) tracer->tracer->cookie;
-    pycbc_assert(state->parent && PyObject_IsTrue(state->parent));
+    pycbc_assert(state->parent);
     printf("\nabout to call: %p[\n", state->start_span_method);
     printf("] on %p=[", state->parent);
     pycbc_print_repr(state->parent);
     printf("] with args %p=[", payload->span_start_args);
     pycbc_print_repr(payload->span_start_args);
     printf("]\n");
-    if (state->start_span_method) {
-        PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "OO", state->parent,
+    if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
+        PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
         pycbc_assert(fresh_span);
         PyObject *finish_method = PyObject_GetAttr(PyObject_Type(fresh_span), pycbc_SimpleStringZ("finish"));
@@ -788,7 +788,9 @@ void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
         while (ptr) {
             zipkin_payload *tmp = ptr;
             //printf("%s",tmp->data);
-            pycbc_Tracer_propagate_span(tracer, tmp);
+            if (tracer->parent) {
+                pycbc_Tracer_propagate_span(tracer, tmp);
+            }
             ptr = ptr->next;
             Py_DECREF(tmp->span_finish_args);
             Py_DECREF(tmp->span_tags_args);
@@ -814,7 +816,7 @@ void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id) {
 }
 
 
-lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent, pycbc_Bucket* bucket)
+lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     zipkin_state *zipkin = calloc(1, sizeof(zipkin_state));
@@ -830,14 +832,18 @@ lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent, pycbc_Bucket* bucket)
     zipkin->content_length = 0;
     tracer->cookie = zipkin;
     zipkin->parent = parent;
-    if (parent && PyObject_IsTrue(parent)) {
-        zipkin->start_span_method = PyObject_GetAttrString(PyObject_Type(parent), "start_span");
-        pycbc_assert(zipkin->start_span_method && PyObject_IsTrue(zipkin->start_span_method));
-        printf("got start_span method:[");
-        pycbc_print_repr(zipkin->start_span_method);
+    if (parent) {
+        printf("\ninitialising tracer start_span method from:[");
+        pycbc_print_repr(parent);
         printf("]\n");
+        zipkin->start_span_method = PyObject_GetAttrString(parent, "start_span");
+        if (zipkin->start_span_method)
+        {
+            printf("got start_span method:[");
+            pycbc_print_repr(zipkin->start_span_method);
+            printf("]\n");
+        }
     }
-    zipkin->bucket=bucket;
     return tracer;
 }
 
@@ -900,42 +906,10 @@ Tracer__init__(pycbc_Tracer_t *self,
     int rv = 0;
     PyObject* tracer =PyTuple_GetItem(args, 0);
     pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
-    printf("I'm in ur tracer init with a bucket %p\n", bucket->instance);
-    self->tracer=pycbc_zipkin_new(tracer, bucket);
+    //pycbc_print_repr(args);
+    printf("I'm in ur tracer init with a bucket %p and tracer %p\n", bucket, tracer);
+    self->tracer=pycbc_zipkin_new(tracer);
     self->parent=tracer!=Py_None?tracer:NULL;
-#ifdef TRACER_BUCKET
-    {    pycbc_Bucket* bucket;
-    /* This xmacro enumerates the constructor keywords, targets, and types.
-     * This was converted into an xmacro to ease the process of adding or
-     * removing various parameters.
-     */
-#define XCTOR_ARGS(X) \
-    X("bucket", "O!",  &bucket)
-
-    static char *kwlist[] = {
-#define X(s, target, type) s,
-            XCTOR_ARGS(X)
-#undef X
-            NULL
-    };
-
-#define X(s, type, ...) type
-    static char *argspec = "|" XCTOR_ARGS(X);
-#undef X
-    if (self->init_called) {
-        PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
-        return -1;
-    }
-
-    self->init_called = 1;
-#define X(s, type, ...) __VA_ARGS__,
-    rv = PyArg_ParseTuple(args, kwargs, argspec, kwlist,
-                                     XCTOR_ARGS(X) NULL);
-#undef X
-    lcb_set_tracer(bucket->instance, self->tracer);
-    }
-#endif
-
     return rv;
 }
 
