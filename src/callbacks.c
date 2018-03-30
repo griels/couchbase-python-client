@@ -125,7 +125,7 @@ static void operation_completed3(pycbc_Bucket *self,
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {
     if (!key || !value || !dict) return;
-    printf("adding %s to %s on %p\n", value, key, dict);
+    PYCBC_DEBUG_LOG("adding %s to %s on %p\n", value, key, dict);
     PyObject *valstr = pycbc_SimpleStringZ(value);
     PyObject *keystr = pycbc_SimpleStringZ(key);
     PyDict_SetItem(dict, keystr, valstr);
@@ -209,18 +209,18 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef LCB_TRACING
     pycbc_print_repr(mrdict);
-    printf("\n decoding key with repr [");
+    PYCBC_DEBUG_LOG("\n decoding key with repr [");
     //pycbc_print_repr(hkey);
-    printf("]\n");
+    PYCBC_DEBUG_LOG("]\n");
 
-    printf("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
+    PYCBC_DEBUG_LOG("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
     //pycbc_print_string(hkey);
-    printf("]\nres %p",*res);
+    PYCBC_DEBUG_LOG("]\nres %p",*res);
     if(*res) {
         stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
                                                        LCBTRACE_OP_RESPONSE_DECODING, 0,
                                                        (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
-        printf("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
+        PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
         if ((*res)->is_tracing_stub) {
             PyDict_DelItem(mrdict, hkey);
 
@@ -230,9 +230,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
     else
     {
-        printf("\nWarning: Got null result from dict for [");
+        PYCBC_DEBUG_LOG("\nWarning: Got null result from dict for [");
         //pycbc_print_string(hkey);
-        printf("]\n");
+        PYCBC_DEBUG_LOG("]\n");
     }
 
 #endif

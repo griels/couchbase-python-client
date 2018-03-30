@@ -473,11 +473,11 @@ void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
         const char *keyname = PyUnicode_AsUTF8(curkey);
-        printf("%s",  keyname);//(int)length, keyname);
+        PYCBC_DEBUG_LOG("%s",  keyname);//(int)length, keyname);
     }
 #else
     {
-        printf("%s",PyString_AsString(curkey));
+        PYCBC_DEBUG_LOG("%s",PyString_AsString(curkey));
     };
 #endif
 }
@@ -587,17 +587,17 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     //Py_IncRef(item);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
-    printf("\nres %p: binding context %p to [", item, context);
+    PYCBC_DEBUG_LOG("\nres %p: binding context %p to [", item, context);
     //pycbc_print_repr(curkey);
-    printf("]\n");
+    PYCBC_DEBUG_LOG("]\n");
     Py_IncRef(curkey);
-    printf("\nPrior to insertion:[");
+    PYCBC_DEBUG_LOG("\nPrior to insertion:[");
     pycbc_print_repr(mres_dict);
-    printf("]\n");
+    PYCBC_DEBUG_LOG("]\n");
     PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
-    printf("After insertion:[");
+    PYCBC_DEBUG_LOG("After insertion:[");
     pycbc_print_repr(mres_dict);
-    printf("]\n");
+    PYCBC_DEBUG_LOG("]\n");
     //pycbc_print_repr(mres_dict);
 }
 
@@ -649,7 +649,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         PyObject* span_args = payload->span_start_args;
         PyObject* tags_p = payload->span_tags_args;
         PyObject* finish_p = payload->span_finish_args;
-        printf("got span %p\n",span);
+        PYCBC_DEBUG_LOG("got span %p\n",span);
         cJSON *json = cJSON_CreateObject();
 
 
@@ -751,18 +751,18 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *payload) {
     zipkin_state *state = (zipkin_state *) tracer->tracer->cookie;
     pycbc_assert(state->parent);
-    printf("\nabout to call: %p[\n", state->start_span_method);
-    printf("] on %p=[", state->parent);
+    PYCBC_DEBUG_LOG("\nabout to call: %p[\n", state->start_span_method);
+    PYCBC_DEBUG_LOG("] on %p=[", state->parent);
     pycbc_print_repr(state->parent);
-    printf("] with args %p=[", payload->span_start_args);
+    PYCBC_DEBUG_LOG("] with args %p=[", payload->span_start_args);
     pycbc_print_repr(payload->span_start_args);
-    printf("]\n");
+    PYCBC_DEBUG_LOG("]\n");
     if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
         pycbc_assert(fresh_span);
-        PyObject *finish_method = PyObject_GetAttr(PyObject_Type(fresh_span), pycbc_SimpleStringZ("finish"));
-        pycbc_assert(PyObject_CallFunction(finish_method, "OO", fresh_span, payload->span_finish_args));
+        PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
+        pycbc_assert(PyObject_CallFunction(finish_method, "O", payload->span_finish_args));
         Py_DECREF(finish_method);
         dereference(span_finish_args);
         dereference(fresh_span);
@@ -784,7 +784,7 @@ void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
     }
     {
         zipkin_payload *ptr = state->root;
-        printf("flushing\n");
+        PYCBC_DEBUG_LOG("flushing\n");
         while (ptr) {
             zipkin_payload *tmp = ptr;
             //printf("%s",tmp->data);
@@ -833,15 +833,15 @@ lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
     tracer->cookie = zipkin;
     zipkin->parent = parent;
     if (parent) {
-        printf("\ninitialising tracer start_span method from:[");
+        PYCBC_DEBUG_LOG("\ninitialising tracer start_span method from:[");
         pycbc_print_repr(parent);
-        printf("]\n");
+        PYCBC_DEBUG_LOG("]\n");
         zipkin->start_span_method = PyObject_GetAttrString(parent, "start_span");
         if (zipkin->start_span_method)
         {
-            printf("got start_span method:[");
+            PYCBC_DEBUG_LOG("got start_span method:[");
             pycbc_print_repr(zipkin->start_span_method);
-            printf("]\n");
+            PYCBC_DEBUG_LOG("]\n");
         }
     }
     return tracer;
@@ -907,7 +907,7 @@ Tracer__init__(pycbc_Tracer_t *self,
     PyObject* tracer =PyTuple_GetItem(args, 0);
     pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
     //pycbc_print_repr(args);
-    printf("I'm in ur tracer init with a bucket %p and tracer %p\n", bucket, tracer);
+    PYCBC_DEBUG_LOG("I'm in ur tracer init with a bucket %p and tracer %p\n", bucket, tracer);
     self->tracer=pycbc_zipkin_new(tracer);
     self->parent=tracer!=Py_None?tracer:NULL;
     return rv;

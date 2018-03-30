@@ -700,7 +700,7 @@ Bucket__init__(pycbc_Bucket *self,
         PyTuple_SetItem(tracer_args, 0, tracer);
         PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
         self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
-        printf("got %p back from bucket constructor\n", self->tracer);
+        PYCBC_DEBUG_LOG("got %p back from bucket constructor\n", self->tracer);
     }
 #endif
     create_opts.version = 3;
@@ -751,7 +751,7 @@ Bucket__init__(pycbc_Bucket *self,
     }
     else
     {
-        printf("self->tracer is null!\n");
+        PYCBC_DEBUG_LOG("self->tracer is null!\n");
     }
 
 #endif
@@ -868,7 +868,7 @@ Bucket_dtor(pycbc_Bucket *self)
 int
 pycbc_BucketType_init(PyObject **ptr)
 {
-    printf("i'm in ur initializer\n");
+    PYCBC_DEBUG_LOG("i'm in ur initializer\n");
     PyTypeObject *p = &BucketType;
     *ptr = (PyObject*)p;
 

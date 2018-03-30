@@ -94,7 +94,7 @@ void lcb_ot_pt_str(const opentracing_string_t* string)
     char* buffer= malloc(string->size+1);
     memcpy(buffer,string->data,string->size);
     buffer[string->size]=0;
-    printf("%s",buffer);
+    debug_log("%s",buffer);
     free(buffer);
 }
 
