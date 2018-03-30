@@ -29,13 +29,14 @@ pkgversion = couchbase_version.get_version()
 LCB_NAME = None
 if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase']
+    if os.environ.get('PYCBC_DEBUG'):
+        extoptions['extra_compile_args'] = ['-O0', '-g3']
+        extoptions['extra_link_args'] = ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
-        if os.environ.get('PYCBC_DEBUG'):
-            extoptions['extra_compile_args'] = ['-O0', '-g']
-            extoptions['extra_link_args'] = ['-O0', '-g']
+
 else:
     warnings.warn("I'm detecting you're running windows."
                   "You might want to modify "
@@ -66,6 +67,7 @@ else:
 
 
 SOURCEMODS = [
+        'store',
         'exceptions',
         'ext',
         'result',
@@ -74,7 +76,6 @@ SOURCEMODS = [
         'cntl',
         'convert',
         'bucket',
-        'store',
         'constants',
         'multiresult',
         'miscops',
@@ -92,11 +93,16 @@ SOURCEMODS = [
         'views',
         'n1ql',
         'fts',
-        'ixmgmt'
+        'ixmgmt',
+        '../contrib/cJSON/cJSON'
         ]
 
+SOURCEMODS_CPP = [
+    'store'
+]
 if platform.python_implementation() != 'PyPy':
     extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    #extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP ]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:

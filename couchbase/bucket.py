@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from basictracer import BasicTracer
+from opentracing_instrumentation import traced_function
 from warnings import warn
 
 import couchbase._bootstrap
@@ -34,6 +36,7 @@ from couchbase._pyport import basestring
 import couchbase.subdocument as SD
 import couchbase.priv_constants as _P
 import json
+from couchbase import decorate_class
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -122,8 +125,12 @@ def _dsop(create_type=None, wrap_missing_path=True):
         return newfn
 
     return real_decorator
-
-
+try:
+    x=_Base()
+except:
+    pass
+#_Base=decorate_class(_Base)
+#@decorate_class
 class Bucket(_Base):
     def __init__(self, *args, **kwargs):
         """Connect to a bucket.
@@ -254,11 +261,11 @@ class Bucket(_Base):
             if not _no_connect_exceptions:
                 raise
 
-    def _do_ctor_connect(self):
+    def _do_ctor_connect(self, *args, **kwargs):
         """This should be overidden by subclasses which want to use a
         different sort of connection behavior
         """
-        self._connect()
+        self._connect(args, **kwargs)
 
     def pipeline(self):
         """

@@ -29,7 +29,7 @@ Bucket__init__(pycbc_Bucket *self,
                    PyObject *kwargs);
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self);
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs);
 
 static void
 Bucket_dtor(pycbc_Bucket *self);
@@ -554,7 +554,7 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 
         { "_connect",
                 (PyCFunction)Bucket__connect,
-                METH_NOARGS,
+                METH_VARARGS|METH_KEYWORDS,
                 PyDoc_STR(
                 "Connect this instance. This is typically called by one of\n"
                 "the wrapping constructors\n")
@@ -634,7 +634,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
-
+    PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
 
 
@@ -655,7 +655,8 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i") \
     X("_flags", &self->flags, "I") \
     X("_conntype", &conntype, "i") \
-    X("_iops", &iops_O, "O")
+    X("_iops", &iops_O, "O") \
+    X("tracer", &tracer, "O")
 
     static char *kwlist[] = {
         #define X(s, target, type) s,
@@ -667,6 +668,8 @@ Bucket__init__(pycbc_Bucket *self,
     #define X(s, target, type) type
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
+
+
 
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
@@ -691,7 +694,15 @@ Bucket__init__(pycbc_Bucket *self,
     if (unlock_gil_O && PyObject_IsTrue(unlock_gil_O) == 0) {
         self->unlock_gil = 0;
     }
-
+#ifdef LCB_TRACING
+    {
+        PyObject *tracer_args = PyTuple_New(2);
+        PyTuple_SetItem(tracer_args, 0, tracer);
+        PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
+        self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
+        PYCBC_DEBUG_LOG("got %p back from bucket constructor\n", self->tracer);
+    }
+#endif
     create_opts.version = 3;
     create_opts.v.v3.type = conntype;
 
@@ -734,6 +745,16 @@ Bucket__init__(pycbc_Bucket *self,
 #endif
 
     err = lcb_create(&self->instance, &create_opts);
+#ifdef LCB_TRACING
+    if (self->tracer) {
+        lcb_set_tracer(self->instance, self->tracer->tracer);
+    }
+    else
+    {
+        PYCBC_DEBUG_LOG("self->tracer is null!\n");
+    }
+
+#endif
     if (err != LCB_SUCCESS) {
         self->instance = NULL;
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, err,
@@ -769,8 +790,10 @@ Bucket__init__(pycbc_Bucket *self,
 }
 
 static PyObject*
-Bucket__connect(pycbc_Bucket *self)
+Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
+    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
+                                                                          self->tracer);
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
@@ -786,7 +809,7 @@ Bucket__connect(pycbc_Bucket *self)
         return NULL;
     }
 
-    pycbc_oputil_wait_common(self);
+    WRAP(pycbc_oputil_wait_common, NULL, self);
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         err = lcb_get_bootstrap_status(self->instance);
         if (err != LCB_SUCCESS) {
@@ -829,7 +852,9 @@ Bucket_dtor(pycbc_Bucket *self)
     if (self->instance) {
         lcb_destroy(self->instance);
     }
-
+#ifdef LCB_TRACING
+    Py_DecRef((PyObject*)self->tracer);
+#endif
 #ifdef WITH_THREAD
     if (self->lock) {
         PyThread_free_lock(self->lock);
@@ -843,6 +868,7 @@ Bucket_dtor(pycbc_Bucket *self)
 int
 pycbc_BucketType_init(PyObject **ptr)
 {
+    PYCBC_DEBUG_LOG("i'm in ur initializer\n");
     PyTypeObject *p = &BucketType;
     *ptr = (PyObject*)p;
 
