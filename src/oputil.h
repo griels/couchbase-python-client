@@ -13,6 +13,10 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  **/
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #ifndef PYCBC_OPUTIL_H
 #define PYCBC_OPUTIL_H
@@ -32,23 +36,21 @@
  */
 typedef enum {
     /** Generic sequence. A PyObject_Iter is used to make an iterator */
-    PYCBC_SEQTYPE_GENERIC   = 1 << 0,
+            PYCBC_SEQTYPE_GENERIC = 1 << 0,
 
     /** Dictionary. We use PyDict_Next */
-    PYCBC_SEQTYPE_DICT      = 1 << 1,
+            PYCBC_SEQTYPE_DICT = 1 << 1,
 
     /** Tuple. PyTuple_GET_ITEM */
-    PYCBC_SEQTYPE_TUPLE     = 1 << 2,
+            PYCBC_SEQTYPE_TUPLE = 1 << 2,
 
     /** List, PyList_GET_ITEM */
-    PYCBC_SEQTYPE_LIST      = 1 << 3,
+            PYCBC_SEQTYPE_LIST = 1 << 3,
 
     /** Special sequence classes for Items */
-    PYCBC_SEQTYPE_F_ITM     = 1 << 4,
-    PYCBC_SEQTYPE_F_OPTS    = 1 << 5
+            PYCBC_SEQTYPE_F_ITM = 1 << 4,
+    PYCBC_SEQTYPE_F_OPTS = 1 << 5
 } pycbc_seqtype_t;
-
-
 
 
 /**
@@ -96,16 +98,21 @@ struct pycbc_common_vars {
 /**
  * Handler for iterations
  */
-typedef int (*pycbc_oputil_keyhandler)
+typedef int (*pycbc_oputil_keyhandler_raw)
         (pycbc_Bucket *self,
-                struct pycbc_common_vars *cv,
-                int optype,
-                PyObject *key,
-                PyObject *value,
-                PyObject *options,
-                pycbc_Item *item,
-                void *arg);
+         struct pycbc_common_vars *cv,
+         int optype,
+         PyObject *key,
+         PyObject *value,
+         PyObject *options,
+         pycbc_Item *item,
+         void *arg,
+         pycbc_stack_context_handle context);
 
+typedef struct {
+    const char* category;
+    pycbc_oputil_keyhandler_raw cb;
+} pycbc_oputil_keyhandler;
 /**
  * Examine the 'quiet' parameter and see if we should set the MultiResult's
  * 'no_raise_enoent' flag.
@@ -131,9 +138,9 @@ int pycbc_maybe_set_quiet(pycbc_MultiResult *mres, PyObject *quiet);
  *  Other stuff.
  */
 int pycbc_oputil_check_sequence(PyObject *sequence,
-                          int allow_list,
-                          Py_ssize_t *ncmds,
-                          pycbc_seqtype_t *seqtype);
+                                int allow_list,
+                                Py_ssize_t *ncmds,
+                                pycbc_seqtype_t *seqtype);
 
 
 /**
@@ -184,7 +191,8 @@ int pycbc_oputil_sequence_next(pycbc_seqtype_t seqtype,
                                Py_ssize_t *dictpos,
                                int ii,
                                PyObject **key,
-                               PyObject **value);
+                               PyObject **value,
+                               pycbc_stack_context_handle context);
 
 /**
  * Initialize the 'common_vars' structure.
@@ -199,6 +207,10 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            Py_ssize_t ncmds,
                            int want_vals);
 
+#define PYCBC_OPUTIL_KEYHANDLER(NAME) (pycbc_oputil_keyhandler){NAME##_category(), NAME}
+#define PYCBC_OPUTIL_KEYHANDLER_INVOKE(NAME,...) WRAP_EXPLICIT(NAME.cb,NAME.category)
+#define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
+    pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)
 
 /**
  * Iterate over a sequence of command objects
@@ -217,7 +229,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                         struct pycbc_common_vars *cv,
                         int optype,
                         pycbc_oputil_keyhandler handler,
-                        void *arg);
+                        void *arg,
+                        pycbc_stack_context_handle context);
 
 
 /**
@@ -230,15 +243,17 @@ void pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *self
  * Wait for the operation to complete
  * @return 0 on success, -1 on failure.
  */
-int pycbc_common_vars_wait(struct pycbc_common_vars *cv, pycbc_Bucket *self);
+TRACED_FUNCTION_DECL(,
+int,
+pycbc_common_vars_wait, struct pycbc_common_vars *cv, pycbc_Bucket *self);
 
 
 /**
  * Wrapper around lcb_wait(). This ensures threading contexts are properly
  * initialized.
  */
-void
-pycbc_oputil_wait_common(pycbc_Bucket *self);
+TRACED_FUNCTION_DECL(,void,
+pycbc_oputil_wait_common, pycbc_Bucket *self);
 
 
 /**
@@ -271,11 +286,12 @@ int pycbc_handle_durability_args(pycbc_Bucket *self,
  */
 int
 pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
-                      pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf);
+                        pycbc_pybuffer *keybuf, pycbc_pybuffer *pathbuf);
 
-int
-pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
-    PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd);
+TRACED_FUNCTION_DECL(,
+int,
+pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
+                PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd);
 
 /**
  * Macro to declare prototypes for entry points.
@@ -290,14 +306,23 @@ pycbc_sd_handle_speclist(pycbc_Bucket *self, pycbc_MultiResult *mres,
 
 /* store.c */
 PYCBC_DECL_OP(upsert_multi);
+
 PYCBC_DECL_OP(insert_multi);
+
 PYCBC_DECL_OP(replace_multi);
+
 PYCBC_DECL_OP(append_multi);
+
 PYCBC_DECL_OP(prepend_multi);
+
 PYCBC_DECL_OP(upsert);
+
 PYCBC_DECL_OP(insert);
+
 PYCBC_DECL_OP(replace);
+
 PYCBC_DECL_OP(append);
+
 PYCBC_DECL_OP(prepend);
 
 /* subdoc (store.c) */
@@ -305,38 +330,55 @@ PYCBC_DECL_OP(mutate_in);
 
 /* subdoc (get.c) */
 PYCBC_DECL_OP(lookup_in);
+
 PYCBC_DECL_OP(lookup_in_multi);
 
 /* arithmetic.c */
 PYCBC_DECL_OP(counter);
+
 PYCBC_DECL_OP(counter_multi);
 
 /* miscops.c */
 PYCBC_DECL_OP(remove);
+
 PYCBC_DECL_OP(unlock);
+
 PYCBC_DECL_OP(remove_multi);
+
 PYCBC_DECL_OP(unlock_multi);
 
 PYCBC_DECL_OP(_stats);
+
 PYCBC_DECL_OP(_keystats);
 
 PYCBC_DECL_OP(endure_multi);
+
 PYCBC_DECL_OP(get_health);
 
 /* get.c */
 PYCBC_DECL_OP(get);
+
 PYCBC_DECL_OP(touch);
+
 PYCBC_DECL_OP(lock);
+
 PYCBC_DECL_OP(get_multi);
+
 PYCBC_DECL_OP(touch_multi);
+
 PYCBC_DECL_OP(lock_multi);
 
 /* get.c (replicas) */
 PYCBC_DECL_OP(_rget);
+
 PYCBC_DECL_OP(_rget_multi);
+
 PYCBC_DECL_OP(_rgetix);
+
 PYCBC_DECL_OP(_rgetix_multi);
+
 PYCBC_DECL_OP(_rgetall);
+
 PYCBC_DECL_OP(_rgetall_multi);
 
 /* http.c */
@@ -347,10 +389,12 @@ PYCBC_DECL_OP(_view_request);
 
 /* observe.c */
 PYCBC_DECL_OP(observe);
+
 PYCBC_DECL_OP(observe_multi);
 
 /* n1ql.c */
 PYCBC_DECL_OP(_n1ql_query);
+
 PYCBC_DECL_OP(_cbas_query);
 
 /* fts.c */
@@ -358,6 +402,11 @@ PYCBC_DECL_OP(_fts_query);
 
 /* ixmgmt.c */
 PYCBC_DECL_OP(_ixmanage);
+
 PYCBC_DECL_OP(_ixwatch);
 
 #endif /* PYCBC_OPUTIL_H */
+
+#ifdef __cplusplus
+}
+#endif

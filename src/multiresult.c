@@ -356,7 +356,9 @@ pycbc_multiresult_get_result(pycbc_MultiResult *self)
         Py_INCREF(res);
         return res;
     }
-
+    PYCBC_DEBUG_LOG("\ngot results:[");
+    pycbc_print_repr(pycbc_multiresult_dict(self));
+    PYCBC_DEBUG_LOG("]\n");
     rv = PyDict_Next(pycbc_multiresult_dict(self), &dictpos, &key, &value);
     if (!rv) {
         PYCBC_EXC_WRAP(PYCBC_EXC_INTERNAL, 0, "No objects in MultiResult");

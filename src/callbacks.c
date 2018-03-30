@@ -14,6 +14,7 @@
  *   limitations under the License.
  **/
 
+#include <libcouchbase/api3.h>
 #include "pycbc.h"
 
 #define CB_THREADS
@@ -26,6 +27,9 @@ static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
  * Add the sub-document error to the result list
  */
 static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error_t rc, size_t ix);
+
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres);
+
 
 static void
 cb_thr_end(pycbc_Bucket *self)
@@ -93,6 +97,9 @@ static void operation_completed3(pycbc_Bucket *self,
 {
     pycbc_assert(self->nremaining);
     --self->nremaining;
+#ifdef LCB_TRACING
+    pycbc_Tracer_propagate(self->tracer);
+#endif
     if (mres) {
         mres->err_info = err_info;
         Py_XINCREF(err_info);
@@ -114,11 +121,16 @@ static void operation_completed3(pycbc_Bucket *self,
     }
 }
 
+
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {
+    if (!key || !value || !dict) return;
+    PYCBC_DEBUG_LOG("adding %s to %s on %p\n", value, key, dict);
     PyObject *valstr = pycbc_SimpleStringZ(value);
-    PyDict_SetItemString(dict, key, valstr);
+    PyObject *keystr = pycbc_SimpleStringZ(key);
+    PyDict_SetItem(dict, keystr, valstr);
     Py_DECREF(valstr);
+    Py_DECREF(keystr);
 }
 
 void pycbc_enhanced_err_register_entry(PyObject **dict,
@@ -176,7 +188,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     PyObject *hkey;
     PyObject *mrdict;
     int rv;
-
+#ifdef LCB_TRACING
+    pycbc_stack_context_handle stack_context_handle = NULL;
+#endif
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
     *mres = (pycbc_MultiResult*)resp->cookie;
     *conn = (*mres)->parent;
@@ -193,7 +207,35 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     mrdict = pycbc_multiresult_dict(*mres);
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+#ifdef LCB_TRACING
+    pycbc_print_repr(mrdict);
+    PYCBC_DEBUG_LOG("\n decoding key with repr [");
+    //pycbc_print_repr(hkey);
+    PYCBC_DEBUG_LOG("]\n");
 
+    PYCBC_DEBUG_LOG("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
+    //pycbc_print_string(hkey);
+    PYCBC_DEBUG_LOG("]\nres %p",*res);
+    if(*res) {
+        stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
+                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+        PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
+        if ((*res)->is_tracing_stub) {
+            PyDict_DelItem(mrdict, hkey);
+
+            *res = NULL;
+
+        }
+    }
+    else
+    {
+        PYCBC_DEBUG_LOG("\nWarning: Got null result from dict for [");
+        //pycbc_print_string(hkey);
+        PYCBC_DEBUG_LOG("]\n");
+    }
+
+#endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
                 ( (*mres)->mropts & PYCBC_MRES_F_UALLOCED);
@@ -224,7 +266,33 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
     if (*res == NULL) {
         /* Now, get/set the result object */
-        if ( (*mres)->mropts & PYCBC_MRES_F_ITEMS) {
+        pycbc_new_result(conn, res, restype, mres);
+        if (*res == NULL){
+            abort();
+        }
+        PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
+#ifdef LCB_TRACING
+        (*res)->tracing_context = stack_context_handle;
+        (*res)->is_tracing_stub = 0;
+#endif
+        (*res)->key = hkey;
+        Py_DECREF(*res);
+    }
+
+    PYCBC_TRACING_POP_CONTEXT(stack_context_handle);
+    if (resp->rc) {
+        (*res)->rc = resp->rc;
+    }
+
+    if (resp->rc != LCB_SUCCESS) {
+        (*mres)->all_ok = 0;
+    }
+
+    return 0;
+}
+
+void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres) {
+    if ((*mres)->mropts & PYCBC_MRES_F_ITEMS) {
             *res = (pycbc_Result*)pycbc_item_new(*conn);
 
         } else if (restype & RESTYPE_BASE) {
@@ -236,25 +304,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         } else if (restype & RESTYPE_VALUE) {
             *res = (pycbc_Result*)pycbc_valresult_new(*conn);
 
-        } else {
-            abort();
         }
-
-        PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
-
-        (*res)->key = hkey;
-        Py_DECREF(*res);
-    }
-
-    if (resp->rc) {
-        (*res)->rc = resp->rc;
-    }
-
-    if (resp->rc != LCB_SUCCESS) {
-        (*mres)->all_ok = 0;
-    }
-
-    return 0;
 }
 
 static void
@@ -794,6 +844,7 @@ static void ping_callback(lcb_t instance,
         Py_DECREF(struct_services_dict);
     }
     if (resp->njson) {
+
         pycbc_dict_add_text_kv(resultdict, "services_json", resp->json);
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
