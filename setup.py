@@ -34,6 +34,7 @@ if sys.platform != 'win32':
         extoptions['extra_link_args'] = ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
+        extoptions['']
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
 
@@ -58,8 +59,8 @@ else:
 
     extoptions['libraries'] = ['libcouchbase']
     ## Enable these lines for debug builds
-    #extoptions['extra_compile_args'] = ['/Zi']
-    #extoptions['extra_link_args'] = ['/DEBUG']
+    extoptions['extra_compile_args'] = ['/Zi','-DHAVE_STDINT_H=TRUE']
+    extoptions['extra_link_args'] = ['/DEBUG']
     extoptions['library_dirs'] = [os.path.join(lcb_root, 'lib')]
     extoptions['include_dirs'] = [os.path.join(lcb_root, 'include')]
     extoptions['define_macros'] = [('_CRT_SECURE_NO_WARNINGS', 1)]
