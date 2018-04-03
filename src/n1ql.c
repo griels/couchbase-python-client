@@ -56,7 +56,12 @@ query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
     }
 
     mres = (pycbc_MultiResult *)pycbc_multiresult_new(self);
-    vres = (pycbc_ViewResult *)PYCBC_TYPE_CTOR(&pycbc_ViewResultType);
+    {
+        PyObject* kwargs = PyDict_New();
+        PyDict_SetItemString(kwargs, "tracer", self->tracer);
+        vres = (pycbc_ViewResult *) PyObject_CallFunction(&pycbc_ViewResultType, Py_None, kwargs);
+        PYCBC_DEBUG_LOG("got vres: %p", vres);
+    }
     pycbc_httpresult_init(&vres->base, mres);
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;

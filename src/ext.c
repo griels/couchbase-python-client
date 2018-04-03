@@ -496,12 +496,22 @@ void pycbc_print_str( PyObject *pobj) {
 }
 
 pycbc_stack_context_handle
-pycbc_Tracer_span_start_real(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
     return context;
+}
+
+PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
+{
+    if ((context) && (context)->tracer && (context)->span) {
+        lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((context)->span);
+        lcbtrace_span_finish((context)->span, 0);
+        (context)->span = parent_span;
+    };
+    return Py_None;
 }
 
 pycbc_stack_context_handle
@@ -519,13 +529,15 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
         lcbtrace_REF ref;
         ref.type = ref_type;
         ref.span = context->span;
-        return pycbc_Tracer_span_start_real(py_tracer, operation, now, &ref);
+        return pycbc_Context_init(py_tracer, operation, now, &ref);
     }
     else
     {
-        return pycbc_Tracer_span_start_real(py_tracer, operation, now, NULL);
+        return pycbc_Context_init(py_tracer, operation, now, NULL);
     }
 }
+
+
 #else
 pycbc_stack_context_handle
 pycbc_Tracer_span_start(pycbc_Tracer_t *, PyObject *, const char *, uint64_t , pycbc_stack_context_handle , lcbtrace_REF_TYPE ) {

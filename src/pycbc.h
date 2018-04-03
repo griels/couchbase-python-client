@@ -402,6 +402,7 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
                                                    uint64_t now, pycbc_stack_context_handle context,
                                                    lcbtrace_REF_TYPE ref_type);
+PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
 #define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
@@ -412,12 +413,7 @@ pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObj
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
     pycbc_init_traced_result(BUCKET, pycbc_multiresult_dict(MRES), CURKEY, context);
 
-#define PYCBC_TRACING_POP_CONTEXT(CONTEXT) \
-if ((CONTEXT) && (CONTEXT)->tracer && (CONTEXT)->span) {\
-    lcbtrace_span_finish((CONTEXT)->span, LCBTRACE_NOW);\
-    lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((CONTEXT)->span);\
-    (CONTEXT)->span = parent_span;\
-}
+#define PYCBC_TRACING_POP_CONTEXT(CONTEXT) pycbc_Context_finish(CONTEXT);
 
 #define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...) \
 {\
