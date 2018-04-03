@@ -489,6 +489,12 @@ void pycbc_print_repr( PyObject *pobj) {
     Py_DecRef(curkey);
 }
 
+void pycbc_print_str( PyObject *pobj) {
+    PyObject *curkey = PyObject_Str(pobj);
+    pycbc_print_string(curkey);
+    Py_DecRef(curkey);
+}
+
 pycbc_stack_context_handle
 pycbc_Tracer_span_start_real(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
@@ -671,7 +677,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
 
         cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
-        add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
+        add_ull(finish_p, "finish_time", lcbtrace_span_get_finish_ts(span));
         add_ull(span_args, "start_time", start);
         {
             cJSON *endpoint = cJSON_CreateObject();
@@ -761,6 +767,12 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
         pycbc_assert(fresh_span);
+        PYCBC_DEBUG_LOG("Closing span:[");
+        pycbc_print_str(PyObject_Type(fresh_span));
+        PYCBC_DEBUG_LOG("],[");
+
+        pycbc_print_repr(fresh_span);
+        PYCBC_DEBUG_LOG("]\n");
         PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
         pycbc_assert(PyObject_CallFunction(finish_method, "O", payload->span_finish_args));
         Py_DECREF(finish_method);

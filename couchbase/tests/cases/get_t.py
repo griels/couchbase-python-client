@@ -32,6 +32,7 @@ import time
 
 from jaeger_client import Config
 import logging
+from jaeger_client.span import Span
 
 from opentracing_instrumentation import traced_function
 
@@ -47,7 +48,6 @@ class GetTest(ConnectionTestCase):
         },
         service_name='your-app-name',
     )
-
     _tracer = None
     @property
     def tracer(self):
