@@ -51,7 +51,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
 
     lcb_cas_t itmcas = itm->cas;
     skc->value = itm->value;
-    PyObject *pycbc_DummyTuple = PyTuple_New(0);
+    //PyObject *pycbc_DummyTuple = PyTuple_New(0);
     if (options) {
         rv = PyArg_ParseTupleAndKeywords(pycbc_DummyTuple, options, "|OOOO",
                                          itm_optlist, &ttl_O, &flagsobj_Oalt, &igncas_O, &frag_O);
