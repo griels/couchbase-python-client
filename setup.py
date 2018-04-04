@@ -34,7 +34,6 @@ if sys.platform != 'win32':
         extoptions['extra_link_args'] = ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
-        extoptions['']
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
 

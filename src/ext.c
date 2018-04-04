@@ -443,15 +443,14 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <stdio.h>
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/api3.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h> /* strlen */
+/*#include <stdlib.h>
+#include <string.h> /* strlen
 
 #include <netdb.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h>*/
 #include <libcouchbase/tracing.h>
 //#include "include/opentracing/lcb_ot.h"
 #include "../contrib/cJSON/cJSON.h"
