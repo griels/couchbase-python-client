@@ -489,7 +489,7 @@ void pycbc_print_repr( PyObject *pobj) {
 }
 
 pycbc_stack_context_handle
-pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, uint64_t now, lcbtrace_REF *ref) {
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now, lcbtrace_REF *ref) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
@@ -508,7 +508,7 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
 }
 
 pycbc_stack_context_handle
-pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, uint64_t now,
+pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_U64 now,
                         pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
@@ -533,7 +533,7 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
 
 #else
 pycbc_stack_context_handle
-pycbc_Tracer_span_start(pycbc_Tracer_t *, PyObject *, const char *, uint64_t , pycbc_stack_context_handle , lcbtrace_REF_TYPE ) {
+pycbc_Tracer_span_start(pycbc_Tracer_t *, PyObject *, const char *, lcb_U64 , pycbc_stack_context_handle , lcbtrace_REF_TYPE ) {
     return NULL;
 }
 #endif
@@ -545,7 +545,7 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
 
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
 
-void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id);
+void pycbc_set_kv_ull(PyObject *span_args, char *key, lcb_U64 parenti_id);
 
 
 struct zipkin_payload;
@@ -654,7 +654,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         size_t nbuf = BUFSZ;
         char *buf;
         lcbtrace_SPAN *parent;
-        uint64_t start;
+		lcb_U64 start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
         pycbc_init_span_args(payload);
         PyObject* span_args = payload->span_start_args;
@@ -673,7 +673,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         cJSON_AddItemToObject(json, "traceId", cJSON_CreateString(buf));
         parent = lcbtrace_span_get_parent(span);
         if (parent) {
-            uint64_t parenti_id = lcbtrace_span_get_trace_id(parent);
+			lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
             snprintf(buf, nbuf, "%" PRIx64, parenti_id);
             cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
             add_ull(span_args, "child_of", parenti_id);
@@ -699,7 +699,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
         {
             cJSON *tags = cJSON_CreateObject();
-            uint64_t latency, operation_id;
+			lcb_U64 latency, operation_id;
             if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
                 cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
                 add_ull(tags_p, LCBTRACE_TAG_PEER_LATENCY, latency);
@@ -818,7 +818,7 @@ void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
     pycbc_zipkin_flush(tracer);
 }
 
-void pycbc_set_kv_ull(PyObject *span_args, char *key, uint64_t parenti_id) {
+void pycbc_set_kv_ull(PyObject *span_args, char *key, lcb_U64 parenti_id) {
     PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
     PyObject* keystr = pycbc_SimpleStringZ(key);
     PyDict_SetItem(span_args, keystr, pULL);
