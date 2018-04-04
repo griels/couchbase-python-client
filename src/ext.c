@@ -655,7 +655,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         lcbtrace_SPAN *parent;
 		lcb_U64 start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
-        cJSON *json = cJSON_CreateObject();
+        //cJSON *json = cJSON_CreateObject();
         pycbc_init_span_args(payload);
         {
             PyObject* span_args = payload->span_start_args;
@@ -665,79 +665,79 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
 
             buf = calloc(nbuf, sizeof(char));
-            cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
+            //cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
             add_text(span_args, "operation_name", lcbtrace_span_get_operation(span));
             snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_span_id(span));
-            cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
+            //cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
             snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_trace_id(span));
-            cJSON_AddItemToObject(json, "traceId", cJSON_CreateString(buf));
+            //cJSON_AddItemToObject(json, "traceId", cJSON_CreateString(buf));
             parent = lcbtrace_span_get_parent(span);
             if (parent) {
                 lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
                 snprintf(buf, nbuf, "%" PRIx64, parenti_id);
-                cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
+                //cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
                 add_ull(span_args, "child_of", parenti_id);
             }
             start = lcbtrace_span_get_start_ts(span);
-            cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
+            //cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
 
-            cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
+            //cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
             add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
             add_ull(span_args, "start_time", start);
             {
-                cJSON *endpoint = cJSON_CreateObject();
+                //cJSON *endpoint = cJSON_CreateObject();
 
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
-                    cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
+                    //cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
                     add_text(tags_p, LCBTRACE_TAG_DB_TYPE, buf);
                 }
-                cJSON_AddItemToObject(json, "localEndpoint", endpoint);
+                //cJSON_AddItemToObject(json, "localEndpoint", endpoint);
                 //add_text(tags_p, "localEndpoint", endpoint);
             }
 
             {
-                cJSON *tags = cJSON_CreateObject();
+                //cJSON *tags = cJSON_CreateObject();
                 lcb_U64 latency, operation_id;
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
                     add_ull(tags_p, LCBTRACE_TAG_PEER_LATENCY, latency);
                 }
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
                     add_ull(tags_p, LCBTRACE_TAG_OPERATION_ID, operation_id);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
                     add_text(tags_p, LCBTRACE_TAG_COMPONENT, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
                     add_text(tags_p, LCBTRACE_TAG_PEER_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
                     add_text(tags_p, LCBTRACE_TAG_LOCAL_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
-                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
+                    //cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
                     add_text(tags_p, LCBTRACE_TAG_DB_INSTANCE, buf);
                 }
-                if (cJSON_GetArraySize(tags) > 0) {
-                    cJSON_AddItemToObject(json, "tags", tags);
-                }
-                else {
-                    cJSON_Delete(tags);
-                }
+                //if (cJSON_GetArraySize(tags) > 0) {
+                //    //cJSON_AddItemToObject(json, "tags", tags);
+                //}
+                //else {
+                    //cJSON_Delete(tags);
+                //}
             }
             dereference(tags_p);
             dereference(span_args);
@@ -745,8 +745,8 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         free(buf);
 
 
-        payload->data = cJSON_PrintUnformatted(json);
-        cJSON_Delete(json);
+        //payload->data = cJSON_PrintUnformatted(json);
+        //cJSON_Delete(json);
         if (state->last) {
             state->last->next = payload;
         }
