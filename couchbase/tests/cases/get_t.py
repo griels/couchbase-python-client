@@ -17,8 +17,8 @@
 
 import pickle
 from time import sleep
-
-from basictracer import BasicTracer, tracer
+from basictracer.tracer import BasicTracer
+from basictracer.recorder import SpanRecorder
 from nose.plugins.attrib import attr
 
 from couchbase import FMT_JSON, FMT_PICKLE, FMT_UTF8, FMT_BYTES
@@ -32,10 +32,15 @@ import time
 
 #from jaeger_client import Config
 import logging
-from basictracer import BasicTracer
+#from basictracer import BasicTracer
 #from opentracing_instrumentation import traced_function
 
 #import jaeger_client.tracer
+class LogRecorder(SpanRecorder):
+
+    def record_span(self, span):
+        logging.info(str(span))
+
 class GetTest(ConnectionTestCase):
     #config = Config(
     #    config={ # usually read from some yaml config
