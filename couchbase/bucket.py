@@ -218,6 +218,7 @@ class Bucket(_Base):
             cb = Bucket('couchbases://securehost/bucketname?certpath=/var/cb-cert.pem')
 
         """
+        print("in bucket init")
         _no_connect_exceptions = kwargs.pop('_no_connect_exceptions', False)
         _cntlopts = kwargs.pop('_cntl', {})
 
@@ -237,7 +238,7 @@ class Bucket(_Base):
         tc = kwargs.get('transcoder')
         if isinstance(tc, type):
             kwargs['transcoder'] = tc()
-
+        print("about to init with args "+str(args)+" and kwargs "+str(kwargs))
         super(Bucket, self).__init__(*args, **kwargs)
         # Enable detailed error codes for network errors:
         self._cntlstr("detailed_errcodes", "1")
@@ -256,6 +257,7 @@ class Bucket(_Base):
             self._cntl(ctl, val)
 
         try:
+            print("about to connect")
             self._do_ctor_connect()
         except exceptions.CouchbaseError as e:
             if not _no_connect_exceptions:
@@ -265,7 +267,8 @@ class Bucket(_Base):
         """This should be overidden by subclasses which want to use a
         different sort of connection behavior
         """
-        self._connect(args, **kwargs)
+        print("connecting with "+str(kwargs))
+        self._connect(*args, **kwargs)
 
     def pipeline(self):
         """

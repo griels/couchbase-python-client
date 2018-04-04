@@ -636,7 +636,7 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *tc = NULL;
     PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
-
+	
 
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
@@ -669,8 +669,9 @@ Bucket__init__(pycbc_Bucket *self,
     static char *argspec = "|" XCTOR_ARGS(X);
     #undef X
 
-
-
+	PYCBC_DEBUG_LOG("Init with args:[");
+	pycbc_print_repr(kwargs);
+	PYCBC_DEBUG_LOG("]\n");
     if (self->init_called) {
         PyErr_SetString(PyExc_RuntimeError, "__init__ was already called");
         return -1;
@@ -685,9 +686,14 @@ Bucket__init__(pycbc_Bucket *self,
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, argspec, kwlist,
         XCTOR_ARGS(X) NULL);
     #undef X
-
+	
     if (!rv) {
-        PYCBC_EXCTHROW_ARGS();
+		PYCBC_DEBUG_LOG("Bad args:[");
+		pycbc_print_repr(kwargs);
+		PYCBC_DEBUG_LOG("]\n");
+
+
+		PYCBC_EXCTHROW_ARGS();
         return -1;
     }
 
@@ -794,6 +800,10 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
                                                                           self->tracer);
+
+	printf("connect kwargs:[");
+	pycbc_print_repr(kwargs);
+	printf("]\n");
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
