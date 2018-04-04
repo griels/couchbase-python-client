@@ -454,13 +454,12 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <libcouchbase/tracing.h>
 //#include "include/opentracing/lcb_ot.h"
 #include "../contrib/cJSON/cJSON.h"
-/*#ifdef _WIN32
+#ifdef _WIN32
 #define PRIx64 "I64x"
 #define PRId64 "I64d"
 #else
 #include <inttypes.h>
 #endif
-*/
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
