@@ -784,7 +784,7 @@ Bucket__init__(pycbc_Bucket *self,
     pycbc_callbacks_init(self->instance);
     lcb_set_cookie(self->instance, self);
     {
-        const char *bucketstr;
+        char *bucketstr;
         err = lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_BUCKETNAME, &bucketstr);
         if (err == LCB_SUCCESS && bucketstr != NULL) {
             self->bucket = pycbc_SimpleStringZ(bucketstr);
@@ -800,11 +800,11 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
                                                                           self->tracer);
-
-	printf("connect kwargs:[");
-	pycbc_print_repr(kwargs);
-	printf("]\n");
     lcb_error_t err;
+
+    printf("connect kwargs:[");
+    pycbc_print_repr(kwargs);
+    printf("]\n");
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
         Py_RETURN_NONE;
@@ -878,8 +878,8 @@ Bucket_dtor(pycbc_Bucket *self)
 int
 pycbc_BucketType_init(PyObject **ptr)
 {
-    PYCBC_DEBUG_LOG("i'm in ur initializer\n");
     PyTypeObject *p = &BucketType;
+    PYCBC_DEBUG_LOG("i'm in ur initializer\n");
     *ptr = (PyObject*)p;
 
     if (p->tp_name) {
