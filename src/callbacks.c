@@ -126,11 +126,13 @@ void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
 {
     if (!key || !value || !dict) return;
     PYCBC_DEBUG_LOG("adding %s to %s on %p\n", value, key, dict);
-    PyObject *valstr = pycbc_SimpleStringZ(value);
-    PyObject *keystr = pycbc_SimpleStringZ(key);
-    PyDict_SetItem(dict, keystr, valstr);
-    Py_DECREF(valstr);
-    Py_DECREF(keystr);
+    {
+        PyObject *valstr = pycbc_SimpleStringZ(value);
+        PyObject *keystr = pycbc_SimpleStringZ(key);
+        PyDict_SetItem(dict, keystr, valstr);
+        Py_DECREF(valstr);
+        Py_DECREF(keystr);
+    }
 }
 
 void pycbc_enhanced_err_register_entry(PyObject **dict,
