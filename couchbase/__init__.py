@@ -143,7 +143,7 @@ class Couchbase(object):
         _depr('Couchbase.connect()', 'Bucket()')
         return Connection(bucket, **kwargs)
 
-from basictracer import BasicTracer
+from basictracer.tracer import BasicTracer
 from basictracer.recorder import InMemoryRecorder
 from opentracing.ext import tags
 
