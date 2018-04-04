@@ -454,13 +454,13 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <libcouchbase/tracing.h>
 //#include "include/opentracing/lcb_ot.h"
 #include "../contrib/cJSON/cJSON.h"
-#ifdef _WIN32
+/*#ifdef _WIN32
 #define PRIx64 "I64x"
 #define PRId64 "I64d"
 #else
 #include <inttypes.h>
 #endif
-
+*/
 
 #define COMPONENT_NAME "demo"
 #ifdef LCB_TRACING
@@ -592,10 +592,10 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_pybuffer keybuf={0};
-    pycbc_tc_encode_key(self, curkey, &keybuf);
-    pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
     pycbc_ValueResult *item = pycbc_valresult_new(self);
-    //Py_IncRef(item);
+	pycbc_tc_encode_key(self, curkey, &keybuf);
+	pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
+	//Py_IncRef(item);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
     PYCBC_DEBUG_LOG("\nres %p: binding context %p to [", item, context);
@@ -656,90 +656,93 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         lcbtrace_SPAN *parent;
 		lcb_U64 start;
         zipkin_payload *payload = calloc(1, sizeof(zipkin_payload));
-        pycbc_init_span_args(payload);
-        PyObject* span_args = payload->span_start_args;
-        PyObject* tags_p = payload->span_tags_args;
-        PyObject* finish_p = payload->span_finish_args;
-        PYCBC_DEBUG_LOG("got span %p\n",span);
         cJSON *json = cJSON_CreateObject();
-
-
-        buf = calloc(nbuf, sizeof(char));
-        cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
-        add_text(span_args,"operation_name",lcbtrace_span_get_operation(span));
-        snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_span_id(span));
-        cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
-        snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_trace_id(span));
-        cJSON_AddItemToObject(json, "traceId", cJSON_CreateString(buf));
-        parent = lcbtrace_span_get_parent(span);
-        if (parent) {
-			lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
-            snprintf(buf, nbuf, "%" PRIx64, parenti_id);
-            cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
-            add_ull(span_args, "child_of", parenti_id);
-        }
-        start = lcbtrace_span_get_start_ts(span);
-        cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
-
-        cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
-        add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
-        add_ull(span_args, "start_time", start);
+        pycbc_init_span_args(payload);
         {
-            cJSON *endpoint = cJSON_CreateObject();
+            PyObject* span_args = payload->span_start_args;
+            PyObject* tags_p = payload->span_tags_args;
+            PyObject* finish_p = payload->span_finish_args;
+            PYCBC_DEBUG_LOG("got span %p\n", span);
 
-            nbuf = BUFSZ;
-            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
-                buf[nbuf] = '\0';
-                cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
-                add_text(tags_p, LCBTRACE_TAG_DB_TYPE, buf);
-            }
-            cJSON_AddItemToObject(json, "localEndpoint", endpoint);
-            //add_text(tags_p, "localEndpoint", endpoint);
-        }
 
-        {
-            cJSON *tags = cJSON_CreateObject();
-			lcb_U64 latency, operation_id;
-            if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
-                add_ull(tags_p, LCBTRACE_TAG_PEER_LATENCY, latency);
+            buf = calloc(nbuf, sizeof(char));
+            cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
+            add_text(span_args, "operation_name", lcbtrace_span_get_operation(span));
+            snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_span_id(span));
+            cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
+            snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_trace_id(span));
+            cJSON_AddItemToObject(json, "traceId", cJSON_CreateString(buf));
+            parent = lcbtrace_span_get_parent(span);
+            if (parent) {
+                lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
+                snprintf(buf, nbuf, "%" PRIx64, parenti_id);
+                cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
+                add_ull(span_args, "child_of", parenti_id);
             }
-            if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
-                add_ull(tags_p, LCBTRACE_TAG_OPERATION_ID, operation_id);
+            start = lcbtrace_span_get_start_ts(span);
+            cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
+
+            cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
+            add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
+            add_ull(span_args, "start_time", start);
+            {
+                cJSON *endpoint = cJSON_CreateObject();
+
+                nbuf = BUFSZ;
+                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
+                    buf[nbuf] = '\0';
+                    cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
+                    add_text(tags_p, LCBTRACE_TAG_DB_TYPE, buf);
+                }
+                cJSON_AddItemToObject(json, "localEndpoint", endpoint);
+                //add_text(tags_p, "localEndpoint", endpoint);
             }
-            nbuf = BUFSZ;
-            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
-                buf[nbuf] = '\0';
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
-                add_text(tags_p, LCBTRACE_TAG_COMPONENT, buf);
+
+            {
+                cJSON *tags = cJSON_CreateObject();
+                lcb_U64 latency, operation_id;
+                if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
+                    add_ull(tags_p, LCBTRACE_TAG_PEER_LATENCY, latency);
+                }
+                if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
+                    add_ull(tags_p, LCBTRACE_TAG_OPERATION_ID, operation_id);
+                }
+                nbuf = BUFSZ;
+                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
+                    buf[nbuf] = '\0';
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
+                    add_text(tags_p, LCBTRACE_TAG_COMPONENT, buf);
+                }
+                nbuf = BUFSZ;
+                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
+                    buf[nbuf] = '\0';
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
+                    add_text(tags_p, LCBTRACE_TAG_PEER_ADDRESS, buf);
+                }
+                nbuf = BUFSZ;
+                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
+                    buf[nbuf] = '\0';
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
+                    add_text(tags_p, LCBTRACE_TAG_LOCAL_ADDRESS, buf);
+                }
+                nbuf = BUFSZ;
+                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
+                    buf[nbuf] = '\0';
+                    cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
+                    add_text(tags_p, LCBTRACE_TAG_DB_INSTANCE, buf);
+                }
+                if (cJSON_GetArraySize(tags) > 0) {
+                    cJSON_AddItemToObject(json, "tags", tags);
+                }
+                else {
+                    cJSON_Delete(tags);
+                }
             }
-            nbuf = BUFSZ;
-            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
-                buf[nbuf] = '\0';
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
-                add_text(tags_p, LCBTRACE_TAG_PEER_ADDRESS, buf);
-            }
-            nbuf = BUFSZ;
-            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
-                buf[nbuf] = '\0';
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
-                add_text(tags_p, LCBTRACE_TAG_LOCAL_ADDRESS, buf);
-            }
-            nbuf = BUFSZ;
-            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
-                buf[nbuf] = '\0';
-                cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
-                add_text(tags_p, LCBTRACE_TAG_DB_INSTANCE, buf);
-            }
-            if (cJSON_GetArraySize(tags) > 0)  {
-                cJSON_AddItemToObject(json, "tags", tags);
-            } else {
-                cJSON_Delete(tags);
-            }
+            dereference(tags_p);
+            dereference(span_args);
         }
-        dereference(tags_p);
-        dereference(span_args);
         free(buf);
 
 
