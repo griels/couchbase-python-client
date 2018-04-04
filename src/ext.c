@@ -774,11 +774,14 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
         pycbc_assert(fresh_span);
-        PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
-        pycbc_assert(PyObject_CallFunction(finish_method, "O", payload->span_finish_args));
-        Py_DECREF(finish_method);
-        dereference(span_finish_args);
-        dereference(fresh_span);
+        {
+            PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
+            pycbc_assert(finish_method);
+            pycbc_assert(PyObject_CallFunction(finish_method, "O", payload->span_finish_args));
+            Py_DECREF(finish_method);
+            dereference(span_finish_args);
+            dereference(fresh_span);
+        }
     }
 }
 void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
