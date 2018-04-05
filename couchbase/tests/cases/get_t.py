@@ -39,8 +39,7 @@ import jaeger_client.tracer
 class LogRecorder(SpanRecorder):
 
     def record_span(self, span):
-        print("got span:"+str(dir(span)))
-        logging.info("recording span: "+str(span))
+        logging.info("recording span: "+str(span.__dict__))
 
 class GetTest(ConnectionTestCase):
     config = Config(
@@ -122,57 +121,58 @@ class GetTest(ConnectionTestCase):
 
 
     def test_multi_mixed(self):
-        kv_missing = self.gen_kv_dict(amount=3, prefix='multi_missing_mixed')
-        kv_existing = self.gen_kv_dict(amount=3, prefix='multi_existing_mixed')
+        for count in range(0,100):
+            kv_missing = self.gen_kv_dict(amount=3, prefix='multi_missing_mixed')
+            kv_existing = self.gen_kv_dict(amount=3, prefix='multi_existing_mixed')
 
-        self.cb.remove_multi(list(kv_missing.keys()) + list(kv_existing.keys()),
-                             quiet=True)
+            self.cb.remove_multi(list(kv_missing.keys()) + list(kv_existing.keys()),
+                                 quiet=True)
 
-        self.cb.upsert_multi(kv_existing)
+            self.cb.upsert_multi(kv_existing)
 
-        rvs = self.cb.get_multi(
-            list(kv_existing.keys()) + list(kv_missing.keys()),
-            quiet=True)
+            rvs = self.cb.get_multi(
+                list(kv_existing.keys()) + list(kv_missing.keys()),
+                quiet=True)
 
 
-        self.assertFalse(rvs.all_ok)
+            self.assertFalse(rvs.all_ok)
 
-        for k, v in kv_missing.items():
-            self.assertTrue(k in rvs)
-            self.assertFalse(rvs[k].success)
-            self.assertTrue(rvs[k].value is None)
-            self.assertTrue(NotFoundError._can_derive(rvs[k].rc))
+            for k, v in kv_missing.items():
+                self.assertTrue(k in rvs)
+                self.assertFalse(rvs[k].success)
+                self.assertTrue(rvs[k].value is None)
+                self.assertTrue(NotFoundError._can_derive(rvs[k].rc))
 
-        for k, v in kv_existing.items():
-            self.assertTrue(k in rvs)
-            self.assertTrue(rvs[k].success)
-            self.assertEqual(rvs[k].value, kv_existing[k])
-            self.assertEqual(rvs[k].rc, 0)
+            for k, v in kv_existing.items():
+                self.assertTrue(k in rvs)
+                self.assertTrue(rvs[k].success)
+                self.assertEqual(rvs[k].value, kv_existing[k])
+                self.assertEqual(rvs[k].rc, 0)
 
-        # Try this again, but without quiet
-        cb_exc = None
-        try:
-            self.cb.get_multi(list(kv_existing.keys()) + list(kv_missing.keys()))
-        except NotFoundError as e:
-            cb_exc = e
+            # Try this again, but without quiet
+            cb_exc = None
+            try:
+                self.cb.get_multi(list(kv_existing.keys()) + list(kv_missing.keys()))
+            except NotFoundError as e:
+                cb_exc = e
 
-        self.assertTrue(cb_exc)
-        all_res = cb_exc.all_results
-        self.assertTrue(all_res)
-        self.assertFalse(all_res.all_ok)
+            self.assertTrue(cb_exc)
+            all_res = cb_exc.all_results
+            self.assertTrue(all_res)
+            self.assertFalse(all_res.all_ok)
 
-        for k, v in kv_existing.items():
-            self.assertTrue(k in all_res)
-            self.assertTrue(all_res[k].success)
-            self.assertEqual(all_res[k].value, v)
-            self.assertEqual(all_res[k].rc, 0)
+            for k, v in kv_existing.items():
+                self.assertTrue(k in all_res)
+                self.assertTrue(all_res[k].success)
+                self.assertEqual(all_res[k].value, v)
+                self.assertEqual(all_res[k].rc, 0)
 
-        for k, v in kv_missing.items():
-            self.assertTrue(k in all_res)
-            self.assertFalse(all_res[k].success)
-            self.assertTrue(all_res[k].value is None)
+            for k, v in kv_missing.items():
+                self.assertTrue(k in all_res)
+                self.assertFalse(all_res[k].success)
+                self.assertTrue(all_res[k].value is None)
 
-        del cb_exc
+            del cb_exc
 
 
     def test_extended_get(self):
@@ -244,7 +244,6 @@ class GetTest(ConnectionTestCase):
             self.assertTrue(NotFoundError._can_derive(v.rc))
 
     def test_get_span(self):
-        couchbase.enable_logging()
         tracer=couchbase.get_tracer()
         #tracer=BasicTracer()
         import opentracing_instrumentation

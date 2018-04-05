@@ -17,7 +17,8 @@
 extern "C"
 {
 #endif
-#define PYCBC_DEBUG_LOG(...) printf(__VA_ARGS__)
+#define PYCBC_DEBUG_LOG(...)
+    //printf(__VA_ARGS__)
 
 #ifndef PYCBC_H_
 #define PYCBC_H_

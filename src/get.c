@@ -157,7 +157,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
     GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
-    PYCBC_TRACING_POP_CONTEXT(context);
+    //PYCBC_TRACING_POP_CONTEXT(context);
     return rv;
 }
 
