@@ -444,7 +444,7 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/api3.h>
 /*#include <stdlib.h>
-#include <string.h> /* strlen
+#include <string.h>
 
 #include <netdb.h>
 #include <sys/types.h>
@@ -501,7 +501,7 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
     if ((context) && (context)->tracer && (context)->span) {
         lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((context)->span);
         lcbtrace_span_finish((context)->span, 0);
-        (context)->span = parent_span;
+        (context)->span = NULL;//parent_span;
     };
     return Py_None;
 }
@@ -550,7 +550,7 @@ void pycbc_set_kv_ull(PyObject *span_args, char *key, lcb_U64 parenti_id);
 struct zipkin_payload;
 
 typedef struct zipkin_payload {
-    char *data;
+    //const char* data;
     PyObject* span_start_args;
     PyObject* span_tags_args;
     PyObject* span_finish_args;
@@ -646,9 +646,6 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 #define add_text(...) pycbc_dict_add_text_kv(__VA_ARGS__)
 #define add_ull(...) pycbc_set_kv_ull(__VA_ARGS__)
 
-#define dereference(...)
-        //Py_DecRef(__VA_ARGS__)
-
 #define BUFSZ 1000
         size_t nbuf = BUFSZ;
         char *buf;
@@ -660,7 +657,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         {
             PyObject* span_args = payload->span_start_args;
             PyObject* tags_p = payload->span_tags_args;
-            PyObject* finish_p = payload->span_finish_args;
+            PyObject* span_finish_args = payload->span_finish_args;
             PYCBC_DEBUG_LOG("got span %p\n", span);
 
 
@@ -682,7 +679,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
             //cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
 
             //cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
-            add_ull(finish_p, "finish", lcbtrace_span_get_finish_ts(span));
+            add_ull(span_finish_args, "finish_time", lcbtrace_span_get_finish_ts(span));
             add_ull(span_args, "start_time", start);
             {
                 //cJSON *endpoint = cJSON_CreateObject();
@@ -739,8 +736,6 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                     //cJSON_Delete(tags);
                 //}
             }
-            dereference(tags_p);
-            dereference(span_args);
         }
         free(buf);
 
@@ -773,14 +768,36 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
     if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
-        pycbc_assert(fresh_span);
+        if (PyErr_Occurred())
+        {
+            PyErr_Print();
+            PyErr_Clear();
+        }
+        if(fresh_span)
         {
             PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
+            PYCBC_DEBUG_LOG("Got span'[");
+            pycbc_print_repr(fresh_span);
+            PYCBC_DEBUG_LOG("]\n");
             pycbc_assert(finish_method);
-            pycbc_assert(PyObject_CallFunction(finish_method, "O", payload->span_finish_args));
-            Py_DECREF(finish_method);
-            dereference(span_finish_args);
-            dereference(fresh_span);
+            PYCBC_DEBUG_LOG("Got finish method'[");
+            pycbc_print_repr(finish_method);
+            PYCBC_DEBUG_LOG("]\n");
+            if (finish_method) {
+                PYCBC_DEBUG_LOG("calling finish method with;[");
+                pycbc_print_repr(payload->span_finish_args);
+                PYCBC_DEBUG_LOG("]\n");
+                PyObject_Call(finish_method, pycbc_DummyTuple, payload->span_finish_args);
+            }
+            Py_XDECREF(finish_method);
+            Py_XDECREF(fresh_span);
+        } else{
+            PYCBC_DEBUG_LOG("Yielded no span!\n");
+        }
+        if (PyErr_Occurred())
+        {
+            PyErr_Print();
+            PyErr_Clear();
         }
     }
 }
@@ -795,7 +812,7 @@ void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
     if (state == NULL) {
         return;
     }
-    if (state->root == NULL || state->content_length == 0) {
+    if (state->root == NULL || !state->root->span_start_args) {
         return;
     }
     {
@@ -808,10 +825,9 @@ void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
                 pycbc_Tracer_propagate_span(tracer, tmp);
             }
             ptr = ptr->next;
-            Py_DECREF(tmp->span_finish_args);
-            Py_DECREF(tmp->span_tags_args);
-            Py_DECREF(tmp->span_start_args);
-            free(tmp->data);
+            Py_XDECREF(tmp->span_finish_args);
+            Py_XDECREF(tmp->span_tags_args);
+            Py_XDECREF(tmp->span_start_args);
             free(tmp);
         }
     }

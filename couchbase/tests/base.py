@@ -87,7 +87,7 @@ class ClusterInformation(object):
     @staticmethod
     def filter_opts(options):
         return {key: value for key, value in
-                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "compression", "log_redaction"] and value}
+                options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "compression", "log_redaction", "enable_tracing"] and value}
 
     def make_connargs(self, **overrides):
         bucket = self.bucket_name
@@ -146,6 +146,7 @@ class ConnectionConfiguration(object):
         info.certpath = config.get('realserver', 'certpath', fallback=None)
         info.keypath = config.get('realserver', 'keypath', fallback=None)
         info.protocol = config.get('realserver', 'protocol', fallback="http")
+        info.enable_tracing = config.get('realserver', 'tracing', fallback=None)
         if config.getboolean('realserver', 'enabled'):
             self.realserver_info = info
         else:

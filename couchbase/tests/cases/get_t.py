@@ -30,39 +30,40 @@ from couchbase.tests.base import ConnectionTestCase, SkipTest
 import couchbase
 import time
 
-#from jaeger_client import Config
+from jaeger_client import Config
 import logging
 #from basictracer import BasicTracer
 #from opentracing_instrumentation import traced_function
 
-#import jaeger_client.tracer
+import jaeger_client.tracer
 class LogRecorder(SpanRecorder):
 
     def record_span(self, span):
-        logging.info(str(span))
+        print("got span:"+str(dir(span)))
+        logging.info("recording span: "+str(span))
 
 class GetTest(ConnectionTestCase):
-    #config = Config(
-    #    config={ # usually read from some yaml config
-    #        'sampler': {
-    #            'type': 'const',
-    #            'param': 1,
-    #        },
-    #        'logging': True,
-    #    },
-    #    service_name='your-app-name',
-    #)
+    config = Config(
+       config={ # usually read from some yaml config
+           'sampler': {
+               'type': 'const',
+               'param': 1,
+           },
+           'logging': True,
+       },
+       service_name='your-app-name',
+    )
 
     _tracer = None
     @property
     def tracer(self):
         if not GetTest._tracer:
-            GetTest._tracer = BasicTracer()
-			#.GetTest.config.initialize_tracer()
+            GetTest._tracer = BasicTracer(recorder=LogRecorder())
+            #GetTest._tracer= GetTest.config.initialize_tracer()
         return GetTest._tracer
 
     def setUp(self):
-        log_level = logging.DEBUG
+        log_level = logging.INFO
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
 
@@ -78,7 +79,10 @@ class GetTest(ConnectionTestCase):
 
         if self.tracer:
             time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+        try:
             self.tracer.close()  # flush any buffered spans
+        except:
+            pass
 
     def test_trivial_get(self):
         key = self.gen_key('trivial_get')
