@@ -752,7 +752,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         }
         state->last = payload;
         //printf(payload);
-        state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
+        //state->content_length += strlen(payload->data) + 1; /* for comma/closing bracket */
         if (state->root == NULL) {
             state->root = payload;
         }
