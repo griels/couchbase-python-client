@@ -508,7 +508,7 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
 
 pycbc_stack_context_handle
 pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_U64 now,
-                        pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type) {
+                        pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type, const char* component) {
 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
     if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))

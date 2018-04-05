@@ -101,6 +101,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         }
     }
     u_cmd.base.exptime = ttl;
+    PYCBC_TRACING_POP_CONTEXT(context);
 
     switch (optype) {
     case PYCBC_CMD_GAT:
@@ -157,7 +158,6 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
     GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
-    //PYCBC_TRACING_POP_CONTEXT(context);
     return rv;
 }
 
@@ -378,14 +378,14 @@ PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE,
-                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
+                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, bucket.lookup_in));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI,
-                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer));
+                           PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, bucket.lookup_in_multi));
 }
 
 #define DECLFUNC(name, operation, mode) \

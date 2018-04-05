@@ -799,7 +799,7 @@ static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer);
+                                                                          self->tracer, "bucket.connect");
     lcb_error_t err;
 
     printf("connect kwargs:[");

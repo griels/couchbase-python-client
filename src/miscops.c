@@ -208,7 +208,7 @@ PyObject *
 pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer);
+                                                                          self->tracer, bucket.endure_multi);
     int rv;
     Py_ssize_t ncmds;
     pycbc_seqtype_t seqtype;
@@ -295,7 +295,7 @@ PyObject *
 pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer);
+                                                                          self->tracer, bucket.stats);
     int rv;
     int ii;
     Py_ssize_t ncmds;
@@ -376,7 +376,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
                              PyObject *kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer);
+                                                                          self->tracer, bucket.ping);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
@@ -416,7 +416,7 @@ PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *kwargs)
 {
     pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer);
+                                                                          self->tracer, bucket.diagnostics);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;

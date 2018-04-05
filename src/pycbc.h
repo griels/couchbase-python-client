@@ -401,11 +401,11 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
 pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
                                                    lcb_U64 now, pycbc_stack_context_handle context,
-                                                   lcbtrace_REF_TYPE ref_type);
+                                                   lcbtrace_REF_TYPE ref_type, const char* component);
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
-#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE )
+#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
 
 #define PYCBC_DEFAULT_TRACING_KEY Py_None
 
@@ -419,7 +419,7 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 {\
     int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
-    if (should_trace) { sub_context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, #NAME, TRACER); };\
+    if (should_trace) { sub_context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, #CATEGORY, TRACER, NAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
     if (should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
         if (sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
@@ -430,7 +430,7 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context);
 
-#define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF))
+#define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, #NAME))
 #define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT(NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 #else
 
