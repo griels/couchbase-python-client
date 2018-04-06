@@ -443,10 +443,12 @@ import logging
 from basictracer import BasicTracer, SpanRecorder
 import couchbase
 
+
 class LogRecorder(SpanRecorder):
 
     def record_span(self, span):
         logging.info("recording span: "+str(span.__dict__))
+
 
 class TracedCase(ConnectionTestCase):
     # config = Config(
@@ -483,13 +485,12 @@ class TracedCase(ConnectionTestCase):
     def tearDown(self):
         super(TracedCase,self).tearDown()
 
-
-        if self.tracer:
+        if self.tracer and getattr(self.tracer,"close", None):
             time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
-        try:
-            self.tracer.close()  # flush any buffered spans
-        except:
-            pass
+            try:
+                self.tracer.close()  # flush any buffered spans
+            except:
+                pass
 
 class RealServerTestCase(ConnectionTestCase):
     def setUp(self):
