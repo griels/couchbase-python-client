@@ -488,11 +488,11 @@ void pycbc_print_repr( PyObject *pobj) {
 }
 
 pycbc_stack_context_handle
-pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now, lcbtrace_REF *ref) {
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now, lcbtrace_REF *ref, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
-    lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, COMPONENT_NAME);
+    lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
     return context;
 }
 
@@ -521,11 +521,11 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
         lcbtrace_REF ref;
         ref.type = ref_type;
         ref.span = context->span;
-        return pycbc_Context_init(py_tracer, operation, now, &ref);
+        return pycbc_Context_init(py_tracer, operation, now, &ref, component);
     }
     else
     {
-        return pycbc_Context_init(py_tracer, operation, now, NULL);
+        return pycbc_Context_init(py_tracer, operation, now, NULL, component);
     }
 }
 

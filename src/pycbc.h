@@ -459,15 +459,15 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
 
 
 #define TRACED_FUNCTION_WRAPPER(name, CATEGORY, CLASS) \
-PyObject *pycbc_##CLASS##_##name##_real(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,\
+PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyObject *kwargs,\
                                         pycbc_stack_context_handle context);\
-PyObject *pycbc_##CLASS##_##name(pycbc_Bucket *self, \
+PyObject *pycbc_##CLASS##_##name(pycbc_##CLASS *self, \
                                       PyObject *args, PyObject *kwargs) {\
         PyObject* result;\
         WRAP_TOPLEVEL_WITHNAME(result, CATEGORY, pycbc_##CLASS##_##name##_real, self->tracer, #CLASS "." #name, self, args, kwargs);\
         return result;\
 }\
-PyObject *pycbc_##CLASS##_##name##_real(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,\
+PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyObject *kwargs,\
                                         pycbc_stack_context_handle context)
 
 /*****************
