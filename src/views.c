@@ -320,7 +320,7 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     }
 
     if (!self->base.done) {
-        pycbc_oputil_wait_common(bucket, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, viewresult.fetch));
+        pycbc_oputil_wait_common(bucket, PYCBC_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, "viewresult.fetch"));
     }
 
     if (pycbc_multiresult_maybe_raise(mres)) {

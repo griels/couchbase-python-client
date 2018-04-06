@@ -221,7 +221,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     if(*res) {
         stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
                                                        LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF);
+                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF, "get_common_objects");
         PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
         if ((*res)->is_tracing_stub) {
             PyDict_DelItem(mrdict, hkey);

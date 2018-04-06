@@ -203,12 +203,8 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     return cv.ret;
 }
 
-
-PyObject *
-pycbc_Bucket_endure_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
+TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, bucket.endure_multi);
     int rv;
     Py_ssize_t ncmds;
     pycbc_seqtype_t seqtype;
@@ -291,11 +287,8 @@ DECLFUNC(remove_multi, PYCBC_CMD_DELETE, PYCBC_ARGOPT_MULTI)
 DECLFUNC(unlock_multi, PYCBC_CMD_UNLOCK, PYCBC_ARGOPT_MULTI)
 
 
-PyObject *
-pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
+TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, bucket.stats);
     int rv;
     int ii;
     Py_ssize_t ncmds;
@@ -370,13 +363,8 @@ pycbc_Bucket__stats(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-
-PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
-                             PyObject *args,
-                             PyObject *kwargs)
+TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, bucket.ping);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
@@ -411,12 +399,8 @@ GT_DONE:
     return cv.ret;
 }
 
-PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
-                                    PyObject *args,
-                                    PyObject *kwargs)
+TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
 {
-    pycbc_stack_context_handle context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, bucket.diagnostics);
     int rv;
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;

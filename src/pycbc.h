@@ -380,7 +380,6 @@ typedef struct {
 #endif
 } pycbc_Span_t;
 
-#ifdef LCB_TRACING
 
 typedef struct
 {
@@ -389,13 +388,13 @@ typedef struct
     lcbtrace_SPAN* span;
 #endif
 } pycbc_stack_context;
+typedef pycbc_stack_context* pycbc_stack_context_handle;
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
 void pycbc_print_string( PyObject *curkey);
 void pycbc_print_repr( PyObject *pobj);
-void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
-typedef pycbc_stack_context* pycbc_stack_context_handle;
+#ifdef LCB_TRACING
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
@@ -403,6 +402,11 @@ pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObj
                                                    lcb_U64 now, pycbc_stack_context_handle context,
                                                    lcbtrace_REF_TYPE ref_type, const char* component);
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
+void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
+
+
+void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
+                              pycbc_stack_context_handle context);
 
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
 #define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
@@ -415,20 +419,18 @@ PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 
 #define PYCBC_TRACING_POP_CONTEXT(CONTEXT) pycbc_Context_finish(CONTEXT);
 
-#define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...) \
+#define WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
     int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
-    if (should_trace) { sub_context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, #CATEGORY, TRACER, NAME); };\
+    if (should_trace) { sub_context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
     if (should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
-        if (sub_context->span) lcbtrace_span_finish(sub_context->span, LCBTRACE_NOW);\
-        free(sub_context);\
+        pycbc_Context_finish(sub_context);\
     }\
 };
-
-void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
-                              pycbc_stack_context_handle context);
+#define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
+    WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
 
 #define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, #NAME))
 #define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT(NAME, NAME##_category(), KWARGS, __VA_ARGS__)
@@ -450,9 +452,23 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     const char* NAME##_category(void){ return CATEGORY; }\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context)
 
+
 #define TRACED_FUNCTION_DECL(QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void);\
     QUALIFIERS RTYPE NAME(__VA_ARGS__, pycbc_stack_context_handle context);
+
+
+#define TRACED_FUNCTION_WRAPPER(name, CATEGORY, CLASS) \
+PyObject *pycbc_##CLASS##_##name##_real(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,\
+                                        pycbc_stack_context_handle context);\
+PyObject *pycbc_##CLASS##_##name(pycbc_Bucket *self, \
+                                      PyObject *args, PyObject *kwargs) {\
+        PyObject* result;\
+        WRAP_TOPLEVEL_WITHNAME(result, CATEGORY, pycbc_##CLASS##_##name##_real, self->tracer, #CLASS "." #name, self, args, kwargs);\
+        return result;\
+}\
+PyObject *pycbc_##CLASS##_##name##_real(pycbc_Bucket *self, PyObject *args, PyObject *kwargs,\
+                                        pycbc_stack_context_handle context)
 
 /*****************
  * Result Objects.
@@ -741,7 +757,7 @@ enum {
 int pycbc_ResultType_ready(PyTypeObject *p, int flags);
 
 /**
- * Types uses for tracing
+ * Types used for tracing
  */
 #define PYCBC_TRACING_TYPES(X)\
     X(Tracer, "The Tracer Object") \
