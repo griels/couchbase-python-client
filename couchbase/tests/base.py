@@ -438,7 +438,7 @@ class ConnectionTestCase(CouchbaseTestCase):
 
 import time
 
-from jaeger_client import Config
+#from jaeger_client import Config
 import logging
 from basictracer import BasicTracer, SpanRecorder
 import couchbase
@@ -449,16 +449,16 @@ class LogRecorder(SpanRecorder):
         logging.info("recording span: "+str(span.__dict__))
 
 class TracedCase(ConnectionTestCase):
-    config = Config(
-        config={ # usually read from some yaml config
-            'sampler': {
-                'type': 'const',
-                'param': 1,
-            },
-            'logging': True,
-        },
-        service_name='your-app-name',
-    )
+    # config = Config(
+    #     config={ # usually read from some yaml config
+    #         'sampler': {
+    #             'type': 'const',
+    #             'param': 1,
+    #         },
+    #         'logging': True,
+    #     },
+    #     service_name='your-app-name',
+    # )
 
     _tracer = None
     @property
