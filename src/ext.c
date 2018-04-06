@@ -500,16 +500,18 @@ void pycbc_exception_log(const char* file, int line, int clear)
         pycbc_print_repr(value);
         PYCBC_DEBUG_LOG_RAW(",");
         pycbc_print_repr(traceback);
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
         if (clear)
         {
-            PyErr_Clear();
+            Py_XDECREF(type);
+            Py_XDECREF(value);
+            Py_XDECREF(traceback);
         }
-        PyErr_Print();
-        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
-        Py_XDECREF(type);
-        Py_XDECREF(value);
-        Py_XDECREF(traceback);
-        pycbc_exception_log(file,line, clear);
+        else
+        {
+            PyErr_Restore(type,value,traceback);
+
+        }
     }
 }
 
@@ -810,7 +812,6 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
     if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
-        PYCBC_EXCEPTION_LOG;
         if(fresh_span)
         {
             PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
@@ -827,12 +828,13 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
                 PYCBC_DEBUG_LOG("]\n");
                 PyObject_Call(finish_method, pycbc_DummyTuple, payload->span_finish_args);
             }
+
             Py_XDECREF(finish_method);
             Py_XDECREF(fresh_span);
         } else{
             PYCBC_DEBUG_LOG("Yielded no span!\n");
         }
-        PYCBC_EXCEPTION_LOG;
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
 
     }
 }

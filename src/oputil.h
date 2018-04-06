@@ -111,6 +111,7 @@ typedef int (*pycbc_oputil_keyhandler_raw)
 
 typedef struct {
     const char* category;
+    const char* name;
     pycbc_oputil_keyhandler_raw cb;
 } pycbc_oputil_keyhandler;
 /**
@@ -207,10 +208,10 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            Py_ssize_t ncmds,
                            int want_vals);
 
-pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(const char* category, pycbc_oputil_keyhandler_raw cb);
+pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(const char* category, pycbc_oputil_keyhandler_raw cb, const char* name);
 
-#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_oputil_keyhandler_build(NAME##_category(), NAME)
-#define PYCBC_OPUTIL_KEYHANDLER_INVOKE(NAME,...) WRAP_EXPLICIT(NAME.cb,NAME.category)
+#define PYCBC_OPUTIL_KEYHANDLER(NAME) pycbc_oputil_keyhandler_build(NAME##_category(), NAME, #NAME)
+//#define PYCBC_OPUTIL_KEYHANDLER_INVOKE(NAME,...) WRAP_EXPLICIT(NAME.cb,NAME.category)
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,...)\
     pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),__VA_ARGS__)
 

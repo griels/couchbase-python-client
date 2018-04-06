@@ -343,10 +343,11 @@ extract_item_params(struct pycbc_common_vars *cv,
     return 0;
 }
 
-pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(const char* category, pycbc_oputil_keyhandler_raw cb) {
+pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(const char* category, pycbc_oputil_keyhandler_raw cb, const char* name) {
 	pycbc_oputil_keyhandler handler;
 	handler.cb = cb;
 	handler.category = category;
+	handler.name = name;
 	return handler;
 }
 
@@ -393,7 +394,7 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-        rv = WRAP_EXPLICIT(handler.cb, handler.category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
+        rv = WRAP_EXPLICIT_NAMED(handler.cb, handler.name, handler.category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
 
         GT_ITER_DONE:
         Py_XDECREF(k);

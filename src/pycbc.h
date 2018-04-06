@@ -17,7 +17,7 @@
 extern "C"
 {
 #endif
-#define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
+#define PYCBC_DEBUG_LOG_RAW(...) //printf(__VA_ARGS__);
 
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
     PYCBC_DEBUG_LOG_RAW("at %s line %d:", FILE, LINE);PYCBC_DEBUG_LOG_RAW(__VA_ARGS__);\
@@ -457,8 +457,9 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
 
-#define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, #NAME))
-#define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT(NAME, NAME##_category(), KWARGS, __VA_ARGS__)
+#define WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
+//#define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) WRAP_EXPLICIT_NAMED(NAME,#NAME,CATEGORY,KWARGS, __VA_ARGS__)
+#define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 #else
 
 #define PYCBC_TRACECMD(CMD,CONTEXT)

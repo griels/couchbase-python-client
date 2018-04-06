@@ -436,6 +436,61 @@ class ConnectionTestCase(CouchbaseTestCase):
                 del self.cb
 
 
+import time
+
+from jaeger_client import Config
+import logging
+from basictracer import BasicTracer, SpanRecorder
+import couchbase
+
+class LogRecorder(SpanRecorder):
+
+    def record_span(self, span):
+        logging.info("recording span: "+str(span.__dict__))
+
+class TracedCase(ConnectionTestCase):
+    config = Config(
+        config={ # usually read from some yaml config
+            'sampler': {
+                'type': 'const',
+                'param': 1,
+            },
+            'logging': True,
+        },
+        service_name='your-app-name',
+    )
+
+    _tracer = None
+    @property
+    def tracer(self):
+        if not TracedCase._tracer:
+            TracedCase._tracer = BasicTracer(recorder=LogRecorder())
+            #GetTest._tracer= GetTest.config.initialize_tracer()
+        return TracedCase._tracer
+
+    def setUp(self):
+        log_level = logging.INFO
+        logging.getLogger('').handlers = []
+        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
+
+
+        # this call also sets opentracing.tracer
+        logging.info("my tracer is: ["+str(self.tracer)+":"+str(dir(self.tracer))+"]")
+        #self.tracer.start_span()
+        super(TracedCase, self).setUp(tracer=self.tracer)
+        couchbase.enable_logging()
+
+    def tearDown(self):
+        super(TracedCase,self).tearDown()
+
+
+        if self.tracer:
+            time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
+        try:
+            self.tracer.close()  # flush any buffered spans
+        except:
+            pass
+
 class RealServerTestCase(ConnectionTestCase):
     def setUp(self):
         super(RealServerTestCase, self).setUp()
