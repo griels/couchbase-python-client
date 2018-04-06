@@ -211,23 +211,29 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef LCB_TRACING
     pycbc_print_repr(mrdict);
-    PYCBC_DEBUG_LOG("\n decoding key with repr [");
+//PYCBC_DEBUG_LOG("\n decoding key with repr [");
     //pycbc_print_repr(hkey);
-    PYCBC_DEBUG_LOG("]\n");
+  //  PYCBC_DEBUG_LOG("]\n");
 
-    PYCBC_DEBUG_LOG("\n&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
+    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
     //pycbc_print_string(hkey);
-    PYCBC_DEBUG_LOG("]\nres %p",*res);
-    if(*res) {
-        stack_context_handle = pycbc_Tracer_span_start((*res)->tracing_context->tracer, NULL,
-                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                       (*res)->tracing_context, LCBTRACE_REF_CHILD_OF, "get_common_objects");
-        PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey, (const char *) resp->key);
-        if ((*res)->is_tracing_stub) {
-            PyDict_DelItem(mrdict, hkey);
+    PYCBC_DEBUG_LOG_RAW("]\n");
+    PYCBC_DEBUG_LOG("res %p",*res);
+    pycbc_stack_context_handle handle = (*res)->tracing_context;
 
-            *res = NULL;
+    if(*res ) {
+        if (PYCBC_CHECK_CONTEXT(handle)) {
+            stack_context_handle = pycbc_Tracer_span_start(handle->tracer, NULL,
+                                                           LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                           handle, LCBTRACE_REF_CHILD_OF, "get_common_objects");
+            PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey,
+                            (const char *) resp->key);
+            if ((*res)->is_tracing_stub) {
+                PyDict_DelItem(mrdict, hkey);
 
+                *res = NULL;
+
+            }
         }
     }
     else
@@ -274,7 +280,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         }
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
 #ifdef LCB_TRACING
-        (*res)->tracing_context = stack_context_handle;
+        handle = stack_context_handle;
         (*res)->is_tracing_stub = 0;
 #endif
         (*res)->key = hkey;

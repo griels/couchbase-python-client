@@ -701,11 +701,18 @@ Bucket__init__(pycbc_Bucket *self,
         self->unlock_gil = 0;
     }
 #ifdef LCB_TRACING
-    {
+    if (tracer){
         PyObject *tracer_args = PyTuple_New(2);
         PyTuple_SetItem(tracer_args, 0, tracer);
         PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
         self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
+        if (PyErr_Occurred()) {
+            PYCBC_EXCEPTION_LOG_NOCLEAR;
+            Py_XDECREF(self->tracer);
+            self->tracer = NULL;
+//            Bucket_dtor(self);
+//            return -1;
+        }
         PYCBC_DEBUG_LOG("got %p back from bucket constructor\n", self->tracer);
     }
 #endif
@@ -792,6 +799,7 @@ Bucket__init__(pycbc_Bucket *self,
     }
 
     self->btype = pycbc_IntFromL(LCB_BTYPE_UNSPEC);
+
     return 0;
 }
 
@@ -863,7 +871,7 @@ Bucket_dtor(pycbc_Bucket *self)
         lcb_destroy(self->instance);
     }
 #ifdef LCB_TRACING
-    Py_DecRef((PyObject*)self->tracer);
+    Py_XDECREF((PyObject*)self->tracer);
 #endif
 #ifdef WITH_THREAD
     if (self->lock) {

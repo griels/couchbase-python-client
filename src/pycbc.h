@@ -17,8 +17,14 @@
 extern "C"
 {
 #endif
-#define PYCBC_DEBUG_LOG(...)
-    //printf(__VA_ARGS__)
+#define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
+
+#define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
+    PYCBC_DEBUG_LOG_RAW("at %s line %d:", FILE, LINE);PYCBC_DEBUG_LOG_RAW(__VA_ARGS__);\
+    PYCBC_DEBUG_LOG_RAW(POSTFIX);
+#define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(FILE,LINE,...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,"\n", __VA_ARGS__);
+#define PYCBC_DEBUG_LOG_WITHOUT_NEWLINE(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(__FILE__,__LINE__, "", __VA_ARGS__);
+#define PYCBC_DEBUG_LOG(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(__FILE__,__LINE__,__VA_ARGS__);
 
 #ifndef PYCBC_H_
 #define PYCBC_H_
@@ -413,7 +419,23 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
 
 #define PYCBC_DEFAULT_TRACING_KEY Py_None
 
-#define PYCBC_TRACECMD_PURE(CMD,CONTEXT)  { PYCBC_DEBUG_LOG("\nsetting trace span on %.*s\n",(int)(CMD).key.contig.nbytes,(const char*)(CMD).key.contig.bytes); LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);};
+pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line);
+
+void pycbc_exception_log(const char* file, int line, int clear);
+
+#define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
+#define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
+
+#define PYCBC_CHECK_CONTEXT(CONTEXT) pycbc_check_context(CONTEXT,__FILE__,__LINE__)
+#define PYCBC_TRACECMD_PURE(CMD,CONTEXT) {\
+    if (PYCBC_CHECK_CONTEXT(CONTEXT))\
+    {  \
+        PYCBC_DEBUG_LOG("setting trace span on %.*s\n",\
+        (int)(CMD).key.contig.nbytes,(const char*)(CMD).key.contig.bytes);\
+        LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);\
+    } else {PYCBC_EXCEPTION_LOG_NOCLEAR;}\
+};
+
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
     pycbc_init_traced_result(BUCKET, pycbc_multiresult_dict(MRES), CURKEY, context);
 
@@ -428,7 +450,10 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     if (should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
         pycbc_Context_finish(sub_context);\
     }\
+    PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
+
+
 #define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
 

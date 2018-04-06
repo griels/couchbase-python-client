@@ -41,7 +41,7 @@ class LogRecorder(SpanRecorder):
     def record_span(self, span):
         logging.info("recording span: "+str(span.__dict__))
 
-class GetTest(ConnectionTestCase):
+class TracedCase(ConnectionTestCase):
     config = Config(
        config={ # usually read from some yaml config
            'sampler': {
@@ -56,10 +56,10 @@ class GetTest(ConnectionTestCase):
     _tracer = None
     @property
     def tracer(self):
-        if not GetTest._tracer:
+        if not TracedCase._tracer:
             GetTest._tracer = BasicTracer(recorder=LogRecorder())
             #GetTest._tracer= GetTest.config.initialize_tracer()
-        return GetTest._tracer
+        return TracedCase._tracer
 
     def setUp(self):
         log_level = logging.INFO
@@ -69,11 +69,12 @@ class GetTest(ConnectionTestCase):
 
         # this call also sets opentracing.tracer
         logging.info("my tracer is: ["+str(self.tracer)+":"+str(dir(self.tracer))+"]")
-        super(GetTest, self).setUp(tracer=self.tracer)
+        #self.tracer.start_span()
+        super(TracedCase, self).setUp(tracer=self.tracer)
         couchbase.enable_logging()
 
     def tearDown(self):
-        super(GetTest,self).tearDown()
+        super(TracedCase,self).tearDown()
 
 
         if self.tracer:
@@ -83,6 +84,7 @@ class GetTest(ConnectionTestCase):
         except:
             pass
 
+class GetTest(TracedCase):
     def test_trivial_get(self):
         key = self.gen_key('trivial_get')
         self.cb.upsert(key, 'value1')

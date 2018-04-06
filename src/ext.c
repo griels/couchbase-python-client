@@ -471,7 +471,7 @@ void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
         const char *keyname = PyUnicode_AsUTF8(curkey);
-        PYCBC_DEBUG_LOG("%s",  keyname);//(int)length, keyname);
+        PYCBC_DEBUG_LOG_RAW("%s",  keyname);//(int)length, keyname);
     }
 #else
     {
@@ -487,9 +487,36 @@ void pycbc_print_repr( PyObject *pobj) {
     Py_DecRef(curkey);
 }
 
+
+void pycbc_exception_log(const char* file, int line, int clear)
+{
+
+    if (PyErr_Occurred()) {
+        PyObject* type, *value, *traceback;
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(file, line, "***** EXCEPTION:[", "");
+        PyErr_Fetch(&type,&value,&traceback);
+        pycbc_print_repr(type);
+        PYCBC_DEBUG_LOG_RAW(",");
+        pycbc_print_repr(value);
+        PYCBC_DEBUG_LOG_RAW(",");
+        pycbc_print_repr(traceback);
+        if (clear)
+        {
+            PyErr_Clear();
+        }
+        PyErr_Print();
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
+        Py_XDECREF(type);
+        Py_XDECREF(value);
+        Py_XDECREF(traceback);
+        pycbc_exception_log(file,line, clear);
+    }
+}
+
 pycbc_stack_context_handle
 pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now, lcbtrace_REF *ref, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
+    pycbc_assert(py_tracer);
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
@@ -498,12 +525,26 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now
 
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
 {
-    if ((context) && (context)->tracer && (context)->span) {
+    if (PYCBC_CHECK_CONTEXT(context)) {
         lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((context)->span);
         lcbtrace_span_finish((context)->span, 0);
         (context)->span = NULL;//parent_span;
     };
     return Py_None;
+}
+pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line)
+{
+    if (!(CONTEXT)){
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"warning: got null context");
+    } else if (!(CONTEXT)->tracer){\
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"warning: got null tracer");
+    } else if (!(CONTEXT)->span){
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"warning: got null span");
+    }
+    else {
+        return CONTEXT;
+    }
+    return NULL;
 }
 
 pycbc_stack_context_handle
@@ -513,7 +554,8 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
     if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))
     {
-        abort();
+        printf("Warning - got NULL tracer\n");
+        return NULL;
     }
 
     if (context )
@@ -768,11 +810,7 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
     if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
         PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
                                                      payload->span_start_args);
-        if (PyErr_Occurred())
-        {
-            PyErr_Print();
-            PyErr_Clear();
-        }
+        PYCBC_EXCEPTION_LOG;
         if(fresh_span)
         {
             PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
@@ -794,11 +832,8 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
         } else{
             PYCBC_DEBUG_LOG("Yielded no span!\n");
         }
-        if (PyErr_Occurred())
-        {
-            PyErr_Print();
-            PyErr_Clear();
-        }
+        PYCBC_EXCEPTION_LOG;
+
     }
 }
 void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
@@ -869,12 +904,13 @@ lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
         pycbc_print_repr(parent);
         PYCBC_DEBUG_LOG("]\n");
         zipkin->start_span_method = PyObject_GetAttrString(parent, "start_span");
-        if (zipkin->start_span_method)
+        if (!zipkin->start_span_method)
         {
-            PYCBC_DEBUG_LOG("got start_span method:[");
-            pycbc_print_repr(zipkin->start_span_method);
-            PYCBC_DEBUG_LOG("]\n");
+            PYCBC_EXCEPTION_LOG_NOCLEAR;
         }
+        PYCBC_DEBUG_LOG("got start_span method:[");
+        pycbc_print_repr(zipkin->start_span_method);
+        PYCBC_DEBUG_LOG("]\n");
     }
     return tracer;
 }
@@ -941,6 +977,7 @@ Tracer__init__(pycbc_Tracer_t *self,
     //pycbc_print_repr(args);
     PYCBC_DEBUG_LOG("I'm in ur tracer init with a bucket %p and tracer %p\n", bucket, tracer);
     self->tracer=pycbc_zipkin_new(tracer);
+
     self->parent=tracer!=Py_None?tracer:NULL;
     return rv;
 }
