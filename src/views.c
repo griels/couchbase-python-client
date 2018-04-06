@@ -348,11 +348,15 @@ ViewResult__init__(PyObject *self_raw,
     }
     else
     {
+        PyObject* args = PyTuple_New(1);
+        PyTuple_SetItem(args,0, Py_None);
         self->own_tracer = 1;
-        self->py_tracer = (pycbc_Tracer_t*)PyObject_CallFunction((PyObject*)&pycbc_TracerType, "O", Py_None);
+        self->py_tracer = (pycbc_Tracer_t*)PyObject_Call((PyObject*)&pycbc_TracerType, args, pycbc_DummyKeywords);
+        Py_XDECREF(args);
         PYCBC_DEBUG_LOG("Made tracer %\n", self->py_tracer);
     }
 #endif
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
     return 0;
 }
 

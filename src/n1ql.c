@@ -58,8 +58,16 @@ query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
     mres = (pycbc_MultiResult *)pycbc_multiresult_new(self);
     {
         PyObject* kwargs = PyDict_New();
-        PyDict_SetItemString(kwargs, "tracer", self->tracer);
+        if (self->tracer) {
+            PyDict_SetItemString(kwargs, "tracer", self->tracer);
+        }
         vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject*)&pycbc_ViewResultType, "OO", Py_None, kwargs);
+        if (!vres)
+        {
+            PYCBC_DEBUG_LOG("null vres");
+        }
+
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
         PYCBC_DEBUG_LOG("got vres: %p", vres);
     }
     pycbc_httpresult_init(&vres->base, mres);

@@ -900,8 +900,8 @@ lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
     zipkin->last = NULL;
     zipkin->content_length = 0;
     tracer->cookie = zipkin;
-    zipkin->parent = parent;
     if (parent) {
+        zipkin->parent = parent;
         PYCBC_DEBUG_LOG("\ninitialising tracer start_span method from:[");
         pycbc_print_repr(parent);
         PYCBC_DEBUG_LOG("]\n");
@@ -975,12 +975,13 @@ Tracer__init__(pycbc_Tracer_t *self,
 {
     int rv = 0;
     PyObject* tracer =PyTuple_GetItem(args, 0);
-    pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
+//    pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
     //pycbc_print_repr(args);
-    PYCBC_DEBUG_LOG("I'm in ur tracer init with a bucket %p and tracer %p\n", bucket, tracer);
-    self->tracer=pycbc_zipkin_new(tracer);
+    PYCBC_DEBUG_LOG("I'm in ur tracer init with a bucket %p and tracer %p\n", tracer);
+    self->parent=(tracer && PyObject_IsTrue(tracer))?tracer:NULL;
+    self->tracer=pycbc_zipkin_new(self->parent);
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
 
-    self->parent=tracer!=Py_None?tracer:NULL;
     return rv;
 }
 
