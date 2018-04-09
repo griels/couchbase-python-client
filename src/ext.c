@@ -472,6 +472,7 @@ void pycbc_print_string( PyObject *curkey) {
     {
         const char *keyname = PyUnicode_AsUTF8(curkey);
         PYCBC_DEBUG_LOG_RAW("%s",  keyname);//(int)length, keyname);
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
     }
 #else
     {
@@ -482,7 +483,12 @@ void pycbc_print_string( PyObject *curkey) {
 
 
 void pycbc_print_repr( PyObject *pobj) {
+    PyObject* x,*y,*z;
+    PyErr_Fetch(&x,&y,&z);
     PyObject *curkey = PyObject_Repr(pobj);
+    PYCBC_EXCEPTION_LOG;
+    PyErr_Restore(x,y,z);
+    if (!curkey) { PYCBC_DEBUG_LOG("got null repr from %p",pobj); return;}
     pycbc_print_string(curkey);
     Py_DecRef(curkey);
 }
