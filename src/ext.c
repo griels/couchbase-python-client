@@ -663,7 +663,6 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("After insertion:[");
     pycbc_print_repr(mres_dict);
     PYCBC_DEBUG_LOG("]\n");
-    //pycbc_print_repr(mres_dict);
 }
 
 void pycbc_set_dict_kv_object(PyObject *dict, char *key_str, PyObject *item) {
