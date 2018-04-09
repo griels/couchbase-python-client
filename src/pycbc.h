@@ -17,7 +17,7 @@
 extern "C"
 {
 #endif
-#define PYCBC_DEBUG_LOG_RAW(...) //printf(__VA_ARGS__);
+#define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
 
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
     PYCBC_DEBUG_LOG_RAW("at %s line %d:", FILE, LINE);PYCBC_DEBUG_LOG_RAW(__VA_ARGS__);\
@@ -417,7 +417,8 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
 #define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
 #define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
 
-#define PYCBC_DEFAULT_TRACING_KEY Py_None
+extern PyObject* pycbc_default_key;
+#define PYCBC_DEFAULT_TRACING_KEY pycbc_default_key
 
 pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line);
 
@@ -447,7 +448,7 @@ void pycbc_exception_log(const char* file, int line, int clear);
     pycbc_stack_context_handle sub_context = NULL;\
     if (should_trace) { sub_context = PYCBC_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if (should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
+    if ( 0 && should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
         pycbc_Context_finish(sub_context);\
     }\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\

@@ -83,6 +83,7 @@ class ClusterInformation(object):
         self.bucket_password = ""
         self.ipv6 = "disabled"
         self.protocol = "http"
+        self.enable_tracing = "off"
 
     @staticmethod
     def filter_opts(options):
@@ -90,6 +91,7 @@ class ClusterInformation(object):
                 options.items() if key in ["certpath", "keypath", "ipv6", "config_cache", "compression", "log_redaction", "enable_tracing"] and value}
 
     def make_connargs(self, **overrides):
+        logging.info("make_connargs "+str(self.__dict__)+" and overrides" +str(overrides))
         bucket = self.bucket_name
         if 'bucket' in overrides:
             bucket = overrides.pop('bucket')
@@ -119,6 +121,7 @@ class ClusterInformation(object):
 
     def make_connection(self, conncls, **kwargs):
         connargs = self.make_connargs(**kwargs)
+        logging.info("calling "+str(conncls)+" with args "+str(connargs))
         return conncls(**connargs)
 
     def make_admin_connection(self):
@@ -146,7 +149,8 @@ class ConnectionConfiguration(object):
         info.certpath = config.get('realserver', 'certpath', fallback=None)
         info.keypath = config.get('realserver', 'keypath', fallback=None)
         info.protocol = config.get('realserver', 'protocol', fallback="http")
-        info.enable_tracing = config.get('realserver', 'tracing', fallback=None)
+        info.enable_tracing = config.get('realserver', 'tracing', fallback="fish")
+        logging.info("info is "+str(info.__dict__))
         if config.getboolean('realserver', 'enabled'):
             self.realserver_info = info
         else:
@@ -204,6 +208,7 @@ class MockResourceManager(TestResourceManager):
         info.admin_username = "Administrator"
         info.admin_password = "password"
         info.mock = mock
+        info.enable_tracing = "on"
         self._info = info
         return info
 

@@ -358,7 +358,7 @@ pycbc_multiresult_get_result(pycbc_MultiResult *self)
         return res;
     }
     PYCBC_DEBUG_LOG("\n hit multiresult_get_result:[");
-    pycbc_print_repr(self);
+    pycbc_print_repr((PyObject*)self);
     PYCBC_DEBUG_LOG("]\n");
     PYCBC_DEBUG_LOG("\ngot results:[");
     pycbc_print_repr(mres);

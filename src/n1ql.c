@@ -59,7 +59,7 @@ query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
     {
         PyObject* kwargs = PyDict_New();
         if (self->tracer) {
-            PyDict_SetItemString(kwargs, "tracer", self->tracer);
+            PyDict_SetItemString(kwargs, "tracer", (PyObject*)self->tracer);
         }
         vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject*)&pycbc_ViewResultType, "OO", Py_None, kwargs);
         if (!vres)

@@ -353,7 +353,7 @@ ViewResult__init__(PyObject *self_raw,
         self->own_tracer = 1;
         self->py_tracer = (pycbc_Tracer_t*)PyObject_Call((PyObject*)&pycbc_TracerType, args, pycbc_DummyKeywords);
         Py_XDECREF(args);
-        PYCBC_DEBUG_LOG("Made tracer %\n", self->py_tracer);
+        PYCBC_DEBUG_LOG("Made tracer %p\n", self->py_tracer);
     }
 #endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -367,7 +367,7 @@ ViewResult_dealloc(pycbc_ViewResult *vres)
 #ifdef LCB_TRACING
     if (vres->own_tracer && vres->py_tracer) {
         lcbtrace_destroy(vres->py_tracer->tracer);
-        Py_DecRef(vres->py_tracer);
+        Py_DecRef((PyObject*)vres->py_tracer);
     }
 #endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);

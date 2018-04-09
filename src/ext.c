@@ -522,14 +522,16 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
+    PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s",context, context->span, component, operation);
     return context;
 }
 
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
 {
     if (PYCBC_CHECK_CONTEXT(context)) {
-        lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((context)->span);
-        lcbtrace_span_finish((context)->span, 0);
+        PYCBC_DEBUG_LOG("closing span %p",context->span);
+        //lcbtrace_SPAN *parent_span = lcbtrace_span_get_parent((context)->span);
+        lcbtrace_span_finish(context->span, 0);
         (context)->span = NULL;//parent_span;
     };
     return Py_None;
@@ -631,25 +633,28 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
 
-
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_pybuffer keybuf={0};
     pycbc_ValueResult *item = pycbc_valresult_new(self);
 	pycbc_tc_encode_key(self, curkey, &keybuf);
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
 	pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
 	//Py_IncRef(item);
     item->tracing_context = context;
     item->is_tracing_stub = 1;
-    PYCBC_DEBUG_LOG("\nres %p: binding context %p to [", item, context);
-    //pycbc_print_repr(curkey);
-    PYCBC_DEBUG_LOG("]\n");
+    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("\nres %p: binding context %p to [", item, context);
+    pycbc_print_repr(curkey);
+    PYCBC_DEBUG_LOG_RAW("]\n");
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
     Py_IncRef(curkey);
     PYCBC_DEBUG_LOG("\nPrior to insertion:[");
     pycbc_print_repr(mres_dict);
-    PYCBC_DEBUG_LOG("]\n");
+    PYCBC_DEBUG_LOG_RAW("]\n");
     PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
-    PYCBC_DEBUG_LOG("After insertion:[");
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
+    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("After insertion:[");
     pycbc_print_repr(mres_dict);
     PYCBC_DEBUG_LOG("]\n");
     //pycbc_print_repr(mres_dict);
@@ -977,7 +982,7 @@ Tracer__init__(pycbc_Tracer_t *self,
     PyObject* tracer =PyTuple_GetItem(args, 0);
 //    pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
     //pycbc_print_repr(args);
-    PYCBC_DEBUG_LOG("I'm in ur tracer init with a bucket %p and tracer %p\n", tracer);
+    PYCBC_DEBUG_LOG("I'm in ur tracer init with a tracer %p\n", tracer);
     self->parent=(tracer && PyObject_IsTrue(tracer))?tracer:NULL;
     self->tracer=pycbc_zipkin_new(self->parent);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -1020,11 +1025,30 @@ pycbc_##TYPENAME##Type_init(PyObject **ptr)\
     p->tp_methods = pycbc_##TYPENAME##_TABLE_methods;\
     p->tp_members = pycbc_##TYPENAME##_TABLE_members;\
     p->tp_getset = pycbc_##TYPENAME##_TABLE_getset;\
-    \
-    pycbc_DummyTuple = PyTuple_New(0);\
-    pycbc_DummyKeywords = PyDict_New();\
 \
     return PyType_Ready(p);\
 }
-PYCBC_TRACING_TYPES(PYCBC_TYPE_INIT);
+
+PyTypeObject pycbc_TracerType = {
+        PYCBC_POBJ_HEAD_INIT(NULL)
+        0
+};
+PyObject* pycbc_default_key;
+int pycbc_TracerType_init(PyObject **ptr) {
+    PyTypeObject *p = &pycbc_TracerType;
+    *ptr = (PyObject *) p;
+    if (p->tp_name) { return 0; }
+    p->tp_name = "Tracer";
+    p->tp_new = PyType_GenericNew;
+    p->tp_init = (initproc) Tracer__init__;
+    p->tp_dealloc = (destructor) Tracer_dtor;
+    p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+    p->tp_doc = "The Tracer Object";
+    p->tp_basicsize = sizeof(pycbc_Tracer_t);
+    p->tp_methods = pycbc_Tracer_TABLE_methods;
+    p->tp_members = pycbc_Tracer_TABLE_members;
+    p->tp_getset = pycbc_Tracer_TABLE_getset;
+    pycbc_default_key = pycbc_SimpleStringZ("__PYCBC_DEFAULT_KEY");
+    return PyType_Ready(p);
+};
 #endif
