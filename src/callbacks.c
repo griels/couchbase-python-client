@@ -313,6 +313,7 @@ void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype
             *res = (pycbc_Result*)pycbc_valresult_new(*conn);
 
         }
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
 }
 
 static void

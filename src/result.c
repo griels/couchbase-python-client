@@ -121,6 +121,7 @@ pycbc_Result_init(PyObject *self_raw,
     self->is_tracing_stub = 0;
     self->tracing_context = NULL;
 #endif
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
     return 0;
 }
 

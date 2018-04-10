@@ -564,6 +564,7 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
     if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))
     {
+        PYCBC_EXCEPTION_LOG;
         printf("Warning - got NULL tracer\n");
         return NULL;
     }
@@ -596,8 +597,11 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
 
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
 
-void pycbc_set_kv_ull(PyObject *span_args, char *key, lcb_U64 parenti_id);
-
+void pycbc_set_kv_ull(PyObject *span_args, PyObject *keystr, lcb_U64 parenti_id) {
+    PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
+    PyDict_SetItem(span_args, keystr, pULL);
+    Py_DECREF(pULL);
+}
 
 struct zipkin_payload;
 
@@ -681,6 +685,43 @@ void pycbc_init_span_args(zipkin_payload* payload)
 
 #define CB_THR_END cb_thr_end
 #define CB_THR_BEGIN cb_thr_begin
+#include "lcb_ot.h"
+PyObject *finish_time;
+#define PYCBC_X_TAGNAMES(X)\
+    X(operation_name) \
+    X(child_of) \
+    X(start_time)
+#define X(NAME) PyObject* pycbc_##NAME;
+PYCBC_X_TAGNAMES(X)
+#undef X
+
+#define PYCBC_X_LITERALTAGNAMES(X)\
+    X(DB_TYPE) \
+X(PEER_LATENCY) \
+X(OPERATION_ID) \
+X(COMPONENT) \
+X(PEER_ADDRESS) \
+X(LOCAL_ADDRESS) \
+X(DB_INSTANCE)
+#undef X
+
+#define X(NAME) PyObject* pycbc_##NAME;
+PYCBC_X_LITERALTAGNAMES(X)
+#undef X
+
+
+
+
+void pycbc_init_tagnames()
+{
+#define X(NAME) pycbc_##NAME=pycbc_SimpleStringZ(#NAME);
+    PYCBC_X_TAGNAMES(X)
+#undef X
+#define X(NAME) pycbc_##NAME=pycbc_SimpleStringZ(LCBTRACE_TAG_##NAME);
+    PYCBC_X_LITERALTAGNAMES(X);
+#undef X
+}
+
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 {
     zipkin_state *state = NULL;
@@ -697,8 +738,8 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     }
 
     {
-#define add_text(...) pycbc_dict_add_text_kv(__VA_ARGS__)
-#define add_ull(...) pycbc_set_kv_ull(__VA_ARGS__)
+#define add_text(DICT, KEY, VALUE) PyDict_SetItem(DICT, pycbc_##KEY, pycbc_SimpleStringZ(VALUE))
+#define add_ull(DICT, KEY, VALUE) pycbc_set_kv_ull(DICT, pycbc_##KEY, VALUE)
 
 #define BUFSZ 1000
         size_t nbuf = BUFSZ;
@@ -717,7 +758,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 
             buf = calloc(nbuf, sizeof(char));
             //cJSON_AddItemToObject(json, "name", cJSON_CreateString(lcbtrace_span_get_operation(span)));
-            add_text(span_args, "operation_name", lcbtrace_span_get_operation(span));
+            add_text(span_args, operation_name, lcbtrace_span_get_operation(span));
             snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_span_id(span));
             //cJSON_AddItemToObject(json, "id", cJSON_CreateString(buf));
             snprintf(buf, nbuf, "%" PRIx64, lcbtrace_span_get_trace_id(span));
@@ -727,14 +768,14 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
                 snprintf(buf, nbuf, "%" PRIx64, parenti_id);
                 //cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
-                add_ull(span_args, "child_of", parenti_id);
+                add_ull(span_args, child_of, parenti_id);
             }
             start = lcbtrace_span_get_start_ts(span);
             //cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
 
             //cJSON_AddItemToObject(json, "duration", cJSON_CreateNumber(lcbtrace_span_get_finish_ts(span) - start));
-            add_ull(span_finish_args, "finish_time", lcbtrace_span_get_finish_ts(span));
-            add_ull(span_args, "start_time", start);
+            pycbc_set_kv_ull(span_finish_args, finish_time, lcbtrace_span_get_finish_ts(span));
+            add_ull(span_args, start_time, start);
             {
                 //cJSON *endpoint = cJSON_CreateObject();
 
@@ -742,7 +783,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
-                    add_text(tags_p, LCBTRACE_TAG_DB_TYPE, buf);
+                    add_text(tags_p, DB_TYPE, buf);
                 }
                 //cJSON_AddItemToObject(json, "localEndpoint", endpoint);
                 //add_text(tags_p, "localEndpoint", endpoint);
@@ -753,35 +794,35 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 lcb_U64 latency, operation_id;
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
-                    add_ull(tags_p, LCBTRACE_TAG_PEER_LATENCY, latency);
+                    add_ull(tags_p, PEER_LATENCY, latency);
                 }
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
-                    add_ull(tags_p, LCBTRACE_TAG_OPERATION_ID, operation_id);
+                    add_ull(tags_p, OPERATION_ID, operation_id);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
-                    add_text(tags_p, LCBTRACE_TAG_COMPONENT, buf);
+                    add_text(tags_p, COMPONENT, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
-                    add_text(tags_p, LCBTRACE_TAG_PEER_ADDRESS, buf);
+                    add_text(tags_p, PEER_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
-                    add_text(tags_p, LCBTRACE_TAG_LOCAL_ADDRESS, buf);
+                    add_text(tags_p, LOCAL_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
-                    add_text(tags_p, LCBTRACE_TAG_DB_INSTANCE, buf);
+                    add_text(tags_p, DB_INSTANCE, buf);
                 }
                 //if (cJSON_GetArraySize(tags) > 0) {
                 //    //cJSON_AddItemToObject(json, "tags", tags);
@@ -886,13 +927,6 @@ void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
     pycbc_zipkin_flush(tracer);
 }
 
-void pycbc_set_kv_ull(PyObject *span_args, char *key, lcb_U64 parenti_id) {
-    PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
-    PyObject* keystr = pycbc_SimpleStringZ(key);
-    PyDict_SetItem(span_args, keystr, pULL);
-    Py_DECREF(pULL);
-    Py_DECREF(keystr);
-}
 
 
 lcbtrace_TRACER *pycbc_zipkin_new(PyObject* parent)
@@ -1054,6 +1088,8 @@ int pycbc_TracerType_init(PyObject **ptr) {
     p->tp_members = pycbc_Tracer_TABLE_members;
     p->tp_getset = pycbc_Tracer_TABLE_getset;
     pycbc_default_key = pycbc_SimpleStringZ("__PYCBC_DEFAULT_KEY");
+    finish_time = pycbc_SimpleStringZ("finish_time");
+    pycbc_init_tagnames();
     return PyType_Ready(p);
 };
 #endif

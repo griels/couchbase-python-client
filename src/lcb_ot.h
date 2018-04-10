@@ -94,7 +94,7 @@ void lcb_ot_pt_str(const opentracing_string_t* string)
     char* buffer= malloc(string->size+1);
     memcpy(buffer,string->data,string->size);
     buffer[string->size]=0;
-    debug_log("%s",buffer);
+    PYCBC_DEBUG_LOG("%s",buffer);
     free(buffer);
 }
 
@@ -156,7 +156,7 @@ const opentracing_string_t* lcb_ot_id_str(lcb_span_id_t id)
 #define PP_EACH_TAG_ID(NAMESPACE_FN,DIV)\
     NAMESPACE_FN(couchbase,operation_id,service) DIV\
     NAMESPACE_FN(local,address) DIV\
-    NAMESPACE_FN(peer,address)
+    NAMESPACE_FN(peer,address,latency)
 
 #define DIV ,
 #define NS_ENUM(X,...) lcb_tag_ns_##X

@@ -146,15 +146,22 @@ class ItemTest(ConnectionTestCase):
                           ItemSequence([it]))
 
     def test_apiwrap(self):
-        it = Item(self.gen_key("item_apiwrap"))
-        self.cb.upsert_multi(it.as_itcoll())
-        self.assertTrue(it.cas)
+        exceptions= []
+        for count in range(0,1):
+            try:
+                it = Item(self.gen_key("item_apiwrap"))
+                self.cb.upsert_multi(it.as_itcoll())
+                self.assertTrue(it.cas)
 
-        # Set with 'ignorecas'
-        it.cas = 1234
-        self.cb.upsert_multi(it.as_itcoll(ignore_cas=True))
+                # Set with 'ignorecas'
+                it.cas = 1234
+                self.cb.upsert_multi(it.as_itcoll(ignore_cas=True))
 
-        self.cb.upsert_multi(ItemSequence(it))
+                self.cb.upsert_multi(ItemSequence(it))
+            except Exception as e:
+                exceptions.append(e)
+        if len(exceptions)>0:
+            raise exceptions[0]
 
     def test_invalid_item(self):
         itcoll = ItemOptionDict()
