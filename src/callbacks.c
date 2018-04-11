@@ -130,8 +130,8 @@ void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
         PyObject *valstr = pycbc_SimpleStringZ(value);
         PyObject *keystr = pycbc_SimpleStringZ(key);
         PyDict_SetItem(dict, keystr, valstr);
-        Py_DECREF(valstr);
-        Py_DECREF(keystr);
+        PYCBC_DECREF(valstr);
+        PYCBC_DECREF(keystr);
     }
 }
 

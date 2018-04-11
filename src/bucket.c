@@ -708,7 +708,7 @@ Bucket__init__(pycbc_Bucket *self,
         self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
-            Py_XDECREF(self->tracer);
+            PYCBC_XDECREF(self->tracer);
             self->tracer = NULL;
 //            Bucket_dtor(self);
 //            return -1;
@@ -871,7 +871,7 @@ Bucket_dtor(pycbc_Bucket *self)
         lcb_destroy(self->instance);
     }
 #ifdef LCB_TRACING
-    Py_XDECREF((PyObject*)self->tracer);
+    PYCBC_XDECREF((PyObject*)self->tracer);
 #endif
 #ifdef WITH_THREAD
     if (self->lock) {

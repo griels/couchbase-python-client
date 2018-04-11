@@ -342,18 +342,9 @@ ViewResult__init__(PyObject *self_raw,
 #ifdef LCB_TRACING
     PYCBC_DEBUG_LOG("in ur view making ur tracer\n");
     self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
+    self->own_tracer = 0;
     if (self->py_tracer) {
-        self->own_tracer = 0;
         PYCBC_DEBUG_LOG("Got parent tracer %p\n", self->py_tracer);
-    }
-    else
-    {
-        PyObject* args = PyTuple_New(1);
-        PyTuple_SetItem(args,0, Py_None);
-        self->own_tracer = 1;
-        self->py_tracer = (pycbc_Tracer_t*)PyObject_Call((PyObject*)&pycbc_TracerType, args, pycbc_DummyKeywords);
-        Py_XDECREF(args);
-        PYCBC_DEBUG_LOG("Made tracer %p\n", self->py_tracer);
     }
 #endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;

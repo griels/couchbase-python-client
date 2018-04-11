@@ -80,7 +80,7 @@ class ItemTest(ConnectionTestCase):
         self.assertRaises(ValueFormatError, self.cb.upsert_multi, itcoll)
 
     def test_items_append(self):
-        for count in range(0,10000000):
+        for count in range(0,10):
             k = self.gen_key("itm_append")
             it = Item(k, "MIDDLE")
             itcoll = ItemOptionDict()
@@ -149,7 +149,7 @@ class ItemTest(ConnectionTestCase):
                           ItemSequence([it]))
 
     def test_apiwrap(self):
-        raise SkipTest()
+#        raise SkipTest()
         exceptions= []
         for count in range(0,1):
             try:
