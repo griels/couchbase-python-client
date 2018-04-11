@@ -1,0 +1,1 @@
+find couchbase -name '*.py' | sed -e 's/\//\./g' | xargs -I% bash -c 'monkeytype apply `basename -s .py %`'
