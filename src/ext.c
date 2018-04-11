@@ -735,15 +735,7 @@ typedef struct pycbc_tracer_finish_args
 
 PyObject* pycbc_set_tags_from_payload(pycbc_tracer_tags_t *args) {
     PyObject *dict = PyDict_New();
-    //PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
-    if (args->DB_TYPE) { pycbc_set_dict_kv_object(dict, pycbc_DB_TYPE, (args->DB_TYPE)); }
-    if (args->PEER_LATENCY) { pycbc_set_kv_ull(dict, pycbc_PEER_LATENCY, *(args->PEER_LATENCY)); }
-    if (args->OPERATION_ID) { pycbc_set_kv_ull(dict, pycbc_OPERATION_ID, *(args->OPERATION_ID)); }
-    if (args->COMPONENT) { pycbc_set_dict_kv_object(dict, pycbc_COMPONENT, (args->COMPONENT)); }
-    if (args->PEER_ADDRESS) { pycbc_set_dict_kv_object(dict, pycbc_PEER_ADDRESS, (args->PEER_ADDRESS)); }
-    if (args->LOCAL_ADDRESS) { pycbc_set_dict_kv_object(dict, pycbc_LOCAL_ADDRESS, (args->LOCAL_ADDRESS)); }
-    if (args->DB_INSTANCE) { pycbc_set_dict_kv_object(dict, pycbc_DB_INSTANCE, (args->DB_INSTANCE)); };
-
+    PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
     return dict;
 }
 
@@ -752,19 +744,13 @@ PyObject* pycbc_set_tags_from_payload(pycbc_tracer_tags_t *args) {
 
 PyObject* pycbc_set_args_from_payload(pycbc_tracer_span_args_t *args) {
     PyObject* dict = PyDict_New();
-    //PYCBC_X_SPAN_ARGS(TEXT,ULL,TAGS);
-    if (args->operation_name) { pycbc_set_dict_kv_object(dict, pycbc_operation_name, (args->operation_name)); }
-    if (args->child_of) { pycbc_set_kv_ull(dict, pycbc_child_of, *(args->child_of)); }
-    if (args->start_time) { pycbc_set_kv_ull(dict, pycbc_start_time, *(args->start_time)); }
-    if (args->tags) { PyDict_SetItem(dict, pycbc_tags, pycbc_set_tags_from_payload((args->tags))); };
-
+    PYCBC_X_SPAN_ARGS(TEXT,ULL,TAGS);
     return dict;
 }
 
 PyObject* pycbc_set_finish_args_from_payload(pycbc_tracer_finish_args_t *args) {
     PyObject* dict = PyDict_New();
-    //PYCBC_X_FINISH_ARGS(TEXT,ULL);
-    if (args->finish_time) { pycbc_set_kv_ull(dict, pycbc_finish_time, *(args->finish_time)); };
+    PYCBC_X_FINISH_ARGS(TEXT,ULL);
     return dict;
 }
 
@@ -971,7 +957,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *payload) {
     zipkin_state *state = (zipkin_state *) tracer->tracer->cookie;
     pycbc_assert(state->parent);
-    if (0 && state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
+    if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
         PyObject* start_span_args = pycbc_set_args_from_payload(payload->span_start_args);
         PyObject *fresh_span;
 
