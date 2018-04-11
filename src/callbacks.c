@@ -211,17 +211,15 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef LCB_TRACING
     pycbc_print_repr(mrdict);
-//PYCBC_DEBUG_LOG("\n decoding key with repr [");
-    //pycbc_print_repr(hkey);
-  //  PYCBC_DEBUG_LOG("]\n");
 
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
     //pycbc_print_string(hkey);
+    pycbc_stack_context_handle handle = NULL;
     PYCBC_DEBUG_LOG_RAW("]\n");
-    PYCBC_DEBUG_LOG("res %p",*res);
-    pycbc_stack_context_handle handle = (*res)->tracing_context;
-
     if(*res ) {
+        handle = (*res)->tracing_context;
+        PYCBC_DEBUG_LOG("res %p",*res);
+
         if (PYCBC_CHECK_CONTEXT(handle)) {
             stack_context_handle = pycbc_Tracer_span_start(handle->tracer, NULL,
                                                            LCBTRACE_OP_RESPONSE_DECODING, 0,

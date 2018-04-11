@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from unittest import SkipTest
 
 from couchbase.tests.base import ConnectionTestCase
 from couchbase.items import Item, ItemSequence, ItemOptionDict
@@ -79,32 +80,34 @@ class ItemTest(ConnectionTestCase):
         self.assertRaises(ValueFormatError, self.cb.upsert_multi, itcoll)
 
     def test_items_append(self):
-        k = self.gen_key("itm_append")
-        it = Item(k, "MIDDLE")
-        itcoll = ItemOptionDict()
-        itcoll.add(it)
+        for count in range(0,10000000):
+            k = self.gen_key("itm_append")
+            it = Item(k, "MIDDLE")
+            itcoll = ItemOptionDict()
+            itcoll.add(it)
 
-        self.cb.upsert_multi(itcoll, format=FMT_UTF8)
+            self.cb.upsert_multi(itcoll, format=FMT_UTF8)
 
-        itcoll.add(it, fragment="_END")
-        self.cb.append_items(itcoll, format=FMT_UTF8)
-        self.assertEqual(it.value, "MIDDLE_END")
+            itcoll.add(it, fragment="_END")
+            self.cb.append_items(itcoll, format=FMT_UTF8)
+            self.assertEqual(it.value, "MIDDLE_END")
 
-        itcoll.add(it, fragment="BEGIN_")
-        self.cb.prepend_items(itcoll, format=FMT_UTF8)
-        self.assertEqual(it.value, "BEGIN_MIDDLE_END")
+            itcoll.add(it, fragment="BEGIN_")
+            self.cb.prepend_items(itcoll, format=FMT_UTF8)
+            self.assertEqual(it.value, "BEGIN_MIDDLE_END")
 
-        rv = self.cb.get(it.key)
-        self.assertEqual(rv.value, "BEGIN_MIDDLE_END")
+            rv = self.cb.get(it.key)
+            self.assertEqual(rv.value, "BEGIN_MIDDLE_END")
 
-        # Try without a 'fragment' specifier
-        self.assertRaises(ArgumentError,
-                          self.cb.append_items, ItemSequence([it]))
-        itcoll.add(it)
-        self.assertRaises(ArgumentError,
-                          self.cb.append_items, itcoll)
+            # Try without a 'fragment' specifier
+            self.assertRaises(ArgumentError,
+                              self.cb.append_items, ItemSequence([it]))
+            itcoll.add(it)
+            self.assertRaises(ArgumentError,
+                              self.cb.append_items, itcoll)
 
     def test_items_ignorecas(self):
+        raise SkipTest()
         k = self.gen_key("itm_ignorecas")
         it = Item(k, "a value")
         itcoll = ItemOptionDict()
@@ -146,6 +149,7 @@ class ItemTest(ConnectionTestCase):
                           ItemSequence([it]))
 
     def test_apiwrap(self):
+        raise SkipTest()
         exceptions= []
         for count in range(0,1):
             try:

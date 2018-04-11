@@ -505,7 +505,23 @@ void pycbc_exception_log(const char* file, int line, int clear)
         PYCBC_DEBUG_LOG_RAW(",");
         pycbc_print_repr(value);
         PYCBC_DEBUG_LOG_RAW(",");
-        pycbc_print_repr(traceback);
+        if (0){
+            /* See if we can get a full traceback */
+            PyObject* module_name = PyString_FromString("traceback");
+            PyObject* pyth_module = PyImport_Import(module_name);
+            Py_DECREF(module_name);
+
+            if (pyth_module) {
+                PyObject* pyth_func = PyObject_GetAttrString(pyth_module, "format_exception");
+                if (pyth_func && PyCallable_Check(pyth_func)) {
+                    PyObject *pyth_val;
+
+                    pyth_val = PyObject_CallFunctionObjArgs(pyth_func, type, value, traceback, NULL);
+                    pycbc_print_string(pyth_val);
+                    Py_DECREF(pyth_val);
+                }
+            }
+        }
         PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
         if (clear)
         {
@@ -595,8 +611,6 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & 
 
 void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer);
 
-void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span);
-
 void pycbc_set_kv_ull(PyObject *span_args, PyObject *keystr, lcb_U64 parenti_id) {
     PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
     PyDict_SetItem(span_args, keystr, pULL);
@@ -604,11 +618,11 @@ void pycbc_set_kv_ull(PyObject *span_args, PyObject *keystr, lcb_U64 parenti_id)
 }
 
 struct zipkin_payload;
-
+struct pycbc_report_items;
 typedef struct zipkin_payload {
     //const char* data;
     PyObject* span_start_args;
-    PyObject* span_tags_args;
+    struct pycbc_report_items* span_tags_args;
     PyObject* span_finish_args;
 
     struct zipkin_payload *next;
@@ -674,53 +688,106 @@ void pycbc_set_dict_kv_object(PyObject *dict, char *key_str, PyObject *item) {
     PyDict_SetItem(dict, key, item);
     Py_DECREF(key);
 }
+#include "lcb_ot.h"
+PyObject *finish_time;
+#define PYCBC_X_TAGNAMES(TEXT,ULL)\
+    TEXT(operation_name) \
+    ULL(child_of) \
+    ULL(start_time)
+
+#define X(NAME) PyObject* pycbc_##NAME;
+PYCBC_X_TAGNAMES(X,X)
+#undef X
+
+#define PYCBC_X_LITERALTAGNAMES(TEXT,ULL)\
+    TEXT(DB_TYPE) \
+    ULL(PEER_LATENCY) \
+    ULL(OPERATION_ID) \
+    TEXT(COMPONENT) \
+    TEXT(PEER_ADDRESS) \
+    TEXT(LOCAL_ADDRESS) \
+    TEXT(DB_INSTANCE)
+#undef X
+
+#define X(NAME) PyObject* pycbc_##NAME;
+PYCBC_X_LITERALTAGNAMES(X,X)
+#undef X
+
+
+typedef struct pycbc_report_items {
+#define PYCBC_TAG_TEXT(NAME) const char* NAME;
+#define PYCBC_TAG_ULL(NAME) lcb_U64* NAME;
+        PYCBC_X_TAGNAMES(PYCBC_TAG_TEXT,PYCBC_TAG_ULL);
+    PYCBC_X_LITERALTAGNAMES(PYCBC_TAG_TEXT,PYCBC_TAG_ULL);
+#undef X
+    } pycbc_report_items_t;
+PyObject *pycbc_tags_str;
+
+#define add_text_tag(DICT, KEY, VALUE) (DICT)->KEY=malloc(strlen(VALUE));\
+    memcpy((void*)((DICT)->KEY), (void*)(VALUE), strlen(VALUE));
+#define add_ull_tag(DICT, KEY, VALUE) (DICT)->KEY=malloc(sizeof(lcb_U64));\
+    *((DICT)->KEY)=VALUE
+
+void pycbc_set_kv_string(PyObject *dict, PyObject *key, const char *orig_value) {
+    if (orig_value) {
+        PyObject *value = pycbc_SimpleStringZ(orig_value);
+        PyDict_SetItem(dict, key, value);
+        Py_DecRef(value);
+    }
+}
+
+void pycbc_set_tags_from_payload(PyObject *dict, pycbc_report_items_t *tags) {
+#define TEXT(NAME) //if (tags->NAME) { PyDict_SetItemString(dict, pycbc_##NAME, pycbc_SimpleStringZ(tags->NAME)); }
+#define ULL(NAME) if(tags->NAME) { pycbc_set_kv_ull(dict, pycbc_##NAME, *(tags->NAME)); }
+//PYCBC_X_TAGNAMES(TEXT,ULL);
+PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
+#undef ULL
+#undef TEXT
+}
+
+void pycbc_span_tags_args_dealloc(pycbc_report_items_t* args) {
+#define TEXT(NAME) free((void*)args->NAME);
+#define ULL(NAME) free((void*)args->NAME);
+    PYCBC_X_TAGNAMES(TEXT,ULL);
+    PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
+#undef TEXT
+#undef ULL
+    free(args);
+}
 
 void pycbc_init_span_args(zipkin_payload* payload)
 {
     payload->span_start_args=PyDict_New();
-    payload->span_tags_args=PyDict_New();
+    payload->span_tags_args=malloc(sizeof(pycbc_report_items_t));
+    memset((payload->span_tags_args),0, sizeof(pycbc_report_items_t));
     payload->span_finish_args=PyDict_New();
-    pycbc_set_dict_kv_object(payload->span_start_args, "tags", payload->span_tags_args);
 }
 
-#define CB_THR_END cb_thr_end
-#define CB_THR_BEGIN cb_thr_begin
-#include "lcb_ot.h"
-PyObject *finish_time;
-#define PYCBC_X_TAGNAMES(X)\
-    X(operation_name) \
-    X(child_of) \
-    X(start_time)
-#define X(NAME) PyObject* pycbc_##NAME;
-PYCBC_X_TAGNAMES(X)
-#undef X
+void pycbc_payload_dealloc(zipkin_payload *pPayload) {
+    pycbc_span_tags_args_dealloc(pPayload->span_tags_args);
+    //Py_XDECREF(pPayload->span_tags_args);
+    Py_XDECREF(pPayload->span_start_args);
+    Py_XDECREF(pPayload->span_finish_args);
+    free(pPayload);
 
-#define PYCBC_X_LITERALTAGNAMES(X)\
-    X(DB_TYPE) \
-X(PEER_LATENCY) \
-X(OPERATION_ID) \
-X(COMPONENT) \
-X(PEER_ADDRESS) \
-X(LOCAL_ADDRESS) \
-X(DB_INSTANCE)
-#undef X
-
-#define X(NAME) PyObject* pycbc_##NAME;
-PYCBC_X_LITERALTAGNAMES(X)
-#undef X
-
-
+}
 
 
 void pycbc_init_tagnames()
 {
 #define X(NAME) pycbc_##NAME=pycbc_SimpleStringZ(#NAME);
-    PYCBC_X_TAGNAMES(X)
+    PYCBC_X_TAGNAMES(X,X)
 #undef X
 #define X(NAME) pycbc_##NAME=pycbc_SimpleStringZ(LCBTRACE_TAG_##NAME);
-    PYCBC_X_LITERALTAGNAMES(X);
+    PYCBC_X_LITERALTAGNAMES(X,X);
 #undef X
+    pycbc_tags_str = pycbc_SimpleStringZ("tags");
 }
+
+
+
+#define CB_THR_END cb_thr_end
+#define CB_THR_BEGIN cb_thr_begin
 
 void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 {
@@ -738,7 +805,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     }
 
     {
-#define add_text(DICT, KEY, VALUE) PyDict_SetItem(DICT, pycbc_##KEY, pycbc_SimpleStringZ(VALUE))
+        #define add_text(DICT, KEY, VALUE) PyDict_SetItem(DICT, pycbc_##KEY, pycbc_SimpleStringZ(VALUE))
 #define add_ull(DICT, KEY, VALUE) pycbc_set_kv_ull(DICT, pycbc_##KEY, VALUE)
 
 #define BUFSZ 1000
@@ -751,7 +818,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
         pycbc_init_span_args(payload);
         {
             PyObject* span_args = payload->span_start_args;
-            PyObject* tags_p = payload->span_tags_args;
+            pycbc_report_items_t* tags_p = payload->span_tags_args;
             PyObject* span_finish_args = payload->span_finish_args;
             PYCBC_DEBUG_LOG("got span %p\n", span);
 
@@ -768,7 +835,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 lcb_U64 parenti_id = lcbtrace_span_get_trace_id(parent);
                 snprintf(buf, nbuf, "%" PRIx64, parenti_id);
                 //cJSON_AddItemToObject(json, "parentId", cJSON_CreateString(buf));
-                add_ull(span_args, child_of, parenti_id);
+                //add_ull(span_args, child_of, parenti_id);
             }
             start = lcbtrace_span_get_start_ts(span);
             //cJSON_AddItemToObject(json, "timestamp", cJSON_CreateNumber(start));
@@ -783,7 +850,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(endpoint, "serviceName", cJSON_CreateString(buf));
-                    add_text(tags_p, DB_TYPE, buf);
+                    add_text_tag(tags_p, DB_TYPE, buf);
                 }
                 //cJSON_AddItemToObject(json, "localEndpoint", endpoint);
                 //add_text(tags_p, "localEndpoint", endpoint);
@@ -794,42 +861,36 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
                 lcb_U64 latency, operation_id;
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_LATENCY, cJSON_CreateNumber(latency));
-                    add_ull(tags_p, PEER_LATENCY, latency);
+                    add_ull_tag(tags_p, PEER_LATENCY, latency);
                 }
                 if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_OPERATION_ID, cJSON_CreateNumber(operation_id));
-                    add_ull(tags_p, OPERATION_ID, operation_id);
+                    add_ull_tag(tags_p, OPERATION_ID, operation_id);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_COMPONENT, cJSON_CreateString(buf));
-                    add_text(tags_p, COMPONENT, buf);
+                    add_text_tag(tags_p, COMPONENT, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_PEER_ADDRESS, cJSON_CreateString(buf));
-                    add_text(tags_p, PEER_ADDRESS, buf);
+                    add_text_tag(tags_p, PEER_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_LOCAL_ADDRESS, cJSON_CreateString(buf));
-                    add_text(tags_p, LOCAL_ADDRESS, buf);
+                    add_text_tag(tags_p, LOCAL_ADDRESS, buf);
                 }
                 nbuf = BUFSZ;
                 if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
                     buf[nbuf] = '\0';
                     //cJSON_AddItemToObject(tags, LCBTRACE_TAG_DB_INSTANCE, cJSON_CreateString(buf));
-                    add_text(tags_p, DB_INSTANCE, buf);
+                    add_text_tag(tags_p, DB_INSTANCE, buf);
                 }
-                //if (cJSON_GetArraySize(tags) > 0) {
-                //    //cJSON_AddItemToObject(json, "tags", tags);
-                //}
-                //else {
-                    //cJSON_Delete(tags);
-                //}
             }
         }
         free(buf);
@@ -851,6 +912,7 @@ void pycbc_zipkin_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 }
 
 
+
 void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *payload) {
     zipkin_state *state = (zipkin_state *) tracer->tracer->cookie;
     pycbc_assert(state->parent);
@@ -861,7 +923,25 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
     pycbc_print_repr(payload->span_start_args);
     PYCBC_DEBUG_LOG("]\n");
     if (state->start_span_method && PyObject_IsTrue(state->start_span_method)) {
-        PyObject *fresh_span = PyObject_CallFunction(state->start_span_method, "O",
+        {
+            PyObject *p_tags = PyDict_New();
+            pycbc_set_tags_from_payload(p_tags, payload->span_tags_args);
+            PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("set tags from payload to get:[");
+            pycbc_print_repr(p_tags);
+            PYCBC_DEBUG_LOG_RAW("\n");
+            PyDict_SetItem(payload->span_start_args, pycbc_tags_str, p_tags);
+            Py_DecRef(p_tags);
+            PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("full args to start_span:[");
+            pycbc_print_repr(payload->span_start_args);
+            PYCBC_DEBUG_LOG_RAW("\n");
+
+        }
+        PyObject *fresh_span;
+
+            PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("calling start method:[");
+            pycbc_print_repr(state->start_span_method);
+            PYCBC_DEBUG_LOG_RAW("]");
+        fresh_span= PyObject_Call(state->start_span_method, pycbc_DummyTuple,
                                                      payload->span_start_args);
         if(fresh_span)
         {
@@ -889,6 +969,7 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct zipkin_payload *
 
     }
 }
+
 void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
 {
     zipkin_state *state = NULL;
@@ -913,15 +994,13 @@ void pycbc_zipkin_flush(pycbc_Tracer_t *tracer)
                 pycbc_Tracer_propagate_span(tracer, tmp);
             }
             ptr = ptr->next;
-            Py_XDECREF(tmp->span_finish_args);
-            Py_XDECREF(tmp->span_tags_args);
-            Py_XDECREF(tmp->span_start_args);
-            free(tmp);
+            pycbc_payload_dealloc(tmp);
         }
     }
     state->root = state->last = NULL;
     state->content_length = 0;
 }
+
 
 void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
     pycbc_zipkin_flush(tracer);
@@ -1073,6 +1152,15 @@ PyTypeObject pycbc_TracerType = {
         0
 };
 PyObject* pycbc_default_key;
+
+#include <signal.h>
+
+/* Catch Signal Handler functio */
+void signal_callback_handler(int signum){
+
+    printf("Caught signal SIGPIPE %d\n",signum);
+}
+
 int pycbc_TracerType_init(PyObject **ptr) {
     PyTypeObject *p = &pycbc_TracerType;
     *ptr = (PyObject *) p;
@@ -1090,6 +1178,9 @@ int pycbc_TracerType_init(PyObject **ptr) {
     pycbc_default_key = pycbc_SimpleStringZ("__PYCBC_DEFAULT_KEY");
     finish_time = pycbc_SimpleStringZ("finish_time");
     pycbc_init_tagnames();
+/* Catch Signal Handler SIGPIPE */
+    signal(SIGPIPE, signal_callback_handler);
+    PYCBC_DEBUG_LOG("***** installed SIGPIPE handler *****");
     return PyType_Ready(p);
 };
 #endif

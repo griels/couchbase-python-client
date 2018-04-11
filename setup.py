@@ -151,8 +151,8 @@ setup(
         'acouchbase.py34only'
     ] if sys.version_info >= (3, 4) else []),
     package_data = pkgdata,
-    install_requires = [ 'jaeger-client==3.8.0', 'basictracer==2.2.0', 'opentracing_instrumentation' ],
-    tests_require = [ 'nose', 'testresources>=0.2.7','jaeger-client==3.8.0', 'basictracer==2.2.0', 'opentracing_instrumentation'  ],
+    install_requires = [ ],
+    tests_require = [ 'nose', 'testresources>=0.2.7', 'basictracer==2.2.0'  ],
     test_suite = 'couchbase.tests.test_sync',
     **setup_kw
 )
