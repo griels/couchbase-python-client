@@ -282,7 +282,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         (*res)->is_tracing_stub = 0;
 #endif
         (*res)->key = hkey;
-        Py_DECREF(*res);
+        PYCBC_DECREF(*res);
     }
 
     PYCBC_TRACING_POP_CONTEXT(stack_context_handle);

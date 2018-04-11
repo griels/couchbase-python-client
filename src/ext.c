@@ -25,8 +25,8 @@ struct pycbc_helpers_ST pycbc_helpers;
 PyObject *pycbc_log_handler = NULL;
 
 static void log_handler(struct lcb_logprocs_st *procs, unsigned int iid,
-                        const char *subsys, int severity, const char *srcfile, int srcline,
-                        const char *fmt, va_list ap);
+    const char *subsys, int severity, const char *srcfile, int srcline,
+    const char *fmt, va_list ap);
 
 struct lcb_logprocs_st pycbc_lcb_logprocs = { 0 };
 
@@ -83,7 +83,7 @@ _libcouchbase_modify_helpers(PyObject *self, PyObject *args, PyObject *kwargs)
         PyObject **field = NULL;
         PyObject *dent = curval;
 
-#define X(name) \
+        #define X(name) \
         if (!field) { \
             get_helper_field(#name, \
                              curkey, \
@@ -92,7 +92,7 @@ _libcouchbase_modify_helpers(PyObject *self, PyObject *args, PyObject *kwargs)
         }
 
         PYCBC_XHELPERS(X)
-#undef X
+        #undef X
 
         if (!field) {
             PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Unknown helper", curkey);
@@ -133,13 +133,13 @@ _libcouchbase_get_helper(PyObject *self, PyObject *arg)
         return NULL;
     }
 
-#define X(name) \
+    #define X(name) \
     if (!field) { \
         get_helper_field(#name, key, &pycbc_helpers.name, &field); \
     }
 
     PYCBC_XHELPERS(X)
-#undef X
+    #undef X
 
     if (!field) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Unknown helper", key);
@@ -225,44 +225,44 @@ set_log_handler(PyObject *self, PyObject *args)
 
 static PyMethodDef _libcouchbase_methods[] = {
         { "_init_helpers", (PyCFunction)_libcouchbase_init_helpers,
-                                                       METH_VARARGS|METH_KEYWORDS,
+                METH_VARARGS|METH_KEYWORDS,
                 "internal function to initialize python-language helpers"
         },
         { "_strerror", (PyCFunction)_libcouchbase_strerror,
-                                                       METH_VARARGS|METH_KEYWORDS,
+                METH_VARARGS|METH_KEYWORDS,
                 "Internal function to map errors"
         },
         { "_modify_helpers", (PyCFunction)_libcouchbase_modify_helpers,
-                                                       METH_VARARGS|METH_KEYWORDS,
+                METH_VARARGS|METH_KEYWORDS,
                 "Internal function to modify helpers during runtime"
         },
         { "_get_helper", (PyCFunction)_libcouchbase_get_helper,
-                                                       METH_VARARGS,
+                METH_VARARGS,
                 "Get a helper by name"
         },
         { "_get_errtype", (PyCFunction) pycbc_exc_get_categories,
-                                                       METH_VARARGS,
+                METH_VARARGS,
                 "Get error categories for a given code"
         },
         { "lcb_version",
                 (PyCFunction)pycbc_lcb_version,
-                                                       METH_NOARGS,
+                METH_NOARGS,
                 PyDoc_STR(
-                        "Get `libcouchbase` version information\n"
-                        "\n"
-                        ":return: a tuple of ``(version_string, version_number)``\n"
-                        "  corresponding to the underlying libcouchbase version\n"
+                "Get `libcouchbase` version information\n"
+                "\n"
+                ":return: a tuple of ``(version_string, version_number)``\n"
+                "  corresponding to the underlying libcouchbase version\n"
 
-                        "Show the versions ::\n" \
+                "Show the versions ::\n" \
                 "   \n"
-                        "   verstr, vernum = Connection.lcb_version()\n"
-                        "   print('0x{0:x}'.format(vernum))\n"
-                        "   # 0x020005\n"
-                        "   \n"
-                        "   print(verstr)\n"
-                        "   # 2.0.5\n"
-                        "\n"
-                        "\n")
+                "   verstr, vernum = Connection.lcb_version()\n"
+                "   print('0x{0:x}'.format(vernum))\n"
+                "   # 0x020005\n"
+                "   \n"
+                "   print(verstr)\n"
+                "   # 2.0.5\n"
+                "\n"
+                "\n")
         },
         { "lcb_logging", (PyCFunction)set_log_handler, METH_VARARGS,
                 PyDoc_STR("Get/Set logging callback")
@@ -356,9 +356,9 @@ init_libcouchbase(void)
     }
 
 #ifndef PYCBC_CPYCHECKER
-        /**
-         * Add the type:
-         */
+    /**
+     * Add the type:
+     */
 #define X(name, infunc) \
     PyModule_AddObject(m, #name, cls_##name);
     X_PYTYPES(X)
@@ -499,7 +499,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
             /* See if we can get a full traceback */
             PyObject* module_name = PyString_FromString("traceback");
             PyObject* pyth_module = PyImport_Import(module_name);
-            Py_DECREF(module_name);
+            PYCBC_DECREF(module_name);
 
             if (pyth_module) {
                 PyObject* pyth_func = PyObject_GetAttrString(pyth_module, "format_exception");
@@ -508,7 +508,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
 
                     pyth_val = PyObject_CallFunctionObjArgs(pyth_func, type, value, traceback, NULL);
                     pycbc_print_string(pyth_val);
-                    Py_DECREF(pyth_val);
+                    PYCBC_DECREF(pyth_val);
                 }
             }
         }
