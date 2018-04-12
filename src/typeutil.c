@@ -19,9 +19,7 @@
  * types. This also does a lot of the porting and handling between Python
  * major versions as well.
  */
-#include "oputil.h"
 #include "pycbc.h"
-
 #if PY_MAJOR_VERSION == 2
 
 unsigned PY_LONG_LONG
@@ -204,4 +202,3 @@ pycbc_get_u32(PyObject *obj, lcb_uint32_t *out)
     return 0;
 
 }
-

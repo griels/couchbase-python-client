@@ -216,7 +216,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     //pycbc_print_string(hkey);
     pycbc_stack_context_handle handle = NULL;
     PYCBC_DEBUG_LOG_RAW("]\n");
-    if(*res ) {
+    if(0 && *res ) {
         handle = (*res)->tracing_context;
         PYCBC_DEBUG_LOG("res %p",*res);
 
@@ -226,13 +226,14 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
                                                            handle, LCBTRACE_REF_CHILD_OF, "get_common_objects");
             PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey,
                             (const char *) resp->key);
-            if ((*res)->is_tracing_stub) {
-                PyDict_DelItem(mrdict, hkey);
-
-                *res = NULL;
-
-            }
         }
+        if ((*res)->is_tracing_stub) {
+            PyDict_DelItem(mrdict, hkey);
+
+            *res = NULL;
+
+        }
+
     }
     else
     {
@@ -299,15 +300,19 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
 void pycbc_new_result(pycbc_Bucket *const *conn, pycbc_Result **res, int restype, pycbc_MultiResult *const *mres) {
     if ((*mres)->mropts & PYCBC_MRES_F_ITEMS) {
+        PYCBC_DEBUG_LOG("Item creation");
             *res = (pycbc_Result*)pycbc_item_new(*conn);
 
         } else if (restype & RESTYPE_BASE) {
+        PYCBC_DEBUG_LOG("Result creation");
             *res = (pycbc_Result*)pycbc_result_new(*conn);
 
         } else if (restype & RESTYPE_OPERATION) {
+        PYCBC_DEBUG_LOG("Opresult creation");
             *res = (pycbc_Result*)pycbc_opresult_new(*conn);
 
         } else if (restype & RESTYPE_VALUE) {
+        PYCBC_DEBUG_LOG("Valresult creation");
             *res = (pycbc_Result*)pycbc_valresult_new(*conn);
 
         }

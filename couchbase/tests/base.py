@@ -72,7 +72,8 @@ from couchbase._pyport import basestring
 
 CONFIG_FILE = 'tests.ini' # in cwd
 
-
+import gc
+gc.set_debug(gc.DEBUG_LEAK | gc.DEBUG_STATS)
 class ClusterInformation(object):
     def __init__(self):
         self.host = "localhost"

@@ -593,10 +593,14 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_pybuffer keybuf={0};
-    pycbc_ValueResult *item = pycbc_valresult_new(self);
+    pycbc_Result *item;
+    return;
     pycbc_tc_encode_key(self, curkey, &keybuf);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
+    item=(pycbc_Result*)PyDict_GetItem(mres_dict, curkey);
+    if (!item) { item = (pycbc_Result*) pycbc_valresult_new(self); }
+
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     //Py_IncRef(item);
     item->tracing_context = context;
@@ -645,7 +649,7 @@ void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_s
     pycbc_print_repr(key);
     PYCBC_DEBUG_LOG_RAW("], value %s to [", value_str);
     pycbc_print_repr(dict);
-    PYCBC_DEBUG_LOG_RAW("]");
+    PYCBC_DEBUG_LOG_RAW("]\n");
     PyObject *value = pycbc_SimpleStringZ(value_str);
     PyDict_SetItem(dict, key, value);
     PYCBC_DECREF(value);
@@ -657,7 +661,7 @@ void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_U64 parenti_id) {
     pycbc_print_repr(keystr);
     PYCBC_DEBUG_LOG_RAW("], value %" PRId64 " to [", parenti_id);
     pycbc_print_repr(dict);
-    PYCBC_DEBUG_LOG_RAW("]");
+    PYCBC_DEBUG_LOG_RAW("]\n");
     PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
     PyDict_SetItem(dict, keystr, pULL);
     PYCBC_DECREF(pULL);

@@ -358,7 +358,7 @@ ViewResult_dealloc(pycbc_ViewResult *vres)
 #ifdef LCB_TRACING
     if (vres->own_tracer && vres->py_tracer) {
         lcbtrace_destroy(vres->py_tracer->tracer);
-        Py_DecRef((PyObject*)vres->py_tracer);
+        PYCBC_DECREF((PyObject*)vres->py_tracer);
     }
 #endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);

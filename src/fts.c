@@ -78,7 +78,7 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 #endif
         vres = (pycbc_ViewResult *) PYCBC_TYPE_CTOR(&pycbc_ViewResultType, NULL, view_kwargs);
 #ifdef LCB_TRACING
-        Py_DECREF(view_kwargs);
+        PYCBC_DECREF(view_kwargs);
 #endif
     }
     pycbc_httpresult_init(&vres->base, mres);
