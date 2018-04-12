@@ -19,7 +19,7 @@
 
 struct arithmetic_common_vars {
     lcb_S64 delta;
-    lcb_U64 initial;
+    lcb_uint64_t initial;
     unsigned long ttl;
     int create;
 };

@@ -37,7 +37,7 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 {
     int rv;
     pycbc_pybuffer keybuf = { NULL };
-    lcb_U64 cas = 0;
+    lcb_uint64_t cas = 0;
     lcb_error_t err;
 
     union {

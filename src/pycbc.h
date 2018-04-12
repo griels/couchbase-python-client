@@ -411,7 +411,7 @@ typedef void* pycbc_stack_context_handle;
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 
 pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
-                                                   lcb_U64 now, pycbc_stack_context_handle context,
+                                                   lcb_uint64_t now, pycbc_stack_context_handle context,
                                                    lcbtrace_REF_TYPE ref_type, const char* component);
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);

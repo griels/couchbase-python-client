@@ -29,7 +29,7 @@ struct storecmd_vars {
     unsigned int sd_doc_flags;
     unsigned long ttl;
     PyObject *flagsobj;
-    lcb_U64 single_cas;
+    lcb_uint64_t single_cas;
 };
 
 struct single_key_context {
