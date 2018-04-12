@@ -58,7 +58,7 @@ else:
 
     extoptions['libraries'] = ['libcouchbase']
     ## Enable these lines for debug builds
-    #extoptions['extra_compile_args'] = ['/Zi','-DHAVE_STDINT_H=TRUE']
+    extoptions['extra_compile_args'] = ['/Zi','/P']
     extoptions['extra_link_args'] = ['/DEBUG']
     extoptions['library_dirs'] = [os.path.join(lcb_root, 'lib')]
     extoptions['include_dirs'] = [os.path.join(lcb_root, 'include')]
