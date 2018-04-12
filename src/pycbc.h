@@ -369,17 +369,17 @@ typedef struct {
 
 } pycbc_Bucket;
 
+#ifdef LCB_TRACING
 
 typedef struct pycbc_Tracer {
     PyObject_HEAD
-#ifdef LCB_TRACING
     lcbtrace_TRACER *tracer;
     PyObject* parent;
-#endif
     lcb_t *instance;
 
     int init_called:1;
 } pycbc_Tracer_t;
+#endif
 
 static PyTypeObject SpanType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
@@ -602,8 +602,10 @@ typedef struct {
     PyObject *rows;
     long rows_per_call;
     char has_parse_error;
+#ifdef LCB_TRACING
     pycbc_Tracer_t* py_tracer;
     int own_tracer;
+#endif
 } pycbc_ViewResult;
 
 

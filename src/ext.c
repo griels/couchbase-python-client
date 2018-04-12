@@ -643,11 +643,6 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 }
 
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
-#else
-pycbc_stack_context_handle
-pycbc_Tracer_span_start(void* x, PyObject *y, const char *z, lcb_U64 a, pycbc_stack_context_handle b, lcbtrace_REF_TYPE c) {
-    return NULL;
-}
 #endif
 
 void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_str) {
