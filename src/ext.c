@@ -447,10 +447,7 @@ static void log_handler(struct lcb_logprocs_st *procs,
 
 
 #include <stdio.h>
-#include <libcouchbase/couchbase.h>
-#include <libcouchbase/api3.h>
 #include <libcouchbase/tracing.h>
-#include "../contrib/cJSON/cJSON.h"
 #ifdef _WIN32
 #define PRIx64 "I64x"
 #define PRId64 "I64d"

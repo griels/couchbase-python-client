@@ -395,15 +395,12 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
         } else {
             arg_k = k;
         }
-#ifdef LCB_TRACING
-#define CALL_HANDLER(HANDLER, ...) \
-        WRAP_EXPLICIT_NAMED(handler.cb, handler.name, handler.category, __VA_ARGS__)
-#else
-#define CALL_HANDLER(HANDLER, ...) \
-        WRAP_EXPLICIT_NAMED(HANDLER, "", "", __VA_ARGS__)
-#endif
 
-        rv = CALL_HANDLER(handler, NULL, self, cv, optype, arg_k, v, options, itm, arg);
+#ifdef LCB_TRACING
+        rv = WRAP_EXPLICIT_NAMED((handler).cb, (handler).name, (handler).category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
+#else
+        rv = WRAP_EXPLICIT_NAMED(handler, "", "", NULL, self, cv, optype, arg_k, v, options, itm, arg);
+#endif
 
     GT_ITER_DONE:
         Py_XDECREF(k);
