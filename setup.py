@@ -58,7 +58,7 @@ else:
 
     extoptions['libraries'] = ['libcouchbase']
     ## Enable these lines for debug builds
-    extoptions['extra_compile_args'] = ['/Zi','/P']
+    extoptions['extra_compile_args'] = ['/Zi']
     extoptions['extra_link_args'] = ['/DEBUG']
     extoptions['library_dirs'] = [os.path.join(lcb_root, 'lib')]
     extoptions['include_dirs'] = [os.path.join(lcb_root, 'include')]
@@ -97,12 +97,8 @@ SOURCEMODS = [
         '../contrib/cJSON/cJSON'
         ]
 
-SOURCEMODS_CPP = [
-    'store'
-]
 if platform.python_implementation() != 'PyPy':
     extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
-    #extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP ]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:
