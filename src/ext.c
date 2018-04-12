@@ -707,26 +707,24 @@ void pycbc_init_argnames()
 #define X(NAME) pycbc_##NAME=pycbc_SimpleStringZ(LCBTRACE_TAG_##NAME);
     PYCBC_X_LITERALTAGNAMES(X,X);
 #undef X
-    pycbc_tags_str = pycbc_SimpleStringZ("tags");
 }
-
 
 #define PYCBC_TAG_TEXT(NAME) const char* NAME;
 #define PYCBC_TAG_ULL(NAME) lcb_uint64_t* NAME;
 
 typedef struct pycbc_tracer_tags {
-    PYCBC_X_LITERALTAGNAMES(PYCBC_TAG_TEXT,PYCBC_TAG_ULL);
+    PYCBC_X_LITERALTAGNAMES(PYCBC_TAG_TEXT,PYCBC_TAG_ULL)
 } pycbc_tracer_tags_t;
 
 #define PYCBC_TAG_STRUCT(NAME) pycbc_tracer_tags_t* NAME;
 
 typedef struct pycbc_tracer_span_args {
-    PYCBC_X_SPAN_ARGS(PYCBC_TAG_TEXT,PYCBC_TAG_ULL,PYCBC_TAG_STRUCT);
+    PYCBC_X_SPAN_ARGS(PYCBC_TAG_TEXT,PYCBC_TAG_ULL,PYCBC_TAG_STRUCT)
 } pycbc_tracer_span_args_t;
 
 typedef struct pycbc_tracer_finish_args
 {
-    PYCBC_X_FINISH_ARGS(PYCBC_TAG_TEXT,PYCBC_TAG_ULL);
+    PYCBC_X_FINISH_ARGS(PYCBC_TAG_TEXT,PYCBC_TAG_ULL)
 } pycbc_tracer_finish_args_t;
 
 #undef PYCBC_TAG_ULL
@@ -737,12 +735,12 @@ typedef struct pycbc_tracer_finish_args
 #define add_ull_tag(DICT, KEY, VALUE) (DICT)->KEY=malloc(sizeof(lcb_uint64_t));\
     *((DICT)->KEY)=VALUE;
 
-#define TEXT(NAME) if (args->NAME) { pycbc_set_dict_kv_object(dict, pycbc_##NAME, (args->NAME)); }
-#define ULL(NAME) if(args->NAME) { pycbc_set_kv_ull(dict, pycbc_##NAME, *(args->NAME)); }
+#define PYCBC_TEXT_TO_DICT(NAME) if (args->NAME) { pycbc_set_dict_kv_object(dict, pycbc_##NAME, (args->NAME)); }
+#define PYCBC_ULL_TO_DICT(NAME) if(args->NAME) { pycbc_set_kv_ull(dict, pycbc_##NAME, *(args->NAME)); }
 
 PyObject* pycbc_set_tags_from_payload(pycbc_tracer_tags_t *args) {
     PyObject *dict = PyDict_New();
-    PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
+    PYCBC_X_LITERALTAGNAMES(PYCBC_TEXT_TO_DICT,PYCBC_ULL_TO_DICT)
     return dict;
 }
 
@@ -751,53 +749,40 @@ PyObject* pycbc_set_tags_from_payload(pycbc_tracer_tags_t *args) {
 
 PyObject* pycbc_set_args_from_payload(pycbc_tracer_span_args_t *args) {
     PyObject* dict = PyDict_New();
-    PYCBC_X_SPAN_ARGS(TEXT,ULL,TAGS);
+    PYCBC_X_SPAN_ARGS(PYCBC_TEXT_TO_DICT,PYCBC_ULL_TO_DICT,TAGS)
     return dict;
 }
 
 PyObject* pycbc_set_finish_args_from_payload(pycbc_tracer_finish_args_t *args) {
     PyObject* dict = PyDict_New();
-    PYCBC_X_FINISH_ARGS(TEXT,ULL);
+    PYCBC_X_FINISH_ARGS(TEXT,PYCBC_ULL_TO_DICT)
     return dict;
 }
 
 #undef TAGS
 
-#undef ULL
-#undef TEXT
+#undef PYCBC_ULL_TO_DICT
+#undef PYCBC_TEXT_TO_DICT
 
-#define TEXT(NAME) free((void*)args->NAME);
-#define ULL(NAME) free((void*)args->NAME);
+#define PYCBC_TEXT_FREE(NAME) free((void*)args->NAME);
+#define PYCBC_ULL_FREE(NAME) free((void*)args->NAME);
 void pycbc_span_tags_args_dealloc(pycbc_tracer_tags_t* args) {
-    //PYCBC_X_LITERALTAGNAMES(TEXT,ULL);
-    free((void *) args->DB_TYPE);
-    free((void *) args->PEER_LATENCY);
-    free((void *) args->OPERATION_ID);
-    free((void *) args->COMPONENT);
-    free((void *) args->PEER_ADDRESS);
-    free((void *) args->LOCAL_ADDRESS);
-    free((void *) args->DB_INSTANCE);;
+    PYCBC_X_LITERALTAGNAMES(PYCBC_TEXT_FREE, PYCBC_ULL_FREE)
     free(args);
 }
 
+#define PYCBC_TAGS_FREE(NAME) if(args->NAME) { pycbc_span_tags_args_dealloc(args->NAME); }
 void pycbc_span_args_dealloc(pycbc_tracer_span_args_t *args) {
-#define TAGS(NAME) if(args->NAME) { pycbc_span_tags_args_dealloc(args->NAME); }
-    //PYCBC_X_SPAN_ARGS(TEXT,ULL,TAGS);
-    free((void *) args->operation_name);
-    free((void *) args->child_of);
-    free((void *) args->start_time);
-    if (args->tags) { pycbc_span_tags_args_dealloc(args->tags); };
+    PYCBC_X_SPAN_ARGS(PYCBC_TEXT_FREE,PYCBC_ULL_FREE, PYCBC_TAGS_FREE)
     free(args);
 }
 
 void pycbc_span_finish_args_dealloc(struct pycbc_tracer_finish_args *args) {
-    //PYCBC_X_FINISH_ARGS(TEXT,ULL);
-    free((void *) args->finish_time);;
+    PYCBC_X_FINISH_ARGS(PYCBC_TEXT_FREE, PYCBC_ULL_FREE);
     free(args);
 }
-
-#undef ULL
-#undef TEXT
+#undef PYCBC_TEXT_FREE
+#undef PYCBC_ULL_FREE
 
 struct zipkin_payload;
 struct pycbc_tracer_span_args;
@@ -1151,52 +1136,11 @@ Tracer_dtor(pycbc_Tracer_t *self)
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-#define PYCBC_TYPE_INIT(TYPENAME,TYPE_DOC)\
-PyTypeObject pycbc_##TYPENAME##Type = {\
-        PYCBC_POBJ_HEAD_INIT(NULL)\
-        0\
-};\
-\
-int \
-pycbc_##TYPENAME##Type_init(PyObject **ptr)\
-{\
-    PyTypeObject *p = &pycbc_##TYPENAME##Type;\
-    *ptr = (PyObject*)p;\
-\
-    if (p->tp_name) {\
-        return 0;\
-    }\
-\
-    p->tp_name = #TYPENAME;\
-    p->tp_new = PyType_GenericNew;\
-    p->tp_init = (initproc)TYPENAME##__init__;\
-    p->tp_dealloc = (destructor)TYPENAME##_dtor;\
-\
-    p->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;\
-    p->tp_doc = PyDoc_STR(TYPE_DOC);\
-\
-    p->tp_basicsize = sizeof(pycbc_##TYPENAME##_t);\
-\
-    p->tp_methods = pycbc_##TYPENAME##_TABLE_methods;\
-    p->tp_members = pycbc_##TYPENAME##_TABLE_members;\
-    p->tp_getset = pycbc_##TYPENAME##_TABLE_getset;\
-\
-    return PyType_Ready(p);\
-}
-
 PyTypeObject pycbc_TracerType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
         0
 };
 PyObject* pycbc_default_key;
-
-#include <signal.h>
-
-/* Catch Signal Handler functio */
-void signal_callback_handler(int signum){
-
-    printf("Caught signal SIGPIPE %d\n",signum);
-}
 
 int pycbc_TracerType_init(PyObject **ptr) {
     PyTypeObject *p = &pycbc_TracerType;
@@ -1214,9 +1158,6 @@ int pycbc_TracerType_init(PyObject **ptr) {
     p->tp_getset = pycbc_Tracer_TABLE_getset;
     pycbc_default_key = pycbc_SimpleStringZ("__PYCBC_DEFAULT_KEY");
     pycbc_init_argnames();
-/* Catch Signal Handler SIGPIPE */
-    signal(SIGPIPE, signal_callback_handler);
-    PYCBC_DEBUG_LOG("***** installed SIGPIPE handler *****");
     return PyType_Ready(p);
 };
 #endif
