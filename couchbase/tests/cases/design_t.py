@@ -56,6 +56,7 @@ class DesignDocManagementTest(DDocTestCase):
 
 
     def test_design_management(self):
+        print("starting test_design_management")
         rv = self.mgr.design_create(
             DNAME, DESIGN_JSON, use_devmode=True, syncwait=5)
         self.assertTrue(rv.success)
