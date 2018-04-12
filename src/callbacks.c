@@ -97,9 +97,6 @@ static void operation_completed3(pycbc_Bucket *self,
 {
     pycbc_assert(self->nremaining);
     --self->nremaining;
-#ifdef LCB_TRACING
-    pycbc_Tracer_propagate(self->tracer);
-#endif
     if (mres) {
         mres->err_info = err_info;
         Py_XINCREF(err_info);
@@ -190,9 +187,6 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     PyObject *hkey;
     PyObject *mrdict;
     int rv;
-#ifdef LCB_TRACING
-    pycbc_stack_context_handle stack_context_handle = NULL;
-#endif
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
     *mres = (pycbc_MultiResult*)resp->cookie;
     *conn = (*mres)->parent;
@@ -209,40 +203,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     mrdict = pycbc_multiresult_dict(*mres);
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
-#ifdef LCB_TRACING
-    pycbc_print_repr(mrdict);
 
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
-    //pycbc_print_string(hkey);
-    pycbc_stack_context_handle handle = NULL;
-    PYCBC_DEBUG_LOG_RAW("]\n");
-    if(0 && *res ) {
-        handle = (*res)->tracing_context;
-        PYCBC_DEBUG_LOG("res %p",*res);
-
-        if (PYCBC_CHECK_CONTEXT(handle)) {
-            stack_context_handle = pycbc_Tracer_span_start(handle->tracer, NULL,
-                                                           LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                           handle, LCBTRACE_REF_CHILD_OF, "get_common_objects");
-            PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey,
-                            (const char *) resp->key);
-        }
-        if ((*res)->is_tracing_stub) {
-            PyDict_DelItem(mrdict, hkey);
-
-            *res = NULL;
-
-        }
-
-    }
-    else
-    {
-        PYCBC_DEBUG_LOG("\nWarning: Got null result from dict for [");
-        //pycbc_print_string(hkey);
-        PYCBC_DEBUG_LOG("]\n");
-    }
-
-#endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
                 ( (*mres)->mropts & PYCBC_MRES_F_UALLOCED);
@@ -278,10 +239,6 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
             abort();
         }
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
-#ifdef LCB_TRACING
-        handle = stack_context_handle;
-        (*res)->is_tracing_stub = 0;
-#endif
         (*res)->key = hkey;
         PYCBC_DECREF(*res);
     }

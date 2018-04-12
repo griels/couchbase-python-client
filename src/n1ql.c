@@ -58,12 +58,6 @@ query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
     mres = (pycbc_MultiResult *)pycbc_multiresult_new(self);
     {
         PyObject* kwargs = pycbc_DummyKeywords;
-#ifdef LCB_TRACING
-        if (self->tracer) {
-            kwargs= PyDict_New();
-            PyDict_SetItemString(kwargs, "tracer", (PyObject*)self->tracer);
-        }
-#endif
         vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject*)&pycbc_ViewResultType, "OO", Py_None, kwargs);
         if (!vres)
         {

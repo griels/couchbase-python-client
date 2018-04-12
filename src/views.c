@@ -339,14 +339,6 @@ ViewResult__init__(PyObject *self_raw,
                    PyObject *args, PyObject *kwargs)
 {
     pycbc_ViewResult* self = (pycbc_ViewResult*)(self_raw);
-#ifdef LCB_TRACING
-    PYCBC_DEBUG_LOG("in ur view making ur tracer\n");
-    self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
-    self->own_tracer = 0;
-    if (self->py_tracer) {
-        PYCBC_DEBUG_LOG("Got parent tracer %p\n", self->py_tracer);
-    }
-#endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     return 0;
 }
@@ -355,12 +347,6 @@ static void
 ViewResult_dealloc(pycbc_ViewResult *vres)
 {
     Py_CLEAR(vres->rows);
-#ifdef LCB_TRACING
-    if (vres->own_tracer && vres->py_tracer) {
-        lcbtrace_destroy(vres->py_tracer->tracer);
-        PYCBC_DECREF((PyObject*)vres->py_tracer);
-    }
-#endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);
 }
 

@@ -117,10 +117,6 @@ pycbc_Result_init(PyObject *self_raw,
 {
     pycbc_Result* self = (pycbc_Result*) self_raw;
     //memset(self, 0, sizeof(pycbc_Result));
-#ifdef LCB_TRACING
-    self->is_tracing_stub = 0;
-    self->tracing_context = NULL;
-#endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     return 0;
 }

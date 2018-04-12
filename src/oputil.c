@@ -343,15 +343,6 @@ extract_item_params(struct pycbc_common_vars *cv,
     return 0;
 }
 
-#ifdef LCB_TRACING
-pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(pycbc_oputil_keyhandler_raw cb, const char* category, const char* name) {
-	pycbc_oputil_keyhandler handler;
-	handler.cb = cb;
-	handler.category = category;
-	handler.name = name;
-	return handler;
-}
-#endif
 
 int
 pycbc_oputil_iter_multi(pycbc_Bucket *self,
@@ -395,14 +386,9 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
         } else {
             arg_k = k;
         }
-#ifdef LCB_TRACING
-#define CALL_HANDLER(HANDLER, ...) \
-        WRAP_EXPLICIT_NAMED(handler.cb, handler.name, handler.category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
-#else
 #define CALL_HANDLER(HANDLER, ...) \
         WRAP_EXPLICIT_NAMED(handler, "", "", __VA_ARGS__)
         //NULL, self, cv, optype, arg_k, v, options, itm, arg);
-#endif
         //handler(self, cv, optype, arg_k, v, options, itm, arg, ((void *) 0));
 
 
@@ -684,10 +670,6 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
 
     if (rv == 0) {
         PYCBC_TRACECMD_PURE((*cmd), context);
-#ifdef LCB_TRACING
-        newitm->tracing_context = context;
-        newitm->is_tracing_stub = 0;
-#endif
         err = lcb_subdoc3(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
             PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);
