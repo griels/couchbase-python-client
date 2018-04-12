@@ -17,7 +17,6 @@
 extern "C"
 {
 #endif
-
 #define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
 
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
@@ -286,7 +285,16 @@ typedef struct {
     char replicate_to;
 } pycbc_dur_params;
 
+void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
+void pycbc_print_string( PyObject *curkey);
+void pycbc_print_repr( PyObject *pobj);
+void pycbc_exception_log(const char* file, int line, int clear);
+
+#define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
+#define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
+
 struct pycbc_Tracer;
+#undef LCB_TRACING
 
 typedef struct {
     PyObject_HEAD
@@ -395,9 +403,6 @@ typedef struct
 } pycbc_stack_context;
 typedef pycbc_stack_context* pycbc_stack_context_handle;
 
-void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
-void pycbc_print_string( PyObject *curkey);
-void pycbc_print_repr( PyObject *pobj);
 
 #ifdef LCB_TRACING
 
@@ -421,10 +426,6 @@ extern PyObject* pycbc_default_key;
 
 pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line);
 
-void pycbc_exception_log(const char* file, int line, int clear);
-
-#define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
-#define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 
 #define PYCBC_CHECK_CONTEXT(CONTEXT) pycbc_check_context(CONTEXT,__FILE__,__LINE__)
 #define PYCBC_TRACECMD_PURE(CMD,CONTEXT) {\
@@ -454,25 +455,32 @@ void pycbc_exception_log(const char* file, int line, int clear);
 };
 
 
+
+#define WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
+#define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
+
 #define WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
 
-#define WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
-//#define WRAP_EXPLICIT(NAME,CATEGORY,KWARGS,...) WRAP_EXPLICIT_NAMED(NAME,#NAME,CATEGORY,KWARGS, __VA_ARGS__)
-#define WRAP(NAME,KWARGS,...) WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 #else
-
-#define PYCBC_TRACECMD(CMD,CONTEXT)
 #define PYCBC_GET_STACK_CONTEXT(CATEGORY,TRACER, PARENT_CONTEXT) NULL
 
-#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,...) \
-{\
-    pycbc_stack_context_handle sub_context = {0};\
-    RV=NAME(__VA_ARGS__,sub_context);\
-};
+#define PYCBC_TRACECMD(...)
+#define PYCBC_TRACECMD_PURE(...)
+#define PYCBC_TRACING_POP_CONTEXT(X)
+#define WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) { RV = NAME(__VA_ARGS__, NULL); }
+#define WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, NULL)
 
-#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, NULL))
+
+
+#define WRAP_TOPLEVEL(RV,CATEGORY,NAME,TRACER,...) { RV=NAME(__VA_ARGS__,NULL); }
+
+
+#define WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, NULL)
+#define PYCBC_GET_STACK_CONTEXT_TOPLEVEL(...) NULL
+
 #endif
+
 
 #define TRACED_FUNCTION(CATEGORY,QUALIFIERS,RTYPE,NAME,...)\
     const char* NAME##_category(void){ return CATEGORY; }\
@@ -495,6 +503,8 @@ PyObject *pycbc_##CLASS##_##name(pycbc_##CLASS *self, \
 }\
 PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyObject *kwargs,\
                                         pycbc_stack_context_handle context)
+
+
 
 /*****************
  * Result Objects.

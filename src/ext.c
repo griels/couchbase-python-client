@@ -314,7 +314,7 @@ init_libcouchbase(void)
      * name (not a string but a literal) and the second is the name of the
      * function used to initialize it
      */
-#define X_PYTYPES(X) \
+#define X_PYTYPES_NOTRACING(X) \
     X(Bucket,       pycbc_BucketType_init) \
     /** Remember to keep base classes in order */ \
     X(Result,           pycbc_ResultType_init) \
@@ -331,8 +331,15 @@ init_libcouchbase(void)
     X(TimerEvent,       pycbc_TimerEventType_init) \
     X(AsyncResult,      pycbc_AsyncResultType_init) \
     X(_IOPSWrapper,     pycbc_IOPSWrapperType_init) \
-    X(_SDResult,        pycbc_SDResultType_init) \
+    X(_SDResult,        pycbc_SDResultType_init)
+#ifdef LCB_TRACING
+#define X_PYTYPES(X) \
+    X_PYTYPES_NOTRACING(X) \
     X(Tracer,           pycbc_TracerType_init)
+#else
+#define X_PYTYPES(X) \
+    X_PYTYPES_NOTRACING(X)
+#endif
 
 #define X(name, inf) PyObject *cls_##name;
     X_PYTYPES(X)
@@ -439,7 +446,6 @@ static void log_handler(struct lcb_logprocs_st *procs,
 }
 
 
-#ifdef LCB_TRACING
 #include <stdio.h>
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/api3.h>
@@ -452,7 +458,6 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include <inttypes.h>
 #endif
 
-#ifdef LCB_TRACING
 #include "oputil.h"
 
 
@@ -526,6 +531,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
         }
     }
 }
+#ifdef LCB_TRACING
 
 pycbc_stack_context_handle
 pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_U64 now, lcbtrace_REF *ref, const char* component) {
@@ -621,12 +627,6 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
 }
 
 
-#else
-pycbc_stack_context_handle
-pycbc_Tracer_span_start(pycbc_Tracer_t *, PyObject *, const char *, lcb_U64 , pycbc_stack_context_handle , lcbtrace_REF_TYPE ) {
-    return NULL;
-}
-#endif
 
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue; }
@@ -643,6 +643,12 @@ void pycbc_zipkin_destructor(lcbtrace_TRACER *tracer)
 }
 
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
+#else
+pycbc_stack_context_handle
+pycbc_Tracer_span_start(void* x, PyObject *y, const char *z, lcb_U64 a, pycbc_stack_context_handle b, lcbtrace_REF_TYPE c) {
+    return NULL;
+}
+#endif
 
 void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_str) {
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("adding [");
@@ -666,6 +672,8 @@ void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_U64 parenti_id) {
     PyDict_SetItem(dict, keystr, pULL);
     PYCBC_DECREF(pULL);
 }
+
+#ifdef LCB_TRACING
 
 #define PYCBC_X_SPAN_ARGS(TEXT,ULL,TAGS)\
     TEXT(operation_name) \
