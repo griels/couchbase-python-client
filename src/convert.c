@@ -379,13 +379,17 @@ pycbc_tc_decode_key(pycbc_Bucket *conn, const void *key, size_t nkey,
     PyObject *bobj;
     int rv = 0;
     if (conn->data_passthrough) {
+        PYCBC_DEBUG_LOG("\ndecoding with passthrough\n");
         bobj = PyBytes_FromStringAndSize(key, nkey);
         *pobj = bobj;
 
     } else if (!conn->tc) {
+        PYCBC_DEBUG_LOG("\ndecoding with default UTF8\n");
+
         return decode_common(pobj, key, nkey, PYCBC_FMT_UTF8);
 
     } else {
+        PYCBC_DEBUG_LOG("\ndecoding with transcoder\n");
         bobj = PyBytes_FromStringAndSize(key, nkey);
         if (bobj) {
             rv = do_call_tc(conn, bobj, NULL, pobj, DECODE_KEY);

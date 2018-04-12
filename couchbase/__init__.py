@@ -143,3 +143,122 @@ class Couchbase(object):
         _depr('Couchbase.connect()', 'Bucket()')
         return Connection(bucket, **kwargs)
 
+from basictracer.tracer import BasicTracer
+from basictracer.recorder import InMemoryRecorder
+from opentracing.ext import tags
+
+
+recorder = InMemoryRecorder()
+tracer = BasicTracer(recorder=recorder)
+
+def get_tracer():
+    return tracer
+
+def get_recorder():
+    return recorder
+
+
+def get_sampled_spans():
+    return [span for span in recorder.get_spans() if span.context.sampled]
+
+
+
+
+def test_span_log_kv():
+    recorder = InMemoryRecorder()
+    tracer = BasicTracer(recorder=recorder)
+
+    span = tracer.start_span('x')
+    span.log_kv({
+        'foo': 'bar',
+        'baz': 42,
+    })
+    span.finish()
+
+    finished_spans = recorder.get_spans()
+    assert len(finished_spans) == 1
+    assert len(finished_spans[0].logs) == 1
+    assert len(finished_spans[0].logs[0].key_values) == 2
+    assert finished_spans[0].logs[0].key_values['foo'] == 'bar'
+    assert finished_spans[0].logs[0].key_values['baz'] == 42
+
+
+from opentracing_instrumentation import traced_function
+
+import inspect
+
+from basictracer.span import BasicSpan
+from opentracing.span import Span
+
+def lcb_span(BasicSpan):
+    def __init__(
+            self,
+            tracer,
+            operation_name=None,
+            context=None,
+            parent_id=None,
+            tags=None,
+            start_time=None):
+        super(BasicSpan, self).__init__(tracer, context)
+        self._tracer = tracer
+        self._lock = Lock()
+
+        self.operation_name = operation_name
+        self.start_time = start_time
+        self.parent_id = parent_id
+        self.tags = tags if tags is not None else {}
+        self.duration = -1
+        self.logs = []
+
+    def set_operation_name(self, operation_name):
+        with self._lock:
+            self.operation_name = operation_name
+        return super(lcb_span, self).set_operation_name(operation_name)
+
+    def set_tag(self, key, value):
+        with self._lock:
+            if key == tags.SAMPLING_PRIORITY:
+                self.context.sampled = value > 0
+            if self.tags is None:
+                self.tags = {}
+            self.tags[key] = value
+        return super(lcb_span, self).set_tag(key, value)
+
+    def log_kv(self, key_values, timestamp=None):
+        with self._lock:
+            self.logs.append(LogData(key_values, timestamp))
+        return super(lcb_span, self).log_kv(key_values, timestamp)
+
+    def finish(self, finish_time=None):
+        with self._lock:
+            finish = time.time() if finish_time is None else finish_time
+            self.duration = finish - self.start_time
+            self._tracer.record(self)
+
+    def set_baggage_item(self, key, value):
+        new_context = self._context.with_baggage_item(key, value)
+        with self._lock:
+            self._context = new_context
+        return self
+
+    def get_baggage_item(self, key):
+        with self._lock:
+            return self.context.baggage.get(key)
+
+def decorate_class(cls, **kwargs):
+    getmembers = inspect.getmembers(cls, inspect.isfunction)
+    if len(getmembers) == 0:
+        getmembers = inspect.getmembers(cls)
+        filter(lambda k, v: k.startswith('_'), cls.__dict__.items())
+    # return class_decorator()(cls)
+    # print(str(cls)+":"+str(getmembers))
+    for name, method in getmembers:
+        # print(name)
+        # print(str(method))
+        #     #if name.startswith('_'):
+        # types.MemberDescriptorType:
+        setattr(cls, name, traced_function(getattr(cls, name), **kwargs))
+    # for attr in cls.__dict__:
+    # if callable(getattr(cls,attr)):
+    # setattr(cls, attr, fiddle(getattr(cls,attr)))
+    return cls
