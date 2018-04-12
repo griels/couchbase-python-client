@@ -16,7 +16,6 @@
 
 #include <libcouchbase/api3.h>
 #include "oputil.h"
-#undef LCB_TRACING
 #include "pycbc.h"
 #include "libcouchbase/tracing.h"
 /**

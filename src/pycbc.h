@@ -294,8 +294,7 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 
 struct pycbc_Tracer;
-#undef LCB_TRACING
-
+//#undef LCB_TRACING
 typedef struct {
     PyObject_HEAD
 
