@@ -697,7 +697,7 @@ Bucket__init__(pycbc_Bucket *self,
         PyObject *tracer_args = PyTuple_New(2);
         PyTuple_SetItem(tracer_args, 0, tracer);
         PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
-        self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
+        self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             PYCBC_XDECREF(self->tracer);
@@ -852,6 +852,7 @@ Bucket_dtor(pycbc_Bucket *self)
     }
 #ifdef PYCBC_TRACING
     PYCBC_XDECREF((PyObject*)self->tracer);
+    self->tracer = NULL;
 #endif
 
 #ifdef WITH_THREAD

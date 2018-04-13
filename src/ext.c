@@ -464,7 +464,7 @@ void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
         const char *keyname = PyUnicode_AsUTF8(curkey);
-        PYCBC_DEBUG_LOG_RAW("%s",  keyname);//(int)length, keyname);
+        PYCBC_DEBUG_LOG_RAW("%s",  keyname);
         PYCBC_EXCEPTION_LOG_NOCLEAR;
     }
 #else

@@ -306,6 +306,7 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #endif
 
 struct pycbc_Tracer;
+//#undef PYCBC_TRACING_ENABLE
 
 #ifdef LCB_TRACING
 #ifdef PYCBC_TRACING_ENABLE
