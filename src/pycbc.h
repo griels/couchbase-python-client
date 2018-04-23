@@ -34,8 +34,10 @@
 #define PYCBC_DEBUG_LOG(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(__FILE__,__LINE__,__VA_ARGS__)
 
 #ifdef PYCBC_DEBUG
-#define PYCBC_DECREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li", X, Py_REFCNT(X)); Py_DECREF(X);
-#define PYCBC_XDECREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li", X, X?Py_REFCNT(X):0); Py_XDECREF(X)
+#define PYCBC_DECREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s *** ", X, Py_REFCNT(X), PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)) ); Py_DECREF((PyObject*)X);
+#define PYCBC_XDECREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, X?Py_REFCNT(X):0, X?PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)):""); Py_XDECREF((PyObject*)X)
+#define PYCBC_INCREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, Py_REFCNT(X), PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)) ); Py_INCREF((PyObject*)X);
+#define PYCBC_XINCREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, X?Py_REFCNT(X):0, X?PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)):""); Py_XINCREF((PyObject*)X)
 #else
 #define PYCBC_DECREF(X) Py_DECREF(X);
 #define PYCBC_XDECREF(X) Py_XDECREF(X);
@@ -300,9 +302,13 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #ifdef PYCBC_DEBUG
 #define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
+#define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__)
+#define PYCBC_PRINT_STRING(...) pycbc_print_string(__VA_ARGS__)
 #else
 #define PYCBC_EXCEPTION_LOG_NOCLEAR
 #define PYCBC_EXCEPTION_LOG PyErr_Clear();
+#define PYCBC_PRINT_REPR(...)
+#define PYCBC_PRINT_STRING(...)
 #endif
 
 struct pycbc_Tracer;
@@ -392,10 +398,6 @@ typedef struct {
 typedef struct pycbc_Tracer {
     PyObject_HEAD
     lcbtrace_TRACER *tracer;
-    PyObject* parent;
-    lcb_t *instance;
-
-    int init_called:1;
 } pycbc_Tracer_t;
 
 static PyTypeObject SpanType = {

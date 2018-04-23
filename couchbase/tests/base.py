@@ -417,7 +417,17 @@ class ConnectionTestCase(CouchbaseTestCase):
         import gc
         if platform.python_implementation() == 'PyPy':
             return
-
+        import objgraph
+        graphdir=os.path.join(os.getcwd(),"ref_graphs")
+        try:
+            os.makedirs(graphdir)
+        except:
+            pass
+        options=dict(refcounts=True, max_depth = 8, too_many=10, shortnames= False)
+        objgraph.show_refs(self.cb, filename=os.path.join(graphdir,'{}_cb_refs.dot'.format(self._testMethodName)), **options)
+        objgraph.show_backrefs(self.cb, filename=os.path.join(graphdir,'{}_cb_backrefs.dot'.format(self._testMethodName)), **options)
+        logging.info("got referrents {}".format(repr(gc.get_referents(self.cb))))
+        logging.info("got referrers {}".format(repr(gc.get_referrers(self.cb))))
         gc.collect()
         for x in range(10):
             oldrc = sys.getrefcount(self.cb)
@@ -454,6 +464,7 @@ class LogRecorder(SpanRecorder):
 
     def record_span(self, span):
         logging.info("recording span: "+str(span.__dict__))
+
 
 
 class TracedCase(ConnectionTestCase):

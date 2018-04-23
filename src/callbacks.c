@@ -210,7 +210,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 #ifdef PYCBC_TRACING
-    pycbc_print_repr(mrdict);
+    PYCBC_PRINT_REPR(mrdict);
 
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
     pycbc_stack_context_handle handle = NULL;

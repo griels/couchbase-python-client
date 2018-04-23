@@ -29,7 +29,6 @@ aux_source_directory(LCB_SASL ${LCB_ROOT}/contrib/cbsasl)
 aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
 
-
 include(ExternalProject)
 add_definitions(-DLCB_TRACING=TRUE)
 
@@ -52,6 +51,8 @@ ExternalProject_Add (opentracing-cpp
         INSTALL_DIR ${OT_ROOT}/build
         )
 
+include(FindPythonLibs)
+
 include_directories( ${LCB_ROOT_SRC}
         ${LCB_ROOT}/include
         ${MCD_INC}
@@ -70,6 +71,7 @@ include_directories( ${LCB_ROOT_SRC}
         ${LCB_ROOT_CONTRIB}
         ${LCB_TRACING_DIR}
         ${LCB_CJSON}
+        ${PYTHON_INCLUDE_DIRS}
         )
 
 ExternalProject_Add(libcouchbase

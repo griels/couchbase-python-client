@@ -694,9 +694,8 @@ Bucket__init__(pycbc_Bucket *self,
     }
 #ifdef PYCBC_TRACING
     if (tracer){
-        PyObject *tracer_args = PyTuple_New(2);
+        PyObject *tracer_args = PyTuple_New(1);
         PyTuple_SetItem(tracer_args, 0, tracer);
-        PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
         self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -829,6 +828,7 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 static void
 Bucket_dtor(pycbc_Bucket *self)
 {
+    PYCBC_DEBUG_LOG("destroying %p",self);
     if (self->flags & PYCBC_CONN_F_CLOSED) {
         lcb_destroy(self->instance);
         self->instance = NULL;

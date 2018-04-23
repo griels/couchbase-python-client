@@ -486,7 +486,7 @@ void pycbc_print_repr( PyObject *pobj) {
             PYCBC_DEBUG_LOG("got null repr from %p", pobj);
             return;
         }
-        pycbc_print_string(curkey);
+        PYCBC_PRINT_STRING(curkey);
         PYCBC_XDECREF(curkey);
     }
 }
@@ -499,9 +499,9 @@ void pycbc_exception_log(const char* file, int line, int clear)
         PyObject* type, *value, *traceback;
         PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(file, line, "***** EXCEPTION:[", "");
         PyErr_Fetch(&type,&value,&traceback);
-        pycbc_print_repr(type);
+        PYCBC_PRINT_REPR(type);
         PYCBC_DEBUG_LOG_RAW(",");
-        pycbc_print_repr(value);
+        PYCBC_PRINT_REPR(value);
         PYCBC_DEBUG_LOG_RAW(",");
         if (0){
             /* See if we can get a full traceback */
@@ -515,7 +515,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
                     PyObject *pyth_val;
 
                     pyth_val = PyObject_CallFunctionObjArgs(pyth_func, type, value, traceback, NULL);
-                    pycbc_print_string(pyth_val);
+                    PYCBC_PRINT_STRING(pyth_val);
                     PYCBC_DECREF(pyth_val);
                 }
             }
@@ -612,40 +612,29 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     item->tracing_context = context;
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("\nres %p: binding context %p to [", item, context);
-    pycbc_print_repr(curkey);
+    PYCBC_PRINT_REPR(curkey);
     PYCBC_DEBUG_LOG_RAW("]\n");
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     PYCBC_DEBUG_LOG("\nPrior to insertion:[");
-    pycbc_print_repr(mres_dict);
+    PYCBC_PRINT_REPR(mres_dict);
     PYCBC_DEBUG_LOG_RAW("]\n");
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("After insertion:[");
-    pycbc_print_repr(mres_dict);
+    PYCBC_PRINT_REPR(mres_dict);
     PYCBC_DEBUG_LOG("]\n");
 }
 
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue; }
 
-void pycbc_tracer_destructor(lcbtrace_TRACER *tracer)
-{
-    if (tracer) {
-        if (tracer->cookie) {
-            free(tracer->cookie);
-            tracer->cookie = NULL;
-        }
-        free(tracer);
-    }
-}
-
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
 #endif
 
 void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_str) {
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("adding [");
-    pycbc_print_repr(key);
+    PYCBC_PRINT_REPR(key);
     PYCBC_DEBUG_LOG_RAW("], value %s to [", value_str);
-    pycbc_print_repr(dict);
+    PYCBC_PRINT_REPR(dict);
     PYCBC_DEBUG_LOG_RAW("]\n");
     {
         PyObject *value = pycbc_SimpleStringZ(value_str);
@@ -657,9 +646,9 @@ void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_s
 
 void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_uint64_t parenti_id) {
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("adding [");
-    pycbc_print_repr(keystr);
+    PYCBC_PRINT_REPR(keystr);
     PYCBC_DEBUG_LOG_RAW("], value %" PRId64 " to [", parenti_id);
-    pycbc_print_repr(dict);
+    PYCBC_PRINT_REPR(dict);
     PYCBC_DEBUG_LOG_RAW("]\n");
     {
         PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
@@ -798,7 +787,6 @@ typedef struct pycbc_tracer_payload {
 typedef struct pycbc_tracer_state {
     pycbc_tracer_payload *root;
     pycbc_tracer_payload *last;
-    pycbc_Bucket* bucket;
     PyObject* parent;
     PyObject *start_span_method;
 } pycbc_tracer_state;
@@ -916,13 +904,13 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct pycbc_tracer_pay
         PyObject *fresh_span;
 
         PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("calling start method:[");
-        pycbc_print_repr(state->start_span_method);
+        PYCBC_PRINT_REPR(state->start_span_method);
         PYCBC_DEBUG_LOG_RAW("]");
         PYCBC_DEBUG_LOG("\nabout to call: %p[\n", state->start_span_method);
         PYCBC_DEBUG_LOG("] on %p=[", state->parent);
-        pycbc_print_repr(state->parent);
+        PYCBC_PRINT_REPR(state->parent);
         PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("full args to start_span:[");
-        pycbc_print_repr(start_span_args);
+        PYCBC_PRINT_REPR(start_span_args);
         PYCBC_DEBUG_LOG_RAW("\n");
 
         fresh_span= PyObject_Call(state->start_span_method, pycbc_DummyTuple,
@@ -931,16 +919,16 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct pycbc_tracer_pay
         {
             PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
             PYCBC_DEBUG_LOG("Got span'[");
-            pycbc_print_repr(fresh_span);
+            PYCBC_PRINT_REPR(fresh_span);
             PYCBC_DEBUG_LOG("]\n");
             pycbc_assert(finish_method);
             PYCBC_DEBUG_LOG("Got finish method'[");
-            pycbc_print_repr(finish_method);
+            PYCBC_PRINT_REPR(finish_method);
             PYCBC_DEBUG_LOG("]\n");
             if (finish_method) {
                 PyObject* span_finish_args = pycbc_set_finish_args_from_payload(payload->span_finish_args);
                 PYCBC_DEBUG_LOG("calling finish method with;[");
-                pycbc_print_repr(span_finish_args);
+                PYCBC_PRINT_REPR(span_finish_args);
                 PYCBC_DEBUG_LOG("]\n");
                 PyObject_Call(finish_method, pycbc_DummyTuple, span_finish_args);
                 PYCBC_XDECREF(span_finish_args);
@@ -976,7 +964,7 @@ void pycbc_tracer_flush(pycbc_Tracer_t *tracer)
         PYCBC_DEBUG_LOG("flushing\n");
         while (ptr) {
             pycbc_tracer_payload *tmp = ptr;
-            if (tracer->parent) {
+            if (state->parent) {
                 pycbc_Tracer_propagate_span(tracer, tmp);
             }
             ptr = ptr->next;
@@ -991,9 +979,21 @@ void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
     pycbc_tracer_flush(tracer);
 }
 
+void pycbc_tracer_destructor(lcbtrace_TRACER *tracer)
+{
+    if (tracer) {
+        pycbc_tracer_state *state = tracer->cookie;
+        if (state) {
+            Py_XDECREF(state->parent);
+            Py_XDECREF(state->start_span_method);
+            free(tracer->cookie);
+            tracer->cookie = NULL;
+        }
+        free(tracer);
+    }
+}
 
-
-lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent, pycbc_Bucket *bucket)
+lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     pycbc_tracer_state *pycbc_tracer = calloc(1, sizeof(pycbc_tracer_state));
@@ -1004,24 +1004,26 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent, pycbc_Bucket *bucket)
     pycbc_tracer->root = NULL;
     pycbc_tracer->last = NULL;
     tracer->cookie = pycbc_tracer;
-    pycbc_tracer->bucket = bucket;
+
     if (parent) {
         PYCBC_DEBUG_LOG("\ninitialising tracer start_span method from:[");
-        pycbc_print_repr(parent);
+        PYCBC_PRINT_REPR(parent);
         PYCBC_DEBUG_LOG("]\n");
         pycbc_tracer->start_span_method = PyObject_GetAttrString(parent, "start_span");
         if (pycbc_tracer->start_span_method)
         {
             PYCBC_DEBUG_LOG("got start_span method:[");
-            pycbc_print_repr(pycbc_tracer->start_span_method);
+            PYCBC_PRINT_REPR(pycbc_tracer->start_span_method);
             PYCBC_DEBUG_LOG("]\n");
             pycbc_tracer->parent = parent;
+            PYCBC_INCREF(parent);
         }
         else
         {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             PYCBC_DEBUG_LOG("Falling back to internal tracing only");
             pycbc_tracer->parent = NULL;
+
         }
     }
     return tracer;
@@ -1053,9 +1055,7 @@ Tracer__init__(pycbc_Tracer_t *self,
 {
     int rv = 0;
     PyObject* tracer =PyTuple_GetItem(args, 0);
-    pycbc_Bucket* bucket= (pycbc_Bucket*) PyTuple_GetItem(args,1);
-    self->parent=(tracer && PyObject_IsTrue(tracer))?tracer:NULL;
-    self->tracer= pycbc_tracer_new(self->parent, bucket);
+    self->tracer= pycbc_tracer_new((tracer && PyObject_IsTrue(tracer))?tracer:NULL);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
 
     return rv;
