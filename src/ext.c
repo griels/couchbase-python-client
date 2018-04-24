@@ -982,8 +982,7 @@ void pycbc_tracer_flush(pycbc_Tracer_t *tracer)
     state->root = state->last = NULL;
 }
 
-
-void pycbc_Tracer_propagate(  pycbc_Tracer_t *tracer) {
+void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer) {
     pycbc_tracer_flush(tracer);
 }
 
@@ -1031,11 +1030,11 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             PYCBC_DEBUG_LOG("Falling back to internal tracing only");
             pycbc_tracer->parent = NULL;
-
         }
     }
     return tracer;
 }
+
 static PyObject *
 Tracer_parent(pycbc_Tracer_t *self, void *unused)
 {
@@ -1044,7 +1043,6 @@ Tracer_parent(pycbc_Tracer_t *self, void *unused)
     PYCBC_XINCREF(tracer_state->parent);
     return tracer_state->parent?tracer_state->parent:Py_None;
 }
-
 
 static int
 Tracer__init__(pycbc_Tracer_t *self,
@@ -1062,7 +1060,7 @@ static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
     Py_TYPE(self)->tp_free((PyObject*)self);
-};
+}
 
 static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
         { "parent",
