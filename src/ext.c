@@ -459,7 +459,7 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #include "oputil.h"
 
 
-
+#ifdef PYCBC_DEBUG
 void pycbc_print_string( PyObject *curkey) {
 #if PYTHON_ABI_VERSION >= 3
     {
@@ -498,7 +498,6 @@ void pycbc_print_repr( PyObject *pobj) {
     }
 
 }
-
 
 void pycbc_exception_log(const char* file, int line, int clear)
 {
@@ -542,6 +541,8 @@ void pycbc_exception_log(const char* file, int line, int clear)
         }
     }
 }
+#endif
+
 #ifdef PYCBC_TRACING
 
 pycbc_stack_context_handle
@@ -587,7 +588,7 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
     if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))
     {
         PYCBC_EXCEPTION_LOG;
-        printf("Warning - got NULL tracer\n");
+        PYCBC_DEBUG_LOG("Warning - got NULL tracer");
         return NULL;
     }
 
@@ -942,10 +943,10 @@ void pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct pycbc_tracer_pay
                 PYCBC_XDECREF(span_finish_args);
             }
 
-            PYCBC_DECREF(finish_method);
+            PYCBC_XDECREF(finish_method);
             PYCBC_DECREF(fresh_span);
         } else{
-            PYCBC_DEBUG_LOG("Yielded no span!\n");
+            PYCBC_DEBUG_LOG("Yielded no span!");
         }
         PYCBC_DECREF(start_span_args);
         PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -991,7 +992,7 @@ void pycbc_tracer_destructor(lcbtrace_TRACER *tracer)
     if (tracer) {
         pycbc_tracer_state *state = tracer->cookie;
         if (state) {
-            Py_XDECREF(state->parent);
+            //Py_XDECREF(state->parent);
             Py_XDECREF(state->start_span_method);
             free(tracer->cookie);
             tracer->cookie = NULL;
@@ -1013,7 +1014,7 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
     tracer->cookie = pycbc_tracer;
 
     if (parent) {
-        PYCBC_DEBUG_LOG("\ninitialising tracer start_span method from:[");
+        PYCBC_DEBUG_LOG("initialising tracer start_span method from:[");
         PYCBC_PRINT_REPR(parent);
         PYCBC_DEBUG_LOG("]\n");
         pycbc_tracer->start_span_method = PyObject_GetAttrString(parent, "start_span");
@@ -1040,8 +1041,11 @@ Tracer_parent(pycbc_Tracer_t *self, void *unused)
 {
     pycbc_tracer_state *tracer_state = (pycbc_tracer_state*)self->tracer->cookie;
     pycbc_assert(tracer_state);
-    PYCBC_XINCREF(tracer_state->parent);
-    return tracer_state->parent?tracer_state->parent:Py_None;
+    {
+        PyObject* result=tracer_state->parent?tracer_state->parent:Py_None;
+        PYCBC_INCREF(result);
+        return result;
+    }
 }
 
 static int
@@ -1052,7 +1056,6 @@ Tracer__init__(pycbc_Tracer_t *self,
     PyObject* tracer =PyTuple_GetItem(args, 0);
     self->tracer= pycbc_tracer_new((tracer && PyObject_IsTrue(tracer))?tracer:NULL);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
-
     return rv;
 }
 

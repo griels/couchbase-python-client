@@ -21,7 +21,7 @@ import gevent
 
 from couchbase import FMT_BYTES
 from gcouchbase.bucket import Bucket
-
+#definitive set of keys kn
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-t', '--threads', default=4, type=int,

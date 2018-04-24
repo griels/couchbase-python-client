@@ -37,8 +37,8 @@
 #define LOG_REFOP(Y,OP) { pycbc_assert(Y && Py_REFCNT(Y)>0);PyObject* repr=Y?PyObject_Repr((PyObject*)Y):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, Y?Py_REFCNT(Y):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##OP((PyObject*)Y); }
 #define LOG_REFOPX(Y,OP) { pycbc_assert(!Y || Py_REFCNT(Y)>0);PyObject* repr=Y?PyObject_Repr((PyObject*)Y):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, Y?Py_REFCNT(Y):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##X##OP((PyObject*)Y); }
 #else
-#define LOG_REFOP(X,OP) Py_##OP(X)
-#define LOG_REFOPX(X,OP) Py_X##{ pycbc_assert(!X || Py_REFCNT(X)>0);PyObject* repr=X?PyObject_Repr((PyObject*)X):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", X, X?Py_REFCNT(X):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##XOP((PyObject*)X); }
+#define LOG_REFOP(Y,OP) Py_##OP(Y)
+#define LOG_REFOPX(Y,OP) Py_X##OP(Y)
 #endif
 #define PYCBC_DECREF(X) LOG_REFOP(X,DECREF)
 #define PYCBC_XDECREF(X) LOG_REFOPX(X,DECREF)
@@ -298,10 +298,11 @@ typedef struct {
 } pycbc_dur_params;
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
+
+#ifdef PYCBC_DEBUG
 void pycbc_print_string( PyObject *curkey);
 void pycbc_print_repr( PyObject *pobj);
 void pycbc_exception_log(const char* file, int line, int clear);
-#ifdef PYCBC_DEBUG
 #define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 #define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__)

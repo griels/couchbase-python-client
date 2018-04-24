@@ -166,8 +166,9 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
 #ifdef PYCBC_TRACING
 static PyObject *
 Bucket_tracer(pycbc_Bucket *self, void *unused) {
-    PYCBC_INCREF(self->tracer);
-    return self->tracer?(PyObject*)self->tracer:Py_None;
+    PyObject* result = self->tracer?(PyObject*)self->tracer:Py_None;
+    PYCBC_INCREF(result);
+    return result;
 }
 #endif
 static PyObject *
