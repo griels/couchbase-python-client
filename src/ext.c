@@ -605,6 +605,43 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
     }
 }
 
+pycbc_stack_context_handle pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject* hkey) {
+    pycbc_stack_context_handle stack_context_handle = NULL;
+    if (parent_context) {
+        stack_context_handle = pycbc_Tracer_span_start((parent_context)->tracer, NULL,
+                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
+                                                       parent_context, LCBTRACE_REF_CHILD_OF,
+                                                       "get_common_objects");
+        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("starting new context on key:[");
+        PYCBC_PRINT_STRING(hkey);
+        PYCBC_DEBUG_LOG_RAW("]:\n");
+    }
+    return stack_context_handle;
+}
+
+void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context) {
+    res->tracing_context = parent_context;
+    res->is_tracing_stub = 0;
+}
+
+pycbc_stack_context_handle pycbc_MultiResult_extract_context(PyObject *mrdict, PyObject *hkey, pycbc_Result** res) {
+    pycbc_stack_context_handle parent_context = NULL;
+    if( *res ) {
+        PYCBC_PRINT_REPR(mrdict);
+        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key: [", res);
+        PYCBC_PRINT_STRING(hkey);
+        PYCBC_DEBUG_LOG_RAW("]\n");
+        PYCBC_DEBUG_LOG("res %p", *res);
+        parent_context = PYCBC_CHECK_CONTEXT((*res)->tracing_context);
+
+        if ((*res)->is_tracing_stub) {
+            PyDict_DelItem(mrdict, hkey);
+            *res = NULL;
+        }
+    }
+    return parent_context;
+};
+
 void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
                               pycbc_stack_context_handle context) {
     pycbc_pybuffer keybuf={0};
@@ -1110,5 +1147,6 @@ int pycbc_TracerType_init(PyObject **ptr) {
     p->tp_getset = pycbc_Tracer_TABLE_getset;
     pycbc_Tracer_init_constants();
     return PyType_Ready(p);
-};
+}
+
 #endif

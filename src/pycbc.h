@@ -315,7 +315,6 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #endif
 
 struct pycbc_Tracer;
-//#undef PYCBC_TRACING_ENABLE
 
 #ifdef LCB_TRACING
 #ifdef PYCBC_TRACING_ENABLE
@@ -432,12 +431,16 @@ typedef void* pycbc_stack_context_handle;
 #endif
 
 #ifdef PYCBC_TRACING
-
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
+typedef struct pycbc_Result pycbc_Result;
 
 pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
                                                    lcb_uint64_t now, pycbc_stack_context_handle context,
                                                    lcbtrace_REF_TYPE ref_type, const char* component);
+pycbc_stack_context_handle pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject* hkey);
+void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context);
+pycbc_stack_context_handle pycbc_MultiResult_extract_context(PyObject *mrdict, PyObject *hkey, pycbc_Result** res);
+
 PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
@@ -540,8 +543,7 @@ PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyO
 #ifdef PYCBC_TRACING
 #define TRACING_DATA \
     pycbc_stack_context_handle tracing_context;\
-    int is_tracing_stub;\
-    PyObject* tracing_output;
+    int is_tracing_stub;
 #else
 #define TRACING_DATA
 #endif
@@ -557,7 +559,7 @@ PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyO
     lcb_uint64_t cas; \
     PyObject *mutinfo;
 
-typedef struct {
+typedef struct pycbc_Result {
     pycbc_Result_HEAD
 } pycbc_Result;
 
@@ -1360,6 +1362,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
 PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs);
+
 /**
  * Flag to check if logging is enabled for the library via Python's logging
  */

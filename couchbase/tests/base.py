@@ -427,20 +427,23 @@ class ConnectionTestCase(CouchbaseTestCase):
                 pass
 
             for attrib_name in ["cb.tracer.parent", "cb"]:
-                logging.info("evaluating "+attrib_name)
-                attrib = eval("self." + attrib_name)
-                options = dict(refcounts=True, max_depth=3, too_many=10, shortnames=False)
-                objgraph.show_refs(attrib,
-                                   filename=os.path.join(graphdir, '{}_{}_refs.dot'.format(self._testMethodName,
-                                                                                           attrib_name)),
-                                   **options)
-                objgraph.show_backrefs(attrib,
-                                       filename=os.path.join(graphdir,
-                                                                     '{}_{}_backrefs.dot'.format(self._testMethodName,
-                                                                                                 attrib_name)),
+                try:
+                    logging.info("evaluating "+attrib_name)
+                    attrib = eval("self." + attrib_name)
+                    options = dict(refcounts=True, max_depth=3, too_many=10, shortnames=False)
+                    objgraph.show_refs(attrib,
+                                       filename=os.path.join(graphdir, '{}_{}_refs.dot'.format(self._testMethodName,
+                                                                                               attrib_name)),
                                        **options)
-                logging.info("got referrents {}".format(repr(gc.get_referents(attrib))))
-                logging.info("got referrers {}".format(repr(gc.get_referrers(attrib))))
+                    objgraph.show_backrefs(attrib,
+                                           filename=os.path.join(graphdir,
+                                                                         '{}_{}_backrefs.dot'.format(self._testMethodName,
+                                                                                                     attrib_name)),
+                                           **options)
+                    logging.info("got referrents {}".format(repr(gc.get_referents(attrib))))
+                    logging.info("got referrers {}".format(repr(gc.get_referrers(attrib))))
+                except:
+                    pass
         gc.collect()
         for x in range(10):
             oldrc = sys.getrefcount(self.cb)
