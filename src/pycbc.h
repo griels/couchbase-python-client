@@ -34,14 +34,16 @@
 #define PYCBC_DEBUG_LOG(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(__FILE__,__LINE__,__VA_ARGS__)
 
 #ifdef PYCBC_DEBUG
-#define PYCBC_DECREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s *** ", X, Py_REFCNT(X), PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)) ); Py_DECREF((PyObject*)X);
-#define PYCBC_XDECREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, X?Py_REFCNT(X):0, X?PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)):""); Py_XDECREF((PyObject*)X)
-#define PYCBC_INCREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, Py_REFCNT(X), PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)) ); Py_INCREF((PyObject*)X);
-#define PYCBC_XINCREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***", X, X?Py_REFCNT(X):0, X?PyUnicode_AsUTF8(PyObject_Repr((PyObject*)X)):""); Py_XINCREF((PyObject*)X)
+#define LOG_REFOP(Y,OP) { pycbc_assert(Y && Py_REFCNT(Y)>0);PyObject* repr=Y?PyObject_Repr((PyObject*)Y):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, Y?Py_REFCNT(Y):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##OP((PyObject*)Y); }
+#define LOG_REFOPX(Y,OP) { pycbc_assert(!Y || Py_REFCNT(Y)>0);PyObject* repr=Y?PyObject_Repr((PyObject*)Y):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, Y?Py_REFCNT(Y):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##X##OP((PyObject*)Y); }
 #else
-#define PYCBC_DECREF(X) Py_DECREF(X);
-#define PYCBC_XDECREF(X) Py_XDECREF(X);
+#define LOG_REFOP(X,OP) Py_##OP(X)
+#define LOG_REFOPX(X,OP) Py_X##{ pycbc_assert(!X || Py_REFCNT(X)>0);PyObject* repr=X?PyObject_Repr((PyObject*)X):NULL;PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", X, X?Py_REFCNT(X):0, repr?PyUnicode_AsUTF8(repr):"<NULL>", #OP); Py_XDECREF(repr); Py_##XOP((PyObject*)X); }
 #endif
+#define PYCBC_DECREF(X) LOG_REFOP(X,DECREF)
+#define PYCBC_XDECREF(X) LOG_REFOPX(X,DECREF)
+#define PYCBC_INCREF(X) LOG_REFOP(X,INCREF)
+#define PYCBC_XINCREF(X) LOG_REFOPX(X,INCREF)
 
 
 #include <Python.h>

@@ -476,19 +476,27 @@ void pycbc_print_string( PyObject *curkey) {
 
 
 void pycbc_print_repr( PyObject *pobj) {
-    PyObject* x,*y,*z;
-    PyErr_Fetch(&x,&y,&z);
+    PyObject* x=NULL,*y=NULL,*z=NULL;
+    if(PyErr_Occurred()) {
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
+        PyErr_Fetch(&x, &y, &z);
+    }
     {
         PyObject *curkey = PyObject_Repr(pobj);
         PYCBC_EXCEPTION_LOG;
-        PyErr_Restore(x, y, z);
-        if (!curkey) {
-            PYCBC_DEBUG_LOG("got null repr from %p", pobj);
-            return;
+        if (curkey) {
+            PYCBC_PRINT_STRING(curkey);
+            Py_XDECREF(curkey);
         }
-        PYCBC_PRINT_STRING(curkey);
-        PYCBC_XDECREF(curkey);
+        else
+        {
+            PYCBC_DEBUG_LOG("got null repr from %p", pobj);
+        }
     }
+    if (x || y || z) {
+        PyErr_Restore(x, y, z);
+    }
+
 }
 
 
@@ -523,9 +531,9 @@ void pycbc_exception_log(const char* file, int line, int clear)
         PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
         if (clear)
         {
-            PYCBC_XDECREF(type);
-            PYCBC_XDECREF(value);
-            PYCBC_XDECREF(traceback);
+            Py_XDECREF(type);
+            Py_XDECREF(value);
+            Py_XDECREF(traceback);
         }
         else
         {
@@ -1010,7 +1018,7 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
         PYCBC_PRINT_REPR(parent);
         PYCBC_DEBUG_LOG("]\n");
         pycbc_tracer->start_span_method = PyObject_GetAttrString(parent, "start_span");
-        if (pycbc_tracer->start_span_method)
+        if (!PyErr_Occurred() && pycbc_tracer->start_span_method)
         {
             PYCBC_DEBUG_LOG("got start_span method:[");
             PYCBC_PRINT_REPR(pycbc_tracer->start_span_method);
@@ -1028,25 +1036,14 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
     }
     return tracer;
 }
-
-static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
-        { NULL }
-};
-
-static struct PyMemberDef pycbc_Tracer_TABLE_members[] = {
-        { NULL }
-};
-
-static PyMethodDef pycbc_Tracer_TABLE_methods[] = {
-
-#define OPFUNC(name, doc) \
-{ #name, (PyCFunction)pycbc_Tracer_##name, METH_VARARGS|METH_KEYWORDS, \
-    PyDoc_STR(doc) }
-
-#undef OPFUNC
-
-        { NULL, NULL, 0, NULL }
-};
+static PyObject *
+Tracer_parent(pycbc_Tracer_t *self, void *unused)
+{
+    pycbc_tracer_state *tracer_state = (pycbc_tracer_state*)self->tracer->cookie;
+    pycbc_assert(tracer_state);
+    PYCBC_XINCREF(tracer_state->parent);
+    return tracer_state->parent?tracer_state->parent:Py_None;
+}
 
 
 static int
@@ -1065,7 +1062,31 @@ static void
 Tracer_dtor(pycbc_Tracer_t *self)
 {
     Py_TYPE(self)->tp_free((PyObject*)self);
-}
+};
+
+static PyGetSetDef pycbc_Tracer_TABLE_getset[] = {
+        { "parent",
+                (getter)Tracer_parent,
+                NULL,
+                PyDoc_STR("Optional parent tracer to propagate spans to.\n")
+        },
+        { NULL }
+};
+
+static struct PyMemberDef pycbc_Tracer_TABLE_members[] = {
+        { NULL }
+};
+
+static PyMethodDef pycbc_Tracer_TABLE_methods[] = {
+
+#define OPFUNC(name, doc) \
+{ #name, (PyCFunction)pycbc_Tracer_##name, METH_VARARGS|METH_KEYWORDS, \
+    PyDoc_STR(doc) }
+
+#undef OPFUNC
+
+        { NULL, NULL, 0, NULL }
+};
 
 PyTypeObject pycbc_TracerType = {
         PYCBC_POBJ_HEAD_INIT(NULL)

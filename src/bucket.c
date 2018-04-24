@@ -163,6 +163,13 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
     return ret;
 }
 
+#ifdef PYCBC_TRACING
+static PyObject *
+Bucket_tracer(pycbc_Bucket *self, void *unused) {
+    PYCBC_INCREF(self->tracer);
+    return self->tracer?(PyObject*)self->tracer:Py_None;
+}
+#endif
 static PyObject *
 Bucket__instance_pointer(pycbc_Bucket *self, void *unused)
 {
@@ -382,7 +389,13 @@ static PyGetSetDef Bucket_TABLE_getset[] = {
                         "Note that this will still return true even if\n"
                         "it is subsequently closed via :meth:`_close`\n")
         },
-
+#ifdef PYCBC_TRACING
+        {"tracer",
+                (getter) Bucket_tracer,
+                NULL,
+                PyDoc_STR("Tracer used by bucket, if any.\n")
+        },
+#endif
         { "_instance_pointer",
                 (getter)Bucket__instance_pointer,
                 NULL,
@@ -697,10 +710,13 @@ Bucket__init__(pycbc_Bucket *self,
         PyObject *tracer_args = PyTuple_New(1);
         PyTuple_SetItem(tracer_args, 0, tracer);
         self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
+        PYCBC_DECREF(tracer_args);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
-            PYCBC_XDECREF(self->tracer);
             self->tracer = NULL;
+        }
+        else {
+            PYCBC_XINCREF(self->tracer);
         }
     }
 #endif
