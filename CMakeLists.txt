@@ -4,6 +4,7 @@ add_definitions("-DPYCBC_TRACING_ENABLE -DPYCBC_DEBUG")
 set(LCB_ROOT ../libcouchbase)
 set(LCB_ROOT_SRC ${LCB_ROOT}/src)
 set(LCB_ROOT_CONTRIB ${LCB_ROOT}/contrib)
+set(PYCBC_SRC src)
 
 set(PYTHON_INCLUDE_DIR /Users/ellis_breen/root/virtualenvs/3.6/default/include/python3.6m/)
 set(PYTHON_INCLUDE ${PYTHON_INCLUDE_DIR})
@@ -72,6 +73,7 @@ include_directories( ${LCB_ROOT_SRC}
         ${LCB_TRACING_DIR}
         ${LCB_CJSON}
         ${PYTHON_INCLUDE_DIRS}
+        ${PYCBC_SRC}
         )
 
 ExternalProject_Add(libcouchbase
@@ -88,7 +90,7 @@ set(EXTRA_SOURCE_DIRS
 
         ${LCB_MCSERVER}
         ${LCB_IO}
-
+        ${PYCBC_SRC}
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
@@ -97,6 +99,7 @@ set(EXTRA_SOURCE_DIRS
         )
 
 set(SOURCE
+        ${SRC}
         ${SOURCE}
         ${LCB_CORE}
         ${LCB_INC}
@@ -127,6 +130,7 @@ add_executable(couchbase_python_client_2_3_1
         ${LCB_VBUCKET}
         ${LCB_SASL}
         ${LCB_CLI}
+        ${LCB_ROOT_SRC}
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
         acouchbase/tests/py34only.py
