@@ -28,8 +28,7 @@ static void log_handler(struct lcb_logprocs_st *procs, unsigned int iid,
     const char *subsys, int severity, const char *srcfile, int srcline,
     const char *fmt, va_list ap);
 
-struct lcb_logprocs_st pycbc_lcb_logprocs = { 0 };
-
+struct lcb_logprocs_st pycbc_lcb_logprocs = {0 };
 
 static PyObject *
 _libcouchbase_init_helpers(PyObject *self, PyObject *args, PyObject *kwargs) {
@@ -457,60 +456,56 @@ static void log_handler(struct lcb_logprocs_st *procs,
 #endif
 
 #include "oputil.h"
-
+#if PYTHON_ABI_VERSION >= 3
+#define PYCBC_CSTR(X) PyUnicode_AsUTF8(X)
+#else
+#define PYCBC_CSTR(X) PyString_AsString(X)
+#endif
 
 #ifdef PYCBC_DEBUG
-void pycbc_print_string( PyObject *curkey) {
-#if PYTHON_ABI_VERSION >= 3
-    {
-        const char *keyname = PyUnicode_AsUTF8(curkey);
-        PYCBC_DEBUG_LOG_RAW("%s",  keyname);
-        PYCBC_EXCEPTION_LOG_NOCLEAR;
-    }
-#else
-    {
-        PYCBC_DEBUG_LOG("%s",PyString_AsString(curkey));
-    };
-#endif
+const char* pycbc_get_string(PyObject *string) {
+    return string?PYCBC_CSTR(string):"NULL";
 }
 
+void pycbc_print_string(PyObject *string) {
+    PYCBC_DEBUG_LOG_RAW("%s",  pycbc_get_string(string));
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
+}
 
-void pycbc_print_repr( PyObject *pobj) {
+PyObject *pycbc_get_repr(PyObject *pobj) {
     PyObject* x=NULL,*y=NULL,*z=NULL;
+    PyObject *repr_string;
     if(PyErr_Occurred()) {
-        PYCBC_EXCEPTION_LOG_NOCLEAR;
         PyErr_Fetch(&x, &y, &z);
     }
-    {
-        PyObject *curkey = PyObject_Repr(pobj);
-        PYCBC_EXCEPTION_LOG;
-        if (curkey) {
-            PYCBC_PRINT_STRING(curkey);
-            Py_XDECREF(curkey);
-        }
-        else
-        {
-            PYCBC_DEBUG_LOG("got null repr from %p", pobj);
-        }
-    }
+    repr_string = PyObject_Repr(pobj);
+    PYCBC_EXCEPTION_LOG;
     if (x || y || z) {
         PyErr_Restore(x, y, z);
     }
-
+    return repr_string;
 }
+
+void pycbc_print_repr( PyObject *pobj) {
+    PyObject *repr_string = pycbc_get_repr(pobj);
+    PYCBC_PRINT_STRING(repr_string);
+    Py_XDECREF(repr_string);
+}
+
 
 void pycbc_exception_log(const char* file, int line, int clear)
 {
 
     if (PyErr_Occurred()) {
         PyObject* type, *value, *traceback;
-        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(file, line, "***** EXCEPTION:[", "");
         PyErr_Fetch(&type,&value,&traceback);
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(file, line, "", "***** EXCEPTION:[");
         PYCBC_PRINT_REPR(type);
         PYCBC_DEBUG_LOG_RAW(",");
         PYCBC_PRINT_REPR(value);
         PYCBC_DEBUG_LOG_RAW(",");
-        if (0){
+#if 0
+        {
             /* See if we can get a full traceback */
             PyObject* module_name = PyString_FromString("traceback");
             PyObject* pyth_module = PyImport_Import(module_name);
@@ -527,6 +522,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
                 }
             }
         }
+#endif  
         PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
         if (clear)
         {
@@ -545,7 +541,7 @@ void pycbc_exception_log(const char* file, int line, int clear)
 
 #ifdef PYCBC_TRACING
 
-pycbc_stack_context_handle
+static pycbc_stack_context_handle
 pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, lcbtrace_REF *ref, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
     pycbc_assert(py_tracer);
@@ -556,17 +552,11 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_
     return context;
 }
 
-PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
+
+pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEXT, const char *file, int line)
 {
-    if (PYCBC_CHECK_CONTEXT(context)) {
-        PYCBC_DEBUG_LOG("closing span %p",context->span);
-        lcbtrace_span_finish(context->span, 0);
-        (context)->span = NULL;
-    };
-    return Py_None;
-}
-pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line)
-{
+
+    PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"checking context %p",CONTEXT);
     if (!(CONTEXT)){
         PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"warning: got null context");
     } else if (!(CONTEXT)->tracer){\
@@ -579,6 +569,17 @@ pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEX
     }
     return NULL;
 }
+
+PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
+{
+    if (PYCBC_CHECK_CONTEXT(context)) {
+        PYCBC_DEBUG_LOG("closing span %p",context->span);
+        lcbtrace_span_finish(context->span, 0);
+        (context)->span = NULL;
+    };
+    return Py_None;
+}
+
 
 pycbc_stack_context_handle
 pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_uint64_t now,
@@ -605,13 +606,14 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
     }
 }
 
-pycbc_stack_context_handle pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject* hkey) {
+pycbc_stack_context_handle
+pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component) {
     pycbc_stack_context_handle stack_context_handle = NULL;
     if (parent_context) {
         stack_context_handle = pycbc_Tracer_span_start((parent_context)->tracer, NULL,
                                                        LCBTRACE_OP_RESPONSE_DECODING, 0,
                                                        parent_context, LCBTRACE_REF_CHILD_OF,
-                                                       "get_common_objects");
+                                                       component);
         PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("starting new context on key:[");
         PYCBC_PRINT_STRING(hkey);
         PYCBC_DEBUG_LOG_RAW("]:\n");
@@ -624,7 +626,8 @@ void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handl
     res->is_tracing_stub = 0;
 }
 
-pycbc_stack_context_handle pycbc_MultiResult_extract_context(PyObject *mrdict, PyObject *hkey, pycbc_Result** res) {
+pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res) {
+    PyObject *mrdict=pycbc_multiresult_dict(self);
     pycbc_stack_context_handle parent_context = NULL;
     if( *res ) {
         PYCBC_PRINT_REPR(mrdict);
@@ -632,6 +635,7 @@ pycbc_stack_context_handle pycbc_MultiResult_extract_context(PyObject *mrdict, P
         PYCBC_PRINT_STRING(hkey);
         PYCBC_DEBUG_LOG_RAW("]\n");
         PYCBC_DEBUG_LOG("res %p", *res);
+
         parent_context = PYCBC_CHECK_CONTEXT((*res)->tracing_context);
 
         if ((*res)->is_tracing_stub) {
@@ -642,16 +646,18 @@ pycbc_stack_context_handle pycbc_MultiResult_extract_context(PyObject *mrdict, P
     return parent_context;
 };
 
-void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
-                              pycbc_stack_context_handle context) {
+void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
+                                    pycbc_stack_context_handle context, pycbc_Bucket *bucket) {
+    PyObject* mres_dict = pycbc_multiresult_dict(self);
+    if (!context) { return; }
     pycbc_pybuffer keybuf={0};
     pycbc_Result *item;
-    pycbc_tc_encode_key(self, curkey, &keybuf);
+    pycbc_tc_encode_key(bucket, curkey, &keybuf);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
-    pycbc_tc_decode_key(self, keybuf.buffer, keybuf.length, &curkey);
+    pycbc_tc_decode_key(bucket, keybuf.buffer, keybuf.length, &curkey);
     item=(pycbc_Result*)PyDict_GetItem(mres_dict, curkey);
     if (!item) {
-        item = (pycbc_Result*) pycbc_valresult_new(self);
+        item = (pycbc_Result*) pycbc_valresult_new(bucket);
         PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
         item->is_tracing_stub = 1;
     }
@@ -667,7 +673,7 @@ void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject 
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("After insertion:[");
     PYCBC_PRINT_REPR(mres_dict);
-    PYCBC_DEBUG_LOG("]\n");
+    PYCBC_DEBUG_LOG_RAW("]\n");
 }
 
 
@@ -819,6 +825,8 @@ void pycbc_span_finish_args_dealloc(struct pycbc_tracer_finish_args *args) {
 }
 #undef PYCBC_TEXT_FREE
 #undef PYCBC_ULL_FREE
+#undef PYCBC_X_FINISH_ARGS
+#undef PYCBC_X_SPAN_ARGS
 
 struct pycbc_tracer_payload;
 struct pycbc_tracer_span_args;

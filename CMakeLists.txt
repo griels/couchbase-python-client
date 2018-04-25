@@ -30,7 +30,9 @@ aux_source_directory(LCB_CLI ${LCB_ROOT}/contrib/cliopts)
 aux_source_directory(LCB_ROOT_A ${LCB_ROOT_SRC})
 
 include(ExternalProject)
-add_definitions(-DLCB_TRACING=TRUE)
+add_definitions(-DLCB_TRACING=TRUE
+        -DPYCBC_TRACING_ENABLE=TRUE
+        -DPYCBC_DEBUG=TRUE)
 
 ExternalProject_Add (cJSON
 PREFIX ${OT_ROOT}

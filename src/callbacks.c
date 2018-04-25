@@ -208,12 +208,11 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
 
     mrdict = pycbc_multiresult_dict(*mres);
+    *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
 
 #ifdef PYCBC_TRACING
-    parent_context = pycbc_MultiResult_extract_context(mrdict, hkey, res);
-    decoding_context = pycbc_Result_start_decoding_context(parent_context, hkey);
-#else
-    *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+    parent_context = pycbc_MultiResult_extract_context(*mres, hkey, res);
+    decoding_context = pycbc_Result_start_decoding_context(parent_context, hkey, "get_common_objects");
 #endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
@@ -592,8 +591,8 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     PyObject *mrdict;
     pycbc_Bucket *parent;
 #ifdef PYCBC_TRACING
-    pycbc_stack_context_handle decoding_context = NULL;
-    pycbc_stack_context_handle parent_context = NULL;
+    //pycbc_stack_context_handle decoding_context = NULL;
+    //pycbc_stack_context_handle parent_context = NULL;
 #endif
     const lcb_RESPSTATS *resp = (const lcb_RESPSTATS *)resp_base;
     int do_return = 0;
@@ -627,11 +626,8 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     knodes = PyDict_GetItem(mrdict, skey);
 
 #ifdef PYCBC_TRACING
-    if (0 && knodes)
-    {
-        parent_context = pycbc_MultiResult_extract_context(mrdict, skey, (pycbc_Result**)&knodes);
-        decoding_context = pycbc_Result_start_decoding_context(parent_context, skey);
-    }
+    //parent_context = pycbc_MultiResult_extract_context(mres, skey, (pycbc_Result**)&knodes);
+    //decoding_context = pycbc_Result_start_decoding_context(parent_context, skey);
 #endif
 
     value = pycbc_SimpleStringN(resp->value, resp->nvalue);
@@ -652,7 +648,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     }
 
     PyDict_SetItemString(knodes, resp->server, value);
-    PYCBC_TRACE_POP_CONTEXT(decoding_context);
+    //PYCBC_TRACE_POP_CONTEXT(decoding_context);
     Py_DECREF(skey);
     Py_DECREF(value);
 
