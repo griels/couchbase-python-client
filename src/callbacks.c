@@ -28,7 +28,6 @@ static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
  */
 static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error_t rc, size_t ix);
 
-
 static void
 cb_thr_end(pycbc_Bucket *self)
 {
@@ -169,6 +168,7 @@ static void operation_completed_with_err_info(pycbc_Bucket *self,
     operation_completed3(self, mres, err_info);
     Py_XDECREF(err_info);
 }
+
 /**
  * Call this function for each callback. Note that even if this function
  * returns nonzero, CB_THR_BEGIN() must still be called, and the `conn`
@@ -191,7 +191,8 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     PyObject *mrdict;
     int rv;
 #ifdef PYCBC_TRACING
-    pycbc_stack_context_handle stack_context_handle = NULL;
+    pycbc_stack_context_handle parent_context = NULL;
+    pycbc_stack_context_handle decoding_context = NULL;
 #endif
     pycbc_assert(pycbc_multiresult_check(resp->cookie));
     *mres = (pycbc_MultiResult*)resp->cookie;
@@ -207,34 +208,11 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
 
     mrdict = pycbc_multiresult_dict(*mres);
-
     *res = (pycbc_Result*)PyDict_GetItem(mrdict, hkey);
+
 #ifdef PYCBC_TRACING
-    pycbc_print_repr(mrdict);
-
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key [%.*s] or PyString: [",res, (int)resp->nkey,(const char*)resp->key);
-    pycbc_stack_context_handle handle = NULL;
-    PYCBC_DEBUG_LOG_RAW("]\n");
-    if( *res ) {
-        handle = (*res)->tracing_context;
-        PYCBC_DEBUG_LOG("res %p",*res);
-
-        if (PYCBC_CHECK_CONTEXT(handle)) {
-            stack_context_handle = pycbc_Tracer_span_start(handle->tracer, NULL,
-                                                           LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                           handle, LCBTRACE_REF_CHILD_OF, "get_common_objects");
-            PYCBC_DEBUG_LOG("res %p: starting new context on key %.*s\n", *res, (int) resp->nkey,
-                            (const char *) resp->key);
-        }
-        if ((*res)->is_tracing_stub) {
-            PyDict_DelItem(mrdict, hkey);
-
-            *res = NULL;
-
-        }
-
-    }
-
+    parent_context = pycbc_MultiResult_extract_context(*mres, hkey, res);
+    decoding_context = pycbc_Result_start_decoding_context(parent_context, hkey, "get_common_objects");
 #endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
@@ -287,14 +265,13 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         }
         PyDict_SetItem(mrdict, hkey, (PyObject*)*res);
 #ifdef PYCBC_TRACING
-        handle = stack_context_handle;
-        (*res)->is_tracing_stub = 0;
+        pycbc_Result_propagate_context(*res, parent_context);
 #endif
         (*res)->key = hkey;
         PYCBC_DECREF(*res);
     }
 
-    PYCBC_TRACE_POP_CONTEXT(stack_context_handle);
+    PYCBC_TRACE_POP_CONTEXT(decoding_context);
     if (resp->rc) {
         (*res)->rc = resp->rc;
     }
@@ -604,7 +581,7 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     (void)instance;
 
 }
-
+#define PYCBC_TRACING_INIT_CONTEXT
 static void
 stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
 {
@@ -613,6 +590,10 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     PyObject *skey, *knodes;
     PyObject *mrdict;
     pycbc_Bucket *parent;
+#ifdef PYCBC_TRACING
+    //pycbc_stack_context_handle decoding_context = NULL;
+    //pycbc_stack_context_handle parent_context = NULL;
+#endif
     const lcb_RESPSTATS *resp = (const lcb_RESPSTATS *)resp_base;
     int do_return = 0;
 
@@ -640,6 +621,15 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     }
 
     skey = pycbc_SimpleStringN(resp->key, resp->nkey);
+
+    mrdict = pycbc_multiresult_dict(mres);
+    knodes = PyDict_GetItem(mrdict, skey);
+
+#ifdef PYCBC_TRACING
+    //parent_context = pycbc_MultiResult_extract_context(mres, skey, (pycbc_Result**)&knodes);
+    //decoding_context = pycbc_Result_start_decoding_context(parent_context, skey);
+#endif
+
     value = pycbc_SimpleStringN(resp->value, resp->nvalue);
     {
         PyObject *intval = pycbc_maybe_convert_to_int(value);
@@ -652,15 +642,13 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         }
     }
 
-    mrdict = pycbc_multiresult_dict(mres);
-    knodes = PyDict_GetItem(mrdict, skey);
     if (!knodes) {
         knodes = PyDict_New();
         PyDict_SetItem(mrdict, skey, knodes);
     }
 
     PyDict_SetItemString(knodes, resp->server, value);
-
+    //PYCBC_TRACE_POP_CONTEXT(decoding_context);
     Py_DECREF(skey);
     Py_DECREF(value);
 

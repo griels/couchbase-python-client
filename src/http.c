@@ -193,8 +193,10 @@ pycbc_http_callbacks_init(lcb_t instance)
 PyObject *
 pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+#ifdef PYCBC_TRACING
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
                                                                           self->tracer, "bucket.http_request");
+#endif
     int rv;
     int method;
     int reqtype;

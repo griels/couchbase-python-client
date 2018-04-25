@@ -217,9 +217,7 @@ get_viewpath_str(pycbc_Bucket *self, viewpath_st *vp, PyObject *options)
     }
     return 0;
 }
-
-PyObject *
-pycbc_Bucket__view_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
+TRACED_FUNCTION_WRAPPER(view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;
     PyObject *ret = NULL;
@@ -276,7 +274,9 @@ pycbc_Bucket__view_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;
-
+#ifdef PYCBC_TRACING
+    lcb_view_set_parent_span(self->instance, vcmd.handle, context->span);
+#endif
     rc = lcb_view_query(self->instance, mres, &vcmd);
 
     if (rc != LCB_SUCCESS) {
@@ -338,8 +338,8 @@ static int
 ViewResult__init__(PyObject *self_raw,
                    PyObject *args, PyObject *kwargs)
 {
-    pycbc_ViewResult* self = (pycbc_ViewResult*)(self_raw);
 #ifdef PYCBC_TRACING
+    pycbc_ViewResult *self = self_raw;
     PYCBC_DEBUG_LOG("in ur view making ur tracer\n");
     self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
     self->own_tracer = 0;
