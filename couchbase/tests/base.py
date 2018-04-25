@@ -30,7 +30,8 @@ import logging
 import gc
 
 import os
-if os.environ.get("PYCBC_TRACE_GC"):
+
+if os.environ.get("PYCBC_TRACE_GC") in ['FULL','STATS_LEAK_ONLY']:
     gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
 
@@ -417,7 +418,32 @@ class ConnectionTestCase(CouchbaseTestCase):
         import gc
         if platform.python_implementation() == 'PyPy':
             return
+        if os.environ.get("PYCBC_TRACE_GC") in ['FULL','GRAPH_ONLY']:
+            import objgraph
+            graphdir=os.path.join(os.getcwd(),"ref_graphs")
+            try:
+                os.makedirs(graphdir)
+            except:
+                pass
 
+            for attrib_name in ["cb.tracer.parent", "cb"]:
+                try:
+                    logging.info("evaluating "+attrib_name)
+                    attrib = eval("self." + attrib_name)
+                    options = dict(refcounts=True, max_depth=3, too_many=10, shortnames=False)
+                    objgraph.show_refs(attrib,
+                                       filename=os.path.join(graphdir, '{}_{}_refs.dot'.format(self._testMethodName,
+                                                                                               attrib_name)),
+                                       **options)
+                    objgraph.show_backrefs(attrib,
+                                           filename=os.path.join(graphdir,
+                                                                         '{}_{}_backrefs.dot'.format(self._testMethodName,
+                                                                                                     attrib_name)),
+                                           **options)
+                    logging.info("got referrents {}".format(repr(gc.get_referents(attrib))))
+                    logging.info("got referrers {}".format(repr(gc.get_referrers(attrib))))
+                except:
+                    pass
         gc.collect()
         for x in range(10):
             oldrc = sys.getrefcount(self.cb)

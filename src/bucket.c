@@ -163,6 +163,14 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
     return ret;
 }
 
+#ifdef PYCBC_TRACING
+static PyObject *
+Bucket_tracer(pycbc_Bucket *self, void *unused) {
+    PyObject* result = self->tracer?(PyObject*)self->tracer:Py_None;
+    PYCBC_INCREF(result);
+    return result;
+}
+#endif
 static PyObject *
 Bucket__instance_pointer(pycbc_Bucket *self, void *unused)
 {
@@ -382,7 +390,13 @@ static PyGetSetDef Bucket_TABLE_getset[] = {
                         "Note that this will still return true even if\n"
                         "it is subsequently closed via :meth:`_close`\n")
         },
-
+#ifdef PYCBC_TRACING
+        {"tracer",
+                (getter) Bucket_tracer,
+                NULL,
+                PyDoc_STR("Tracer used by bucket, if any.\n")
+        },
+#endif
         { "_instance_pointer",
                 (getter)Bucket__instance_pointer,
                 NULL,
@@ -829,6 +843,7 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 static void
 Bucket_dtor(pycbc_Bucket *self)
 {
+    PYCBC_DEBUG_LOG("destroying %p",self);
     if (self->flags & PYCBC_CONN_F_CLOSED) {
         lcb_destroy(self->instance);
         self->instance = NULL;
@@ -852,6 +867,7 @@ Bucket_dtor(pycbc_Bucket *self)
     }
 #ifdef PYCBC_TRACING
     PYCBC_XDECREF((PyObject*)self->tracer);
+    self->tracer = NULL;
 #endif
 
 #ifdef WITH_THREAD
