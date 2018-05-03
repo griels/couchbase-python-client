@@ -388,7 +388,10 @@ pycbc_tc_decode_key(pycbc_Bucket *conn, const void *key, size_t nkey,
     } else {
         bobj = PyBytes_FromStringAndSize(key, nkey);
         if (bobj) {
+            PyObject *a,*b,*c;
+            PyErr_Fetch(&a,&b,&c);
             rv = do_call_tc(conn, bobj, NULL, pobj, DECODE_KEY);
+            PyErr_Restore(a,b,c);
             Py_XDECREF(bobj);
 
         } else {
