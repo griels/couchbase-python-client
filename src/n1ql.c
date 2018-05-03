@@ -55,23 +55,7 @@ query_common, pycbc_Bucket *self, const char *params, unsigned nparams,
     }
 
     mres = (pycbc_MultiResult *)pycbc_multiresult_new(self);
-    {
-        PyObject* kwargs = pycbc_DummyKeywords;
-#ifdef PYCBC_TRACING
-        if (self->tracer) {
-            kwargs= PyDict_New();
-            PyDict_SetItemString(kwargs, "tracer", (PyObject*)self->tracer);
-        }
-#endif
-        vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject*)&pycbc_ViewResultType, "OO", Py_None, kwargs);
-        if (!vres)
-        {
-            PYCBC_DEBUG_LOG("null vres");
-        }
-
-        PYCBC_EXCEPTION_LOG_NOCLEAR;
-        PYCBC_DEBUG_LOG("got vres: %p", vres);
-    }
+    vres = pycbc_propagate_view_result(context);
     pycbc_httpresult_init(&vres->base, mres);
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;
@@ -112,7 +96,6 @@ query_common, pycbc_Bucket *self, const char *params, unsigned nparams,
     return ret;
 
 }
-
 PyObject *
 pycbc_Bucket__n1ql_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {

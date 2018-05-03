@@ -160,6 +160,7 @@ pycbc_httpresult_complete(pycbc_HttpResult *htres, pycbc_MultiResult *mres,
         pycbc_asyncresult_invoke(ares, NULL);
         /* We don't handle the GIL in async mode */
     }
+    PYCBC_TRACE_POP_CONTEXT(htres->tracing_context);
 }
 
 static void

@@ -20,7 +20,7 @@
  * @author Mark Nunberg
  */
 #ifndef PYCBC_DEBUG
-#define PYCBC_DEBUG
+//#define PYCBC_DEBUG
 #endif
 
 
@@ -334,7 +334,7 @@ void pycbc_exception_log(const char* file, int line, int clear);
 struct pycbc_Tracer;
 #define LCB_TRACING
 #ifndef PYCBC_TRACING_ENABLE
-#define PYCBC_TRACING_ENABLE
+//#define PYCBC_TRACING_ENABLE
 #endif
 #ifdef LCB_TRACING
 #ifdef PYCBC_TRACING_ENABLE
@@ -494,15 +494,18 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 
 #define PYCBC_TRACE_POP_CONTEXT(CONTEXT) pycbc_Context_finish(CONTEXT);
 
+#define PYCBC_FINISH_IF_COMPLETE(SELF,CONTEXT) {\
+    if ( sub_context && !pycbc_is_async_or_pipeline(self)) {\
+        pycbc_Context_finish(sub_context);\
+    };};
+
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
     int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
     if (should_trace) { sub_context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if ( 0 && should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
-        pycbc_Context_finish(sub_context);\
-    }\
+    if (0 && should_trace ) PYCBC_FINISH_IF_COMPLETE(self, sub_context);\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
 
@@ -519,18 +522,19 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 
 #else
 
-#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
-    RV=lcb_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #define PYCBC_GET_STACK_CONTEXT(CATEGORY,TRACER, PARENT_CONTEXT) NULL
 #define PYCBC_TRACECMD(...)
 #define PYCBC_TRACECMD_PURE(...)
 #define PYCBC_TRACE_POP_CONTEXT(X)
+#define PYCBC_FINISH_IF_COMPLETE(SELF,CONTEXT)
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) { RV = NAME(__VA_ARGS__, NULL); }
 #define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, NULL)
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV,CATEGORY,NAME,TRACER,...) { RV=NAME(__VA_ARGS__,NULL); }
 #define PYCBC_TRACE_WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, NULL)
 #define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(...) NULL
+#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    RV=lcb_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #endif
 
@@ -654,8 +658,7 @@ typedef struct {
     long rows_per_call;
     char has_parse_error;
 #ifdef PYCBC_TRACING
-    pycbc_Tracer_t* py_tracer;
-    int own_tracer;
+    pycbc_stack_context_handle context;
 #endif
 } pycbc_ViewResult;
 
@@ -1061,6 +1064,7 @@ pycbc_ObserveInfo * pycbc_observeinfo_new(pycbc_Bucket *parent);
  */
 int pycbc_httpresult_ok(pycbc_HttpResult *self);
 
+pycbc_ViewResult *pycbc_propagate_view_result(pycbc_stack_context_handle context);
 
 /**
  * Append data to the HTTP result

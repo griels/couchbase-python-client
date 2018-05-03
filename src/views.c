@@ -250,7 +250,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     }
 
     mres = (pycbc_MultiResult *)pycbc_multiresult_new(self);
-    vres = (pycbc_ViewResult *)PYCBC_TYPE_CTOR(&pycbc_ViewResultType);
+    vres = pycbc_propagate_view_result(context);//PYCBC_TYPE_CTOR(&pycbc_ViewResultType);
     vres->base.htype = PYCBC_HTTP_HVIEW;
 
     pycbc_httpresult_init(&vres->base, mres);
@@ -274,11 +274,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;
-    //lcb_view_set_parent_span(self->instance, vcmd.handle, context->span);
-    //rc = lcb_view_query(self->instance, mres, &vcmd);
     PYCBC_TRACECMD_SCOPED(rc, view, query, self->instance, *vcmd.handle, context, mres, &vcmd);
-    //lcb_view_set_parent_span(self->instance, *vcmd.handle, context->span);
-    //rc = lcb_view_query(self->instance, mres, &vcmd);
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule view");
         goto GT_DONE;
@@ -286,7 +282,6 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 
     ret = (PyObject*)mres;
     mres = NULL; /* Avoid GT_DONE decref */
-
     GT_DONE:
     Py_XDECREF(mres);
     Py_XDECREF(vp.bk);
@@ -320,7 +315,7 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     }
 
     if (!self->base.done) {
-        pycbc_oputil_wait_common(bucket, PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, "viewresult.fetch"));
+        pycbc_oputil_wait_common(bucket, self->context);//PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, "viewresult.fetch"));
     }
 
     if (pycbc_multiresult_maybe_raise(mres)) {
@@ -334,17 +329,35 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     pycbc_oputil_conn_unlock(bucket);
     return ret;
 }
+
+pycbc_ViewResult *pycbc_propagate_view_result(pycbc_stack_context_handle context) {
+    pycbc_ViewResult *vres;
+    PyObject *kwargs = pycbc_DummyKeywords;
+#ifdef PYCBC_TRACING
+    if (PYCBC_CHECK_CONTEXT(context)) {
+        kwargs = PyDict_New();
+        PyDict_SetItemString(kwargs, "context", (PyObject *) context);
+    }
+#endif
+    vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject *) &pycbc_ViewResultType, "OO", Py_None, kwargs);
+    if (!vres) {
+        PYCBC_DEBUG_LOG("null vres");
+    }
+
+    PYCBC_EXCEPTION_LOG_NOCLEAR;
+    PYCBC_DEBUG_LOG("got vres: %p", vres);
+    return vres;
+}
+
 static int
 ViewResult__init__(PyObject *self_raw,
                    PyObject *args, PyObject *kwargs)
 {
 #ifdef PYCBC_TRACING
     pycbc_ViewResult *self = (pycbc_ViewResult*)self_raw;
-    PYCBC_DEBUG_LOG("in ur view making ur tracer\n");
-    self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
-    self->own_tracer = 0;
-    if (self->py_tracer) {
-        PYCBC_DEBUG_LOG("Got parent tracer %p\n", self->py_tracer);
+    self->context = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "context"):NULL;
+    if (self->context) {
+        PYCBC_DEBUG_LOG("Got parent context %p\n", self->context);
     }
 #endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -356,10 +369,7 @@ ViewResult_dealloc(pycbc_ViewResult *vres)
 {
     Py_CLEAR(vres->rows);
 #ifdef PYCBC_TRACING
-    if (vres->own_tracer && vres->py_tracer) {
-        lcbtrace_destroy(vres->py_tracer->tracer);
-        PYCBC_DECREF((PyObject*)vres->py_tracer);
-    }
+    //Py_XDECREF(vres->context); // deref itinerant contexts?
 #endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);
 }
