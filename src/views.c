@@ -315,7 +315,7 @@ ViewResult_fetch(pycbc_ViewResult *self, PyObject *args)
     }
 
     if (!self->base.done) {
-        pycbc_oputil_wait_common(bucket, self->context);//PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, "viewresult.fetch"));
+        pycbc_oputil_wait_common(bucket, self->context_capsule?PyCapsule_GetPointer(self->context_capsule,"tracing_context"):NULL);//PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(NULL, LCBTRACE_OP_RESPONSE_DECODING, self->py_tracer, "viewresult.fetch"));
     }
 
     if (pycbc_multiresult_maybe_raise(mres)) {
@@ -336,7 +336,7 @@ pycbc_ViewResult *pycbc_propagate_view_result(pycbc_stack_context_handle context
 #ifdef PYCBC_TRACING
     if (PYCBC_CHECK_CONTEXT(context)) {
         kwargs = PyDict_New();
-        PyDict_SetItemString(kwargs, "context", (PyObject *) context);
+        PyDict_SetItemString(kwargs, "context", PyCapsule_New(context,"tracing_context",NULL));
     }
 #endif
     vres = (pycbc_ViewResult *) PyObject_CallFunction((PyObject *) &pycbc_ViewResultType, "OO", Py_None, kwargs);
@@ -355,9 +355,10 @@ ViewResult__init__(PyObject *self_raw,
 {
 #ifdef PYCBC_TRACING
     pycbc_ViewResult *self = (pycbc_ViewResult*)self_raw;
-    self->context = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "context"):NULL;
-    if (self->context) {
-        PYCBC_DEBUG_LOG("Got parent context %p\n", self->context);
+    PyObject* context_capsule=kwargs?PyDict_GetItemString(kwargs, "context"):NULL;
+    self->context_capsule = context_capsule;
+    if (self->context_capsule) {
+        PYCBC_DEBUG_LOG("Got parent context %p\n", PyCapsule_GetPointer(self->context_capsule, "tracing_context"));
     }
 #endif
     PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -369,7 +370,7 @@ ViewResult_dealloc(pycbc_ViewResult *vres)
 {
     Py_CLEAR(vres->rows);
 #ifdef PYCBC_TRACING
-    //Py_XDECREF(vres->context); // deref itinerant contexts?
+    Py_XDECREF(vres->context_capsule);
 #endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);
 }

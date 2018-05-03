@@ -20,7 +20,7 @@
  * @author Mark Nunberg
  */
 #ifndef PYCBC_DEBUG
-//#define PYCBC_DEBUG
+#define PYCBC_DEBUG
 #endif
 
 
@@ -658,7 +658,7 @@ typedef struct {
     long rows_per_call;
     char has_parse_error;
 #ifdef PYCBC_TRACING
-    pycbc_stack_context_handle context;
+    PyObject* context_capsule;
 #endif
 } pycbc_ViewResult;
 
