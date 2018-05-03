@@ -160,6 +160,7 @@ pycbc_httpresult_complete(pycbc_HttpResult *htres, pycbc_MultiResult *mres,
         pycbc_asyncresult_invoke(ares, NULL);
         /* We don't handle the GIL in async mode */
     }
+    PYCBC_TRACE_POP_CONTEXT(htres->tracing_context);
 }
 
 static void
@@ -193,8 +194,10 @@ pycbc_http_callbacks_init(lcb_t instance)
 PyObject *
 pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
+#ifdef PYCBC_TRACING
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
                                                                           self->tracer, "bucket.http_request");
+#endif
     int rv;
     int method;
     int reqtype;
