@@ -217,7 +217,7 @@ get_viewpath_str(pycbc_Bucket *self, viewpath_st *vp, PyObject *options)
     }
     return 0;
 }
-TRACED_FUNCTION_WRAPPER(view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
+TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;
     PyObject *ret = NULL;
@@ -274,11 +274,11 @@ TRACED_FUNCTION_WRAPPER(view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;
-#ifdef PYCBC_TRACING
-    lcb_view_set_parent_span(self->instance, vcmd.handle, context->span);
-#endif
-    rc = lcb_view_query(self->instance, mres, &vcmd);
-
+    //lcb_view_set_parent_span(self->instance, vcmd.handle, context->span);
+    //rc = lcb_view_query(self->instance, mres, &vcmd);
+    PYCBC_TRACECMD_SCOPED(rc, view, query, self->instance, *vcmd.handle, context, mres, &vcmd);
+    //lcb_view_set_parent_span(self->instance, *vcmd.handle, context->span);
+    //rc = lcb_view_query(self->instance, mres, &vcmd);
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule view");
         goto GT_DONE;
@@ -339,7 +339,7 @@ ViewResult__init__(PyObject *self_raw,
                    PyObject *args, PyObject *kwargs)
 {
 #ifdef PYCBC_TRACING
-    pycbc_ViewResult *self = self_raw;
+    pycbc_ViewResult *self = (pycbc_ViewResult*)self_raw;
     PYCBC_DEBUG_LOG("in ur view making ur tracer\n");
     self->py_tracer = kwargs?(pycbc_Tracer_t*)PyDict_GetItemString(kwargs, "tracer"):NULL;
     self->own_tracer = 0;

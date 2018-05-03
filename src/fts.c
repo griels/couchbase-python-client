@@ -48,7 +48,8 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     lcb_CMDFTS cmd = { 0 };
     pycbc_pybuffer buf = { 0 };
     PyObject *params_o = NULL;
-
+    pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs,
+                                                                                LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "fts_query");
     static char *kwlist[] = { "params", NULL };
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &params_o);
 
@@ -90,7 +91,8 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     cmd.query = buf.buffer;
     cmd.nquery = buf.length;
     cmd.handle = &vres->base.u.fts;
-    rc = lcb_fts_query(self->instance, mres, &cmd);
+
+    PYCBC_TRACECMD_SCOPED(rc, fts, query, self->instance, *cmd.handle, context, mres, &cmd);
     PYCBC_PYBUF_RELEASE(&buf);
 
     if (rc != LCB_SUCCESS) {

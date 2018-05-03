@@ -332,7 +332,7 @@ void pycbc_exception_log(const char* file, int line, int clear);
 #endif
 
 struct pycbc_Tracer;
-
+#define LCB_TRACING
 #ifndef PYCBC_TRACING_ENABLE
 #define PYCBC_TRACING_ENABLE
 #endif
@@ -513,8 +513,14 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
+#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    if (PYCBC_CHECK_CONTEXT(CONTEXT)) { lcb_##SCOPE##_set_parent_span(INSTANCE, HANDLE, CONTEXT->span); }\
+    RV=lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #else
+
+#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    RV=lcb_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #define PYCBC_GET_STACK_CONTEXT(CATEGORY,TRACER, PARENT_CONTEXT) NULL
 #define PYCBC_TRACECMD(...)

@@ -37,15 +37,14 @@ n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
     }
 }
 
-static PyObject *
-query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject *,
+query_common, pycbc_Bucket *self, const char *params, unsigned nparams,
              const char *host, int is_prepared, int is_xbucket) {
     PyObject *ret = NULL;
     pycbc_MultiResult *mres;
     pycbc_ViewResult *vres;
     lcb_error_t rc;
     lcb_CMDN1QL cmd = { 0 };
-
     if (-1 == pycbc_oputil_conn_lock(self)) {
         return NULL;
     }
@@ -97,7 +96,7 @@ query_common(pycbc_Bucket *self, const char *params, unsigned nparams,
         cmd.host = host;
     }
 
-    rc = lcb_n1ql_query(self->instance, mres, &cmd);
+    PYCBC_TRACECMD_SCOPED(rc, n1ql, query, self->instance, *cmd.handle, context, mres, &cmd);
 
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule n1ql query");
@@ -120,6 +119,7 @@ pycbc_Bucket__n1ql_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     const char *params = NULL;
     pycbc_strlen_t nparams = 0;
     int prepared = 0, cross_bucket = 0;
+    PyObject* result = NULL;
     static char *kwlist[] = { "params", "prepare", "cross_bucket", NULL };
     if (!PyArg_ParseTupleAndKeywords(
         args, kwargs, "s#|ii", kwlist, &params,
@@ -128,7 +128,11 @@ pycbc_Bucket__n1ql_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         PYCBC_EXCTHROW_ARGS();
         return NULL;
     }
-    return query_common(self, params, nparams, NULL, prepared, cross_bucket);
+    PYCBC_TRACE_WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING,
+                              query_common,
+                              self->tracer,
+                              self, params, nparams, NULL, prepared, cross_bucket);
+    return result;
 }
 
 PyObject *
@@ -138,10 +142,15 @@ pycbc_Bucket__cbas_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     const char *params = NULL;
     pycbc_strlen_t nparams = 0;
     static char *kwlist[] = { "params", "host", NULL };
+    PyObject* result = NULL;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s", kwlist,
         &params, &nparams, &host)) {
         PYCBC_EXCTHROW_ARGS();
         return NULL;
     }
-    return query_common(self, params, nparams, host, 0, 0);
+    PYCBC_TRACE_WRAP_TOPLEVEL(result,LCBTRACE_OP_REQUEST_ENCODING,
+                              query_common,
+                              self->tracer,
+                              self, params, nparams, host, 0, 0);
+    return result;
 }

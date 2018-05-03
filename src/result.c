@@ -133,7 +133,7 @@ pycbc_Result_init(PyObject *self_raw,
                PyObject *args, PyObject *kwargs)
 {
 #ifdef PYCBC_TRACING
-    pycbc_Result* self = self_raw;
+    pycbc_Result* self = (pycbc_Result*)self_raw;
     self->is_tracing_stub = 0;
     self->tracing_context = NULL;
 #endif
