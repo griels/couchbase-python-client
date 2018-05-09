@@ -1771,6 +1771,7 @@ class Bucket(_Base):
     def redaction(self, val):
         return self._cntl(_LCB.LCB_CNTL_LOG_REDACTION, value=val, value_type='int')
 
+
     def _cntl(self, *args, **kwargs):
         """Low-level interface to the underlying C library's settings. via
         ``lcb_cntl()``.
@@ -2239,3 +2240,9 @@ class Bucket(_Base):
 
     def set_attribute(self, key, attrname):
         pass
+
+
+for key,value in _LCB.TRACING.items():
+    getter_property = property(lambda self: self._cntl(**value))
+    setattr(Bucket, key, getter_property)
+    setattr(Bucket, key, getter_property.setter(lambda self, val: self._cntl(value=val,**value)))

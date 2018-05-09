@@ -564,6 +564,15 @@ class TracedCase(ConnectionTestCaseBase):
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
         super(TracedCase, self).setUp(enable_tracing = "true", init_tracer = self.init_tracer, **kwargs)
+        import couchbase._libcouchbase
+        import couchbase
+        couchbase.enable_logging()
+        self.cb.THRESHOLD_KV = 10
+
+        self.cb.THRESHOLD_N1QL= 10
+        self.cb.THRESHOLD_VIEW =10
+        self.cb.THRESHOLD_FTS =10
+        self.cb.THRESHOLD_ANALYTICS =10
 
     def tearDown(self):
         super(TracedCase,self).tearDown()
