@@ -471,7 +471,7 @@ static void log_handler(struct lcb_logprocs_st *procs,
 
 #ifdef PYCBC_DEBUG
 const char* pycbc_get_string(PyObject *string) {
-    return string?PYCBC_CSTR(string):"NULL";
+    return (string &&PyObject_IsInstance(string, (PyObject*)&PyUnicode_Type))?PYCBC_CSTR(string):"NULL";
 }
 
 void pycbc_print_string(PyObject *string, const char* file, int line) {
