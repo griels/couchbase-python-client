@@ -721,12 +721,7 @@ Bucket__init__(pycbc_Bucket *self,
         PyObject *threshold_tracer_capsule = threshold_tracer ? PyCapsule_New(threshold_tracer, "threshold_tracer", NULL) : NULL;
         PyTuple_SetItem(tracer_args, 0, pycbc_value_or_none(tracer));
         PyTuple_SetItem(tracer_args, 1, pycbc_value_or_none(threshold_tracer_capsule));
-        PYCBC_PRINT_STRING(PyObject_Repr(tracer_args));
-        if (PyErr_Occurred())
-        {
-            PyErr_Print();
-            abort();
-        }
+        PYCBC_PRINT_REPR(tracer_args));
         self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
@@ -821,8 +816,6 @@ Bucket__init__(pycbc_Bucket *self,
 
     return 0;
 }
-
-PyObject *pycbc_value_or_none(const PyObject *tracer) { return tracer ? tracer : Py_None; }
 
 static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
