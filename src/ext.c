@@ -474,29 +474,29 @@ const char* pycbc_get_string(PyObject *string) {
     return string?PYCBC_CSTR(string):"NULL";
 }
 
-void pycbc_print_string(PyObject *string) {
+void pycbc_print_string(PyObject *string, const char* file, int line) {
     PYCBC_DEBUG_LOG_RAW("%s",  pycbc_get_string(string));
-    PYCBC_EXCEPTION_LOG_NOCLEAR;
+    pycbc_exception_log(file,line,0);
 }
 
-PyObject *pycbc_get_repr(PyObject *pobj) {
+void pycbc_print_repr( PyObject *pobj, const char* file, int line) {
     PyObject* x=NULL,*y=NULL,*z=NULL;
-    PyObject *repr_string;
-    if(PyErr_Occurred()) {
-        PyErr_Fetch(&x, &y, &z);
-    }
+    PyObject *repr_string = NULL;
+    PyObject* repr_x=NULL,*repr_y=NULL,*repr_z=NULL;
+    PyErr_Fetch(&x, &y, &z);
     repr_string = PyObject_Repr(pobj);
-    PYCBC_EXCEPTION_LOG;
+    PyErr_Fetch(&repr_x, &repr_y, &repr_z);
+    pycbc_print_string(repr_string, file, line);
+    Py_XDECREF(repr_string);
+    if(repr_x || repr_y || repr_z)
+    {
+        PyErr_Restore(repr_x,repr_y,repr_z);
+        pycbc_exception_log(file,line,1);
+    }
     if (x || y || z) {
         PyErr_Restore(x, y, z);
     }
-    return repr_string;
-}
 
-void pycbc_print_repr( PyObject *pobj) {
-    PyObject *repr_string = pycbc_get_repr(pobj);
-    PYCBC_PRINT_STRING(repr_string);
-    Py_XDECREF(repr_string);
 }
 
 
@@ -851,6 +851,7 @@ typedef struct pycbc_tracer_state {
     pycbc_tracer_payload *last;
     PyObject* parent;
     PyObject *start_span_method;
+    lcbtrace_TRACER *child;
 } pycbc_tracer_state;
 
 
@@ -875,9 +876,15 @@ void pycbc_span_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     if (tracer == NULL) {
         return;
     }
+
     state = tracer->cookie;
     if (state == NULL) {
         return;
+    }
+
+    if (state->child)
+    {
+        state->child->v.v0.report(tracer,span);
     }
 
     {
@@ -1059,7 +1066,7 @@ void pycbc_tracer_destructor(lcbtrace_TRACER *tracer)
     }
 }
 
-lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
+lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent, PyObject* threshold_tracer_capsule)
 {
     lcbtrace_TRACER *tracer = calloc(1, sizeof(lcbtrace_TRACER));
     pycbc_tracer_state *pycbc_tracer = calloc(1, sizeof(pycbc_tracer_state));
@@ -1070,6 +1077,9 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent)
     pycbc_tracer->root = NULL;
     pycbc_tracer->last = NULL;
     tracer->cookie = pycbc_tracer;
+    pycbc_tracer->child = (lcbtrace_TRACER *) (threshold_tracer_capsule ? PyCapsule_GetPointer(threshold_tracer_capsule,
+                                                                                               "threshold_tracer")
+                                                                        : NULL);
 
     if (parent) {
         PYCBC_DEBUG_LOG("initialising tracer start_span method from:[");
@@ -1106,13 +1116,17 @@ Tracer_parent(pycbc_Tracer_t *self, void *unused)
     }
 }
 
+PyObject *pycbc_null_or_value( PyObject *tracer) { return (tracer && PyObject_IsTrue(tracer)) ? tracer : NULL; }
+
 static int
 Tracer__init__(pycbc_Tracer_t *self,
                PyObject *args, PyObject* kwargs)
 {
     int rv = 0;
     PyObject* tracer =PyTuple_GetItem(args, 0);
-    self->tracer= pycbc_tracer_new((tracer && PyObject_IsTrue(tracer))?tracer:NULL);
+    PyObject* threshold_tracer_capsule = PyTuple_GetItem(args, 1);
+    self->tracer= pycbc_tracer_new(pycbc_null_or_value(tracer),
+                                   pycbc_null_or_value(threshold_tracer_capsule));
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     return rv;
 }

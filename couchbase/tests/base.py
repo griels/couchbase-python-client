@@ -488,10 +488,26 @@ def basic_tracer():
     return BasicTracer(LogRecorder())
 
 
-try:
-    from jaeger_client import Config
-
-    def jaeger_tracer(service, port = 32769, **kwargs ):
+#try:
+if True:
+    from opentracing_pyzipkin.tracer import Tracer
+    import requests
+    def http_transport(encoded_span):
+        # The collector expects a thrift-encoded list of spans.
+        import logging
+        logging.error("encoded span:{}".format(str(encoded_span)))
+        logging.error("got response {}".format(requests.post(
+            'http://localhost:9411/api/v1/spans',
+            data=encoded_span,
+            headers={'Content-Type': 'application/x-thrift'},
+        )))
+    #from jaeger_client_contrib import Config
+    from jaeger_client.sampler import ConstSampler
+    def jaeger_tracer(service, port = 9414, **kwargs ):
+        port = 9411
+        #tracer= Tracer("couchbase-python-client", 100, http_transport, port )
+        #logging.error(tracer)
+        #return tracer
         try:
             logging.getLogger('').handlers = []
             logging.basicConfig(format='%(message)s', level=logging.DEBUG)
@@ -504,17 +520,27 @@ try:
                     },
                     'logging': True,
                     'local_agent':{
-                                    'reporting_host' : 'localhost',
-                                    'reporting_port' : port
-                                }
+                                    'reporting_host' : '127.0.0.1',
+                                    'reporting_port' : port,
+                                    'sampling_port' : port
+                                },
+                    'propagation': 'b3'
                 },
                 service_name=service
             )
+
             return config.initialize_tracer()
-        except:
+        except Exception as e:
+            logging.error(e)
             return basic_tracer()
-except ImportError:
-    def jaeger_tracer(service, port):
+try:
+    pass
+
+except ImportError as e:
+
+    logging.error(e)
+
+    def jaeger_tracer(service, port = None):
         raise Exception("No Jaeger import available")
 
 
@@ -537,17 +563,16 @@ class TracedCase(ConnectionTestCaseBase):
         log_level = logging.INFO
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
-        super(TracedCase, self).setUp(init_tracer = self.init_tracer, **kwargs)
+        super(TracedCase, self).setUp(enable_tracing = "true", init_tracer = self.init_tracer, **kwargs)
 
     def tearDown(self):
         super(TracedCase,self).tearDown()
         if self.tracer and getattr(self.tracer,"close", None):
-            time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
             try:
+                time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50
                 self.tracer.close()  # flush any buffered spans
             except:
                 pass
-
 
 if os.environ.get("PYCBC_TRACE_ALL"):
     ConnectionTestCase = TracedCase

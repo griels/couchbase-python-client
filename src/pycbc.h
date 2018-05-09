@@ -316,14 +316,13 @@ void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
 
 #ifdef PYCBC_DEBUG
 const char* pycbc_get_string(PyObject *string);
-void pycbc_print_string( PyObject *curkey);
-PyObject *pycbc_get_repr( PyObject *pobj);
-void pycbc_print_repr( PyObject *pobj);
+void pycbc_print_string( PyObject *curkey, const char* file, int line);
+void pycbc_print_repr( PyObject *pobj, const char* file, int line);
 void pycbc_exception_log(const char* file, int line, int clear);
 #define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
-#define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__)
-#define PYCBC_PRINT_STRING(...) pycbc_print_string(__VA_ARGS__)
+#define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__,__FILE__,__LINE__)
+#define PYCBC_PRINT_STRING(...) pycbc_print_string(__VA_ARGS__,__FILE__,__LINE__)
 #else
 #define PYCBC_EXCEPTION_LOG_NOCLEAR
 #define PYCBC_EXCEPTION_LOG PyErr_Clear();

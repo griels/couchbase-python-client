@@ -34,6 +34,8 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs);
 static void
 Bucket_dtor(pycbc_Bucket *self);
 
+PyObject *pycbc_value_or_none(const PyObject *tracer);
+
 static PyTypeObject BucketType = {
         PYCBC_POBJ_HEAD_INIT(NULL)
         0
@@ -653,7 +655,9 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *tc = NULL;
     PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
-
+#ifdef PYCBC_TRACING
+    lcbtrace_TRACER* threshold_tracer = NULL;
+#endif
 
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
@@ -710,11 +714,20 @@ Bucket__init__(pycbc_Bucket *self,
         self->unlock_gil = 0;
     }
 #ifdef PYCBC_TRACING
-    if (tracer){
-        PyObject *tracer_args = PyTuple_New(1);
-        PyTuple_SetItem(tracer_args, 0, tracer);
+    threshold_tracer = lcb_get_tracer(self->instance);
+
+    if (tracer || threshold_tracer){
+        PyObject *tracer_args = PyTuple_New(2);
+        PyObject *threshold_tracer_capsule = threshold_tracer ? PyCapsule_New(threshold_tracer, "threshold_tracer", NULL) : NULL;
+        PyTuple_SetItem(tracer_args, 0, pycbc_value_or_none(tracer));
+        PyTuple_SetItem(tracer_args, 1, pycbc_value_or_none(threshold_tracer_capsule));
+        PYCBC_PRINT_STRING(PyObject_Repr(tracer_args));
+        if (PyErr_Occurred())
+        {
+            PyErr_Print();
+            abort();
+        }
         self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
-        PYCBC_DECREF(tracer_args);
         if (PyErr_Occurred()) {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             self->tracer = NULL;
@@ -722,6 +735,8 @@ Bucket__init__(pycbc_Bucket *self,
         else {
             PYCBC_XINCREF(self->tracer);
         }
+        PYCBC_XDECREF(threshold_tracer_capsule);
+        PYCBC_DECREF(tracer_args);
     }
 #endif
     create_opts.version = 3;
@@ -769,6 +784,7 @@ Bucket__init__(pycbc_Bucket *self,
 #ifdef PYCBC_TRACING
     if (self->tracer) {
         lcb_set_tracer(self->instance, self->tracer->tracer);
+
     }
 #endif
     if (err != LCB_SUCCESS) {
@@ -805,6 +821,8 @@ Bucket__init__(pycbc_Bucket *self,
 
     return 0;
 }
+
+PyObject *pycbc_value_or_none(const PyObject *tracer) { return tracer ? tracer : Py_None; }
 
 static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
