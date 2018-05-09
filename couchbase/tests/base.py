@@ -501,7 +501,7 @@ if True:
             data=encoded_span,
             headers={'Content-Type': 'application/x-thrift'},
         )))
-    #from jaeger_client_contrib import Config
+    from jaeger_client import Config
     from jaeger_client.sampler import ConstSampler
     def jaeger_tracer(service, port = 9414, **kwargs ):
         port = 9411
@@ -518,7 +518,7 @@ if True:
                         'type': 'const',
                         'param': 1,
                     },
-                    'logging': True,
+                    'logging': False,
                     'local_agent':{
                                     'reporting_host' : '127.0.0.1',
                                     'reporting_port' : port,
