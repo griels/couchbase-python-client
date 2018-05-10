@@ -599,6 +599,7 @@ pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle conte
             PYCBC_DEBUG_LOG("closing span %p",context->span);
             lcbtrace_span_finish(context->span, 0);
             free(context);
+            pycbc_Context_finish(parent);
         }
 
     };
