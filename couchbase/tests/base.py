@@ -517,9 +517,9 @@ try:
                         'type': 'const',
                         'param': 1,
                     },
-                    'logging': False,
+                    'logging': True,
                     'local_agent':{
-                                    'reporting_host' : '127.0.0.1',
+                                    'reporting_host' : 'localhost',
                                     'reporting_port' : port,
                                     'sampling_port' : port
                                 },
