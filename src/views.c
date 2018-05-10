@@ -345,6 +345,7 @@ pycbc_ViewResult *pycbc_propagate_view_result(pycbc_stack_context_handle context
 #ifdef PYCBC_TRACING
     if (PYCBC_CHECK_CONTEXT(context)) {
         kwargs = PyDict_New();
+        ++context->ref_count;
         PyDict_SetItemString(kwargs, "context", PyCapsule_New(context,"tracing_context",NULL));
     }
 #endif
@@ -379,6 +380,12 @@ ViewResult_dealloc(pycbc_ViewResult *vres)
 {
     Py_CLEAR(vres->rows);
 #ifdef PYCBC_TRACING
+    if(vres->context_capsule) {
+        pycbc_stack_context_handle handle = (pycbc_stack_context_handle) PyCapsule_GetPointer(vres->context_capsule,
+                                                                                              "tracing_context");
+        --(handle->ref_count);
+    }
+
     Py_XDECREF(vres->context_capsule);
 #endif
     Py_TYPE(vres)->tp_base->tp_dealloc((PyObject*)vres);

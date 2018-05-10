@@ -549,14 +549,24 @@ void pycbc_exception_log(const char* file, int line, int clear)
 #ifdef PYCBC_TRACING
 
 static pycbc_stack_context_handle
-pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, lcbtrace_REF *ref, const char* component) {
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle parent, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
+
+    lcbtrace_REF ref;
+    ref.type = parent?LCBTRACE_REF_CHILD_OF:LCBTRACE_REF_NONE;
+    ref.span = parent?parent->span:NULL;
     pycbc_assert(py_tracer);
     context->tracer = py_tracer;
-    context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
+    context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, &ref);
+    context->parent = parent;
+    context->ref_count = 1;
+    if (parent){
+        ++parent->ref_count;
+        PYCBC_DEBUG_LOG("context %p: %d reffed", parent, (int)parent->ref_count);
+    }
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
     PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s, parent %p",
-                    context, context->span, component, operation, (ref?ref->span:NULL));
+                    context, context->span, component, operation, context->parent);
     return context;
 }
 
@@ -578,14 +588,20 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     return NULL;
 }
 
-PyObject* pycbc_Context_finish(pycbc_stack_context_handle context )
+pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context )
 {
+    pycbc_stack_context_handle parent=context->parent;
     if (PYCBC_CHECK_CONTEXT(context)) {
-        PYCBC_DEBUG_LOG("closing span %p",context->span);
-        lcbtrace_span_finish(context->span, 0);
-        (context)->span = NULL;
+        --context->ref_count;
+        PYCBC_DEBUG_LOG("context %p: %d dereffed", context, (int)context->ref_count);
+        if (context->ref_count ==0){
+            PYCBC_DEBUG_LOG("closing span %p",context->span);
+            lcbtrace_span_finish(context->span, 0);
+            free(context);
+        }
+
     };
-    return Py_None;
+    return parent;
 }
 
 
@@ -601,17 +617,8 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
         return NULL;
     }
 
-    if (context )
-    {
-        lcbtrace_REF ref;
-        ref.type = ref_type;
-        ref.span = context->span;
-        return pycbc_Context_init(py_tracer, operation, now, &ref, component);
-    }
-    else
-    {
-        return pycbc_Context_init(py_tracer, operation, now, NULL, component);
-    }
+    return pycbc_Context_init(py_tracer, operation, now, context, component);
+
 }
 
 pycbc_stack_context_handle

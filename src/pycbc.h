@@ -434,15 +434,17 @@ typedef struct {
 } pycbc_Span_t;
 
 
-typedef struct
+typedef struct pycbc_stack_context
 {
 #ifdef PYCBC_TRACING
     pycbc_Tracer_t* tracer;
     lcbtrace_SPAN* span;
+    struct pycbc_stack_context* parent;
+    size_t ref_count;
 #endif
 } pycbc_stack_context;
 
-typedef pycbc_stack_context* pycbc_stack_context_handle;
+typedef struct pycbc_stack_context* pycbc_stack_context_handle;
 #else
 
 typedef void* pycbc_stack_context_handle;
@@ -462,7 +464,7 @@ pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObjec
 void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context);
 pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res);
 
-PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
+pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context );
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
 
@@ -484,7 +486,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     {  \
         PYCBC_DEBUG_LOG("setting trace span on %.*s\n",\
         (int)(CMD).key.contig.nbytes,(const char*)(CMD).key.contig.bytes);\
-        LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);\
+        ++(CONTEXT)->ref_count;LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);\
     } else {PYCBC_EXCEPTION_LOG_NOCLEAR;}\
 };
 
@@ -504,7 +506,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     pycbc_stack_context_handle sub_context = NULL;\
     if (should_trace) { sub_context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if (0 && should_trace ) PYCBC_FINISH_IF_COMPLETE(self, sub_context);\
+    if (!pycbc_is_async_or_pipeline(self) ) PYCBC_FINISH_IF_COMPLETE(self, sub_context);\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
 

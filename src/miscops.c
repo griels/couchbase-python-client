@@ -277,7 +277,7 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
     PyObject* result;\
-    PYCBC_TRACE_WRAP_TOPLEVEL(result,#operation,keyop_common, self->tracer, self, args, kwargs, operation, mode); \
+    PYCBC_TRACE_WRAP_TOPLEVEL(result,"Bucket." #name,keyop_common, self->tracer, self, args, kwargs, operation, mode); \
     return result;\
 }
 
