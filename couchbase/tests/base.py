@@ -532,13 +532,14 @@ try:
         except Exception as e:
             logging.error(e)
             return basic_tracer()
-except ImportError as e:
+except Exception as e:
 
     logging.error(e)
 
     def jaeger_tracer(service, port = None):
-        raise Exception("No Jaeger import available")
-
+        logging.error("No Jaeger import available")
+        return basic_tracer()
+    
 
 class TracedCase(ConnectionTestCaseBase):
     _tracer = None
@@ -562,13 +563,13 @@ class TracedCase(ConnectionTestCaseBase):
         super(TracedCase, self).setUp(enable_tracing = "true", init_tracer = self.init_tracer, **kwargs)
         import couchbase._libcouchbase
         import couchbase
-        couchbase.enable_logging()
-        self.cb.THRESHOLD_KV = 10
-
-        self.cb.THRESHOLD_N1QL= 10
-        self.cb.THRESHOLD_VIEW =10
-        self.cb.THRESHOLD_FTS =10
-        self.cb.THRESHOLD_ANALYTICS =10
+        if os.environ.get("PYCBC_TRACE_ALL"):
+            couchbase.enable_logging()
+            self.cb.THRESHOLD_KV = 10
+            self.cb.THRESHOLD_N1QL= 10
+            self.cb.THRESHOLD_VIEW =10
+            self.cb.THRESHOLD_FTS =10
+            self.cb.THRESHOLD_ANALYTICS =10
 
     def tearDown(self):
         super(TracedCase,self).tearDown()
