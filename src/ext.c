@@ -548,12 +548,12 @@ void pycbc_exception_log(const char* file, int line, int clear)
 
 #ifdef PYCBC_TRACING
 
-static pycbc_stack_context_handle
-pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle parent, const char* component) {
+pycbc_stack_context_handle
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle parent, lcbtrace_REF_TYPE ref_type, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
 
     lcbtrace_REF ref;
-    ref.type = parent?LCBTRACE_REF_CHILD_OF:LCBTRACE_REF_NONE;
+    ref.type = parent?ref_type:LCBTRACE_REF_NONE;
     ref.span = parent?parent->span:NULL;
     pycbc_assert(py_tracer);
     context->tracer = py_tracer;
@@ -590,8 +590,9 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 
 pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context )
 {
-    pycbc_stack_context_handle parent=context->parent;
+    pycbc_stack_context_handle parent=NULL;
     if (PYCBC_CHECK_CONTEXT(context)) {
+        parent=context->parent;
         --context->ref_count;
         PYCBC_DEBUG_LOG("context %p: %d dereffed", context, (int)context->ref_count);
         if (context->ref_count ==0){
@@ -617,7 +618,7 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
         return NULL;
     }
 
-    return pycbc_Context_init(py_tracer, operation, now, context, component);
+    return pycbc_Context_init(py_tracer, operation, now, context, ref_type, component);
 
 }
 
