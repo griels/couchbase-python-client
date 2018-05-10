@@ -488,8 +488,7 @@ def basic_tracer():
     return BasicTracer(LogRecorder())
 
 
-#try:
-if True:
+try:
     from opentracing_pyzipkin.tracer import Tracer
     import requests
     def http_transport(encoded_span):
@@ -505,9 +504,9 @@ if True:
     from jaeger_client.sampler import ConstSampler
     def jaeger_tracer(service, port = 9414, **kwargs ):
         port = 9411
-        #tracer= Tracer("couchbase-python-client", 100, http_transport, port )
-        #logging.error(tracer)
-        #return tracer
+        tracer= Tracer("couchbase-python-client", 100, http_transport, port )
+        logging.error(tracer)
+        return tracer
         try:
             logging.getLogger('').handlers = []
             logging.basicConfig(format='%(message)s', level=logging.DEBUG)
@@ -533,9 +532,6 @@ if True:
         except Exception as e:
             logging.error(e)
             return basic_tracer()
-try:
-    pass
-
 except ImportError as e:
 
     logging.error(e)

@@ -555,7 +555,8 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_
     context->tracer = py_tracer;
     context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref);
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
-    PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s",context, context->span, component, operation);
+    PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s, parent %p",
+                    context, context->span, component, operation, (ref?ref->span:NULL));
     return context;
 }
 
