@@ -28,6 +28,8 @@ static void log_handler(struct lcb_logprocs_st *procs, unsigned int iid,
     const char *subsys, int severity, const char *srcfile, int srcline,
     const char *fmt, va_list ap);
 
+void pycbc_ref_context(pycbc_stack_context_handle ref_context);
+
 struct lcb_logprocs_st pycbc_lcb_logprocs = {0 };
 
 static PyObject *
@@ -549,25 +551,44 @@ void pycbc_exception_log(const char* file, int line, int clear)
 #ifdef PYCBC_TRACING
 
 pycbc_stack_context_handle
-pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle parent, lcbtrace_REF_TYPE ref_type, const char* component) {
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle ref_context, lcbtrace_REF_TYPE ref_type, const char* component) {
     pycbc_stack_context_handle context = malloc(sizeof(pycbc_stack_context));
 
     lcbtrace_REF ref;
-    ref.type = parent?ref_type:LCBTRACE_REF_NONE;
-    ref.span = parent?parent->span:NULL;
+    ref.type = ref_context?ref_type:LCBTRACE_REF_NONE;
+    ref.span = ref_context?ref_context->span:NULL;
     pycbc_assert(py_tracer);
     context->tracer = py_tracer;
-    context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, &ref);
-    context->parent = parent;
+    context->span = lcbtrace_span_start(py_tracer->tracer, operation, now, ref_context?&ref:NULL);
     context->ref_count = 1;
-    if (parent){
-        ++parent->ref_count;
-        PYCBC_DEBUG_LOG("context %p: %d reffed", parent, (int)parent->ref_count);
+    context->parent = NULL;
+    if (ref_context){
+        switch (ref_type) {
+            case LCBTRACE_REF_CHILD_OF:
+                context->parent = ref_context;
+                pycbc_ref_context(ref_context);
+                break;
+            case LCBTRACE_REF_FOLLOWS_FROM:
+                if (ref_context->parent){
+                    context->parent = ref_context->parent;
+                    pycbc_ref_context(ref_context->parent);
+                }
+                break;
+            case LCBTRACE_REF_NONE:
+            case LCBTRACE_REF__MAX:
+            default:
+                break;
+        }
     }
     lcbtrace_span_add_tag_str(context->span, LCBTRACE_TAG_COMPONENT, component);
-    PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s, parent %p",
+    PYCBC_DEBUG_LOG("Created context %p with span %p: component: %s, operation %s, ref_context %p",
                     context, context->span, component, operation, context->parent);
     return context;
+}
+
+void pycbc_ref_context(pycbc_stack_context_handle ref_context) {
+    ++ref_context->ref_count;
+    PYCBC_DEBUG_LOG("context %p: %d reffed", ref_context, (int)ref_context->ref_count);
 }
 
 

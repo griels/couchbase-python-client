@@ -466,7 +466,10 @@ pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *
 
 pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context );
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
-pycbc_stack_context_handle pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now, pycbc_stack_context_handle parent, lcbtrace_REF_TYPE ref_type, const char* component);
+
+pycbc_stack_context_handle pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
+                                              pycbc_stack_context_handle ref_context, lcbtrace_REF_TYPE ref_type,
+                                              const char *component);
 
 
 void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
