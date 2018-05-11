@@ -464,7 +464,7 @@ pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObjec
 void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context);
 pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res);
 
-pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context );
+pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle context, int should_be_final);
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
 pycbc_stack_context_handle pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
@@ -497,12 +497,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
     pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
 
-#define PYCBC_TRACE_POP_CONTEXT(CONTEXT) pycbc_Context_finish(CONTEXT);
-
-#define PYCBC_FINISH_IF_COMPLETE(SELF,CONTEXT) {\
-    if ( sub_context && !pycbc_is_async_or_pipeline(self)) {\
-        pycbc_Context_finish(sub_context);\
-    };};
+#define PYCBC_TRACE_POP_CONTEXT(CONTEXT) pycbc_Context_deref(CONTEXT,1);
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
@@ -510,7 +505,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     pycbc_stack_context_handle sub_context = NULL;\
     if (should_trace) { sub_context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if (!pycbc_is_async_or_pipeline(self) ) PYCBC_FINISH_IF_COMPLETE(self, sub_context);\
+    if (should_trace) { pycbc_Context_deref(sub_context,!pycbc_is_async_or_pipeline(self)); }\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
 

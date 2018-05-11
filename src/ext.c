@@ -28,7 +28,7 @@ static void log_handler(struct lcb_logprocs_st *procs, unsigned int iid,
     const char *subsys, int severity, const char *srcfile, int srcline,
     const char *fmt, va_list ap);
 
-void pycbc_ref_context(pycbc_stack_context_handle ref_context);
+void pycbc_Context_ref(pycbc_stack_context_handle ref_context);
 
 struct lcb_logprocs_st pycbc_lcb_logprocs = {0 };
 
@@ -566,12 +566,12 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_
         switch (ref_type) {
             case LCBTRACE_REF_CHILD_OF:
                 context->parent = ref_context;
-                pycbc_ref_context(ref_context);
+                pycbc_Context_ref(ref_context);
                 break;
             case LCBTRACE_REF_FOLLOWS_FROM:
                 if (ref_context->parent){
                     context->parent = ref_context->parent;
-                    pycbc_ref_context(ref_context->parent);
+                    pycbc_Context_ref(ref_context->parent);
                 }
                 break;
             case LCBTRACE_REF_NONE:
@@ -585,12 +585,6 @@ pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_
                     context, context->span, component, operation, context->parent);
     return context;
 }
-
-void pycbc_ref_context(pycbc_stack_context_handle ref_context) {
-    ++ref_context->ref_count;
-    PYCBC_DEBUG_LOG("context %p: %d reffed", ref_context, (int)ref_context->ref_count);
-}
-
 
 pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEXT, const char *file, int line)
 {
@@ -609,7 +603,13 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     return NULL;
 }
 
-pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle context )
+void pycbc_Context_ref(pycbc_stack_context_handle ref_context) {
+    ++ref_context->ref_count;
+    PYCBC_DEBUG_LOG("context %p: %d reffed", ref_context, (int)ref_context->ref_count);
+}
+
+
+pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle context, int should_be_final)
 {
     pycbc_stack_context_handle parent=NULL;
     if (PYCBC_CHECK_CONTEXT(context)) {
@@ -620,7 +620,11 @@ pycbc_stack_context_handle pycbc_Context_finish(pycbc_stack_context_handle conte
             PYCBC_DEBUG_LOG("closing span %p",context->span);
             lcbtrace_span_finish(context->span, 0);
             free(context);
-            pycbc_Context_finish(parent);
+            pycbc_Context_deref(parent, 0);
+        }
+        else
+        {
+            pycbc_assert(!should_be_final);
         }
 
     };
