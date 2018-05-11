@@ -433,6 +433,12 @@ typedef struct {
 #endif
 } pycbc_Span_t;
 
+typedef struct pycbc_context_children
+{
+    struct pycbc_stack_context* value;
+    struct pycbc_context_children* next;
+} pycbc_context_children;
+
 
 typedef struct pycbc_stack_context
 {
@@ -441,6 +447,7 @@ typedef struct pycbc_stack_context
     lcbtrace_SPAN* span;
     struct pycbc_stack_context* parent;
     size_t ref_count;
+    pycbc_context_children* children;
 #endif
 } pycbc_stack_context;
 
@@ -497,8 +504,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
     pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
 
-#define PYCBC_TRACE_POP_CONTEXT(CONTEXT) pycbc_Context_deref(CONTEXT,1);
-
+#define PYCBC_TRACE_POP_CONTEXT(context) pycbc_Context_deref(context,1);
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
     int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\

@@ -28,6 +28,10 @@ static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
  */
 static void mk_sd_error(pycbc__SDResult *res, pycbc_MultiResult *mres, lcb_error_t rc, size_t ix);
 
+pycbc_stack_context_handle pycbc_Result_extract_context(const pycbc_Result *vres);
+
+pycbc_stack_context_handle pycbc_Result_extract_context(const pycbc_Result *res) { return res?(res->tracing_context):NULL; }
+
 static void
 cb_thr_end(pycbc_Bucket *self)
 {
@@ -161,8 +165,10 @@ static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
 static void operation_completed_with_err_info(pycbc_Bucket *self,
                                               pycbc_MultiResult *mres,
                                               int cbtype,
-                                              const lcb_RESPBASE *resp)
+                                              const lcb_RESPBASE *resp,
+pycbc_Result* res)
 {
+    pycbc_Context_deref(pycbc_Result_extract_context(res), 0);;
     pycbc_enhanced_err_info *err_info =
             pycbc_enhanced_err_info_store(resp, cbtype);
     operation_completed3(self, mres, err_info);
@@ -271,7 +277,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         PYCBC_DECREF(*res);
     }
 
-    PYCBC_TRACE_POP_CONTEXT(decoding_context);
+    pycbc_Context_deref(decoding_context, 1);;
     if (resp->rc) {
         (*res)->rc = resp->rc;
     }
@@ -329,7 +335,7 @@ dur_chain2(pycbc_Bucket *conn,
     maybe_push_operr(mres, (pycbc_Result*)res, resp->rc, is_delete ? 1 : 0);
 
     if ((mres->mropts & PYCBC_MRES_F_DURABILITY) == 0 || resp->rc != LCB_SUCCESS) {
-        operation_completed_with_err_info(conn, mres, cbtype, resp);
+        operation_completed_with_err_info(conn, mres, cbtype, resp, (pycbc_Result*)res);
         CB_THR_BEGIN(conn);
         return;
     }
@@ -373,7 +379,7 @@ dur_chain2(pycbc_Bucket *conn,
     if (err != LCB_SUCCESS) {
         res->rc = err;
         maybe_push_operr(mres, (pycbc_Result*)res, err, 0);
-        operation_completed_with_err_info(conn, mres, cbtype, resp);
+        operation_completed_with_err_info(conn, mres, cbtype, resp, (pycbc_Result*)res);
     }
 
     CB_THR_BEGIN(conn);
@@ -397,7 +403,7 @@ durability_chain_common(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     }
 
     if (get_common_objects(resp, &conn, (pycbc_Result**)&res, restype, &mres) != 0) {
-        operation_completed_with_err_info(conn, mres, cbtype, resp);
+        operation_completed_with_err_info(conn, mres, cbtype, resp, (pycbc_Result*)res);
         CB_THR_BEGIN(conn);
         return;
     }
@@ -453,9 +459,8 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         const lcb_RESPCOUNTER *cresp = (const lcb_RESPCOUNTER *)resp;
         res->value = pycbc_IntFromULL(cresp->value);
     }
-
     GT_DONE:
-        operation_completed_with_err_info(conn, mres, cbtype, resp);
+        operation_completed_with_err_info(conn, mres, cbtype, resp, (pycbc_Result*)res);
         CB_THR_BEGIN(conn);
         (void)instance;
 }
@@ -548,7 +553,7 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     }
 
     GT_ERROR:
-        operation_completed_with_err_info(conn, mres, cbtype, rb);
+        operation_completed_with_err_info(conn, mres, cbtype, rb, (pycbc_Result*)res);
         CB_THR_BEGIN(conn);
         (void)instance;
 }
@@ -576,7 +581,7 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         res->cas = resp->cas;
     }
 
-    operation_completed_with_err_info(conn, mres, cbtype, resp);
+    operation_completed_with_err_info(conn, mres, cbtype, resp, (pycbc_Result*)res);
     CB_THR_BEGIN(conn);
     (void)instance;
 
@@ -590,6 +595,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     PyObject *skey, *knodes;
     PyObject *mrdict;
     pycbc_Bucket *parent;
+    pycbc_Result *res = NULL;
 #ifdef PYCBC_TRACING
     //pycbc_stack_context_handle decoding_context = NULL;
     //pycbc_stack_context_handle parent_context = NULL;
@@ -604,7 +610,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     if (resp->rc != LCB_SUCCESS) {
         do_return = 1;
         if (mres->errop == NULL) {
-            pycbc_Result *res = (pycbc_Result*)pycbc_result_new(parent);
+            res = (pycbc_Result*)pycbc_result_new(parent);
             res->rc = resp->rc;
             res->key = Py_None; Py_INCREF(res->key);
             maybe_push_operr(mres, res, resp->rc, 0);
@@ -613,7 +619,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     if (resp->rflags & LCB_RESP_F_FINAL) {
         /* Note this can happen in both success and error cases! */
         do_return = 1;
-        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base, res);
     }
     if (do_return) {
         CB_THR_BEGIN(parent);
@@ -664,13 +670,13 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     int rv;
     pycbc_ObserveInfo *oi;
     pycbc_Bucket *conn;
-    pycbc_ValueResult *vres;
+    pycbc_ValueResult *vres = NULL;
     pycbc_MultiResult *mres;
     const lcb_RESPOBSERVE *oresp = (const lcb_RESPOBSERVE *)resp_base;
     if (resp_base->rflags & LCB_RESP_F_FINAL) {
         mres = (pycbc_MultiResult*)resp_base->cookie;
         operation_completed_with_err_info(
-                mres->parent, mres, cbtype, resp_base);
+                mres->parent, mres, cbtype, resp_base, (pycbc_Result*)vres);
         return;
     }
 
@@ -702,6 +708,7 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     Py_DECREF(oi);
 
     GT_DONE:
+    pycbc_Context_deref(pycbc_Result_extract_context((pycbc_Result *) vres), 0);;
     CB_THR_BEGIN(conn);
     (void)instance; (void)cbtype;
 }
@@ -835,7 +842,7 @@ static void ping_callback(lcb_t instance,
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
         /* Note this can happen in both success and error cases!*/
-        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base, NULL);
     }
     CB_THR_BEGIN(parent);
 }
@@ -850,11 +857,12 @@ static void diag_callback(lcb_t instance,
 
     pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
     PyObject *resultdict = pycbc_multiresult_dict(mres);
+    pycbc_Result *res = NULL;
     parent = mres->parent;
     CB_THR_END(parent);
     if (resp->rc != LCB_SUCCESS) {
         if (mres->errop == NULL) {
-            pycbc_Result *res = (pycbc_Result *)pycbc_result_new(parent);
+            res = (pycbc_Result *)pycbc_result_new(parent);
             res->rc = resp->rc;
             res->key = Py_None;
             Py_INCREF(res->key);
@@ -867,7 +875,7 @@ static void diag_callback(lcb_t instance,
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
         /* Note this can happen in both success and error cases!*/
-        operation_completed_with_err_info(parent, mres, cbtype, resp_base);
+        operation_completed_with_err_info(parent, mres, cbtype, resp_base, res);
     }
 
     CB_THR_BEGIN(parent);

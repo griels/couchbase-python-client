@@ -80,7 +80,6 @@ pycbc_common_vars_wait, struct pycbc_common_vars *cv, pycbc_Bucket *self)
     if (cv->ret == NULL) {
         return -1;
     }
-
     return 0;
 }
 
