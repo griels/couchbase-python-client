@@ -168,7 +168,7 @@ static void operation_completed_with_err_info(pycbc_Bucket *self,
                                               const lcb_RESPBASE *resp,
 pycbc_Result* res)
 {
-    pycbc_Context_deref(pycbc_Result_extract_context(res), 0);;
+    PYCBC_CONTEXT_DEREF(pycbc_Result_extract_context(res), 0);;
     pycbc_enhanced_err_info *err_info =
             pycbc_enhanced_err_info_store(resp, cbtype);
     operation_completed3(self, mres, err_info);
@@ -277,7 +277,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
         PYCBC_DECREF(*res);
     }
 
-    pycbc_Context_deref(decoding_context, 1);;
+    PYCBC_CONTEXT_DEREF(decoding_context, 1);;
     if (resp->rc) {
         (*res)->rc = resp->rc;
     }
@@ -708,7 +708,7 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     Py_DECREF(oi);
 
     GT_DONE:
-    pycbc_Context_deref(pycbc_Result_extract_context((pycbc_Result *) vres), 0);;
+    //PYCBC_CONTEXT_DEREF(pycbc_Result_extract_context((pycbc_Result *) vres), 0);;
     CB_THR_BEGIN(conn);
     (void)instance; (void)cbtype;
 }

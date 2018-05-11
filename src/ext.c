@@ -544,9 +544,15 @@ void pycbc_exception_log(const char* file, int line, int clear)
         }
     }
 }
+
 #endif
 
 #ifdef PYCBC_TRACING
+pycbc_stack_context_handle pycbc_Context_deref_debug(pycbc_stack_context_handle context, int should_be_final, const char* file, int line) {
+    PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line,"dereffing %p, %s", context, should_be_final ? "should be final" : "not necessarily final");
+    return pycbc_Context_deref(context,should_be_final);
+}
+
 //void pycbc_Context_enumerate_chiidren(pycbc_stack_context_handle context);
 
 static void pycbc_Context_enumerate_chiidren(pycbc_stack_context_handle context) {
@@ -574,7 +580,7 @@ pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle contex
             PYCBC_DEBUG_LOG("closing span %p",context->span);
             lcbtrace_span_finish(context->span, 0);
             free(context);
-            pycbc_Context_deref(parent, 0);
+            PYCBC_CONTEXT_DEREF(parent, 0);
         }
         else
         {

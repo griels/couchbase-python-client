@@ -472,6 +472,10 @@ void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handl
 pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res);
 
 pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle context, int should_be_final);
+ pycbc_stack_context_handle pycbc_Context_deref_debug(pycbc_stack_context_handle context, int should_be_final, const char* file, int line);
+ #define PYCBC_CONTEXT_DEREF(CONTEXT,SHOULD_BE_FINAL)\
+    pycbc_Context_deref_debug(CONTEXT,SHOULD_BE_FINAL, __FILE__, __LINE__);
+
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
 pycbc_stack_context_handle pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
@@ -504,14 +508,14 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
     pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
 
-#define PYCBC_TRACE_POP_CONTEXT(context) pycbc_Context_deref(context,1);
+#define PYCBC_TRACE_POP_CONTEXT(context) PYCBC_CONTEXT_DEREF(context,1);
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
     int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
     pycbc_stack_context_handle sub_context = NULL;\
     if (should_trace) { sub_context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if (should_trace) { pycbc_Context_deref(sub_context,!pycbc_is_async_or_pipeline(self)); }\
+    if (should_trace) { PYCBC_CONTEXT_DEREF(sub_context,!pycbc_is_async_or_pipeline(self)); }\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
 
