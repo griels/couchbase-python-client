@@ -48,7 +48,8 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     pycbc_pybuffer buf = { 0 };
     PyObject *params_o = NULL;
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs,
-                                                                                LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "fts_query");
+                                                                                LCBTRACE_OP_REQUEST_ENCODING,
+                                                                                self->tracer, "fts_query");
     static char *kwlist[] = { "params", NULL };
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &params_o);
 

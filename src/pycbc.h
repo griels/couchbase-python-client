@@ -20,7 +20,7 @@
  * @author Mark Nunberg
  */
 #ifndef PYCBC_DEBUG
-//#define PYCBC_DEBUG
+#define PYCBC_DEBUG
 #endif
 
 
@@ -319,11 +319,14 @@ const char* pycbc_get_string(PyObject *string);
 void pycbc_print_string( PyObject *curkey, const char* file, int line);
 void pycbc_print_repr( PyObject *pobj, const char* file, int line);
 void pycbc_exception_log(const char* file, int line, int clear);
+void pycbc_log_pyformat(const char* file, int line, const char* format, ...);
+#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
 #define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 #define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__,__FILE__,__LINE__)
 #define PYCBC_PRINT_STRING(...) pycbc_print_string(__VA_ARGS__,__FILE__,__LINE__)
 #else
+#define PYCBC_DEBUG_PYFORMAT(FORMAT,...)
 #define PYCBC_EXCEPTION_LOG_NOCLEAR
 #define PYCBC_EXCEPTION_LOG PyErr_Clear();
 #define PYCBC_PRINT_REPR(...)
@@ -463,31 +466,32 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
 typedef struct pycbc_Result pycbc_Result;
 typedef struct pycbc_MultiResult_st pycbc_MultiResult;
 
-pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
-                                                   lcb_uint64_t now, pycbc_stack_context_handle context,
-                                                   lcbtrace_REF_TYPE ref_type, const char* component);
 pycbc_stack_context_handle
-pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component);
+pycbc_Result_start_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component,
+                           char *operation);
 void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context);
 pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res);
 
 pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle context, int should_be_final);
- pycbc_stack_context_handle pycbc_Context_deref_debug(pycbc_stack_context_handle context, int should_be_final, const char* file, int line);
- #define PYCBC_CONTEXT_DEREF(CONTEXT,SHOULD_BE_FINAL)\
+pycbc_stack_context_handle pycbc_Context_deref_debug(pycbc_stack_context_handle context, int should_be_final, const char* file, int line);
+#define PYCBC_CONTEXT_DEREF(CONTEXT,SHOULD_BE_FINAL)\
     pycbc_Context_deref_debug(CONTEXT,SHOULD_BE_FINAL, __FILE__, __LINE__);
+
+pycbc_stack_context_handle
+pycbc_Tracer_start_span(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_uint64_t now,
+                        pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type, const char* component);
 
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
 
-pycbc_stack_context_handle pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
-                                              pycbc_stack_context_handle ref_context, lcbtrace_REF_TYPE ref_type,
-                                              const char *component);
 
+pycbc_stack_context_handle
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
+                   pycbc_stack_context_handle ref_context, lcbtrace_REF_TYPE ref_type, const char *component);
 
 void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
                                     pycbc_stack_context_handle context, pycbc_Bucket *bucket);
 
-//#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
-#define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
+#define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_start_span(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
 
 extern PyObject* pycbc_default_key;
 #define PYCBC_DEFAULT_TRACING_KEY pycbc_default_key
@@ -521,7 +525,7 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
 
 
 
-#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
+#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_start_span(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
 #define PYCBC_TRACE_WRAP(NAME,KWARGS,...) PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\

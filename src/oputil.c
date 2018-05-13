@@ -396,7 +396,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
         }
 
 #ifdef PYCBC_TRACING
-        rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED((handler).cb, (handler).name, (handler).category, NULL, self, cv, optype, arg_k, v, options, itm, arg);
+        rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED((handler).cb, (handler).name, (handler).category, NULL, self, cv, optype,
+                                             arg_k, v, options, itm, arg);
 #else
         rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED(handler, "", "", NULL, self, cv, optype, arg_k, v, options, itm, arg);
 #endif

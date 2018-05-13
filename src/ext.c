@@ -503,40 +503,10 @@ void pycbc_print_repr( PyObject *pobj, const char* file, int line) {
 void pycbc_exception_log(const char* file, int line, int clear)
 {
 
-    if (clear)
-    {
-        PyErr_Print();
-        return;
-    }
-
     if (PyErr_Occurred()) {
         PyObject* type, *value, *traceback;
         PyErr_Fetch(&type,&value,&traceback);
-        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(file, line, "", "***** EXCEPTION:[");
-        PYCBC_PRINT_REPR(type);
-        PYCBC_DEBUG_LOG_RAW(",");
-        PYCBC_PRINT_REPR(value);
-        PYCBC_DEBUG_LOG_RAW(",");
-#if 0
-        {
-            /* See if we can get a full traceback */
-            PyObject* module_name = PyString_FromString("traceback");
-            PyObject* pyth_module = PyImport_Import(module_name);
-            PYCBC_DECREF(module_name);
-
-            if (pyth_module) {
-                PyObject* pyth_func = PyObject_GetAttrString(pyth_module, "format_exception");
-                if (pyth_func && PyCallable_Check(pyth_func)) {
-                    PyObject *pyth_val;
-
-                    pyth_val = PyObject_CallFunctionObjArgs(pyth_func, type, value, traceback, NULL);
-                    PYCBC_PRINT_STRING(pyth_val);
-                    PYCBC_DECREF(pyth_val);
-                }
-            }
-        }
-#endif  
-        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file,line, "]: END OF EXCEPTION *****");
+        PYCBC_DEBUG_PYFORMAT("***** EXCEPTION:[%R], [%R] *****",type,value);
         if (clear)
         {
             Py_XDECREF(type);
@@ -546,7 +516,6 @@ void pycbc_exception_log(const char* file, int line, int clear)
         else
         {
             PyErr_Restore(type,value,traceback);
-
         }
     }
 }
@@ -668,19 +637,14 @@ pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEX
     return NULL;
 }
 
-
-
-
-
 pycbc_stack_context_handle
-pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_uint64_t now,
+pycbc_Tracer_start_span(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_uint64_t now,
                         pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type, const char* component) {
 
     PyObject *tracer = kwargs?PyDict_GetItemString(kwargs, "tracer"):NULL;
     if (!(py_tracer || (tracer && PyArg_ParseTuple(tracer, "O!", &pycbc_TracerType, &py_tracer) && py_tracer)))
     {
         PYCBC_EXCEPTION_LOG;
-        PYCBC_DEBUG_LOG("Warning - got NULL tracer");
         return NULL;
     }
 
@@ -689,16 +653,15 @@ pycbc_Tracer_span_start(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char 
 }
 
 pycbc_stack_context_handle
-pycbc_Result_start_decoding_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component) {
+pycbc_Result_start_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component,
+                           char *operation) {
     pycbc_stack_context_handle stack_context_handle = NULL;
-    if (parent_context) {
-        stack_context_handle = pycbc_Tracer_span_start((parent_context)->tracer, NULL,
-                                                       LCBTRACE_OP_RESPONSE_DECODING, 0,
-                                                       parent_context, LCBTRACE_REF_CHILD_OF,
-                                                       component);
-        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("starting new context on key:[");
-        PYCBC_PRINT_STRING(hkey);
-        PYCBC_DEBUG_LOG_RAW("]:\n");
+    if (PYCBC_CHECK_CONTEXT(parent_context)) {
+        pycbc_Tracer_t *py_tracer = (parent_context)->tracer;
+        if (py_tracer) {
+            stack_context_handle = pycbc_Context_init(py_tracer, operation, 0, parent_context, LCBTRACE_REF_CHILD_OF, component);
+        }
+        PYCBC_DEBUG_PYFORMAT("starting new context on key:[%S]", hkey);
     }
     return stack_context_handle;
 }
@@ -712,10 +675,8 @@ pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *
     PyObject *mrdict=pycbc_multiresult_dict(self);
     pycbc_stack_context_handle parent_context = NULL;
     if( *res ) {
-        PYCBC_PRINT_REPR(mrdict);
-        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("&res %p:  coming back from callback on key: [", res);
-        PYCBC_PRINT_STRING(hkey);
-        PYCBC_DEBUG_LOG_RAW("]\n");
+        PYCBC_DEBUG_PYFORMAT("[%R]\n"
+                             "&res %p:  coming back from callback on key: [%R]", mrdict, res, hkey);
         PYCBC_DEBUG_LOG("res %p", *res);
 
         parent_context = PYCBC_CHECK_CONTEXT((*res)->tracing_context);
@@ -739,23 +700,17 @@ void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
     pycbc_tc_decode_key(bucket, keybuf.buffer, keybuf.length, &curkey);
     item=(pycbc_Result*)PyDict_GetItem(mres_dict, curkey);
     if (!item) {
+        PYCBC_DEBUG_PYFORMAT("Prior to insertion:[%R]",mres_dict);
+        PYCBC_EXCEPTION_LOG_NOCLEAR;
         item = (pycbc_Result*) pycbc_valresult_new(bucket);
         PyDict_SetItem(mres_dict, curkey, (PyObject*)item);
         item->is_tracing_stub = 1;
     }
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     item->tracing_context = context;
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("\nres %p: binding context %p to [", item, context);
-    PYCBC_PRINT_REPR(curkey);
-    PYCBC_DEBUG_LOG_RAW("]\n");
+    PYCBC_DEBUG_PYFORMAT("res %p: binding context %p to [%R]", item, context, curkey);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
-    PYCBC_DEBUG_LOG("\nPrior to insertion:[");
-    PYCBC_PRINT_REPR(mres_dict);
-    PYCBC_DEBUG_LOG_RAW("]\n");
-    PYCBC_EXCEPTION_LOG_NOCLEAR;
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("After insertion:[");
-    PYCBC_PRINT_REPR(mres_dict);
-    PYCBC_DEBUG_LOG_RAW("]\n");
+    PYCBC_DEBUG_PYFORMAT("After insertion:[%R]",mres_dict);
 }
 
 
@@ -764,32 +719,19 @@ int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & 
 #define LOGARGS(instance, lvl) instance->settings, "bootstrap", LCB_LOG_##lvl, __FILE__, __LINE__
 #endif
 
-void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char* value_str) {
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("adding [");
-    PYCBC_PRINT_REPR(key);
-    PYCBC_DEBUG_LOG_RAW("], value %s to [", value_str);
-    PYCBC_PRINT_REPR(dict);
-    PYCBC_DEBUG_LOG_RAW("]\n");
-    {
-        PyObject *value = pycbc_SimpleStringZ(value_str);
-        PyDict_SetItem(dict, key, value);
-        //PYCBC_DECREF(value);
-        PYCBC_DECREF(value);
-    }
+void pycbc_set_dict_kv_object(PyObject *dict, PyObject *key, const char *value_str) {
+    PyObject *value = pycbc_SimpleStringZ(value_str);
+    PYCBC_DEBUG_PYFORMAT("adding [%R], value %S to [%R]", key, value, dict);
+    PyDict_SetItem(dict, key, value);
+    PYCBC_DECREF(value);
 }
 
 
 void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_uint64_t parenti_id) {
-    PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("adding [");
-    PYCBC_PRINT_REPR(keystr);
-    PYCBC_DEBUG_LOG_RAW("], value %" PRId64 " to [", parenti_id);
-    PYCBC_PRINT_REPR(dict);
-    PYCBC_DEBUG_LOG_RAW("]\n");
-    {
-        PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
-        PyDict_SetItem(dict, keystr, pULL);
-        PYCBC_DECREF(pULL);
-    }
+    PyObject *pULL = PyLong_FromUnsignedLongLong(parenti_id);
+    PYCBC_DEBUG_PYFORMAT("adding [%R]""value %S to [%R]", keystr, pULL, dict);
+    PyDict_SetItem(dict, keystr, pULL);
+    PYCBC_DECREF(pULL);
 }
 
 #ifdef PYCBC_TRACING
@@ -935,12 +877,9 @@ typedef struct pycbc_tracer_state {
 
 void pycbc_init_span_args(pycbc_tracer_payload* payload)
 {
-    payload->span_start_args=malloc(sizeof(pycbc_tracer_span_args_t));
-    memset((payload->span_start_args),0, sizeof(pycbc_tracer_span_args_t));
-    payload->span_start_args->tags=malloc(sizeof(pycbc_tracer_tags_t));
-    memset((payload->span_start_args->tags),0, sizeof(pycbc_tracer_tags_t));
-    payload->span_finish_args=malloc(sizeof(pycbc_tracer_finish_args_t));
-    memset((payload->span_finish_args),0, sizeof(pycbc_tracer_finish_args_t));
+    payload->span_start_args=calloc(1,sizeof(pycbc_tracer_span_args_t));
+    payload->span_start_args->tags=calloc(1,sizeof(pycbc_tracer_tags_t));
+    payload->span_finish_args=calloc(1,sizeof(pycbc_tracer_finish_args_t));
 }
 
 void pycbc_payload_dealloc(pycbc_tracer_payload *pPayload) {
@@ -957,6 +896,10 @@ void pycbc_Tracer_enqueue_payload(pycbc_tracer_state *state, pycbc_tracer_payloa
         state->root = payload;
     }
 }
+pycbc_tracer_payload* pycbc_persist_span(lcbtrace_SPAN* span);
+
+void pycbc_Tracer_span_finish(const struct pycbc_tracer_payload *payload, const pycbc_tracer_state *state,
+                              PyObject *fresh_span);
 
 void pycbc_span_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
 {
@@ -974,79 +917,102 @@ void pycbc_span_report(lcbtrace_TRACER *tracer, lcbtrace_SPAN *span)
     {
         state->child->v.v0.report(tracer,span);
     }
+    pycbc_tracer_payload *payload = pycbc_persist_span(span);
+    pycbc_Tracer_enqueue_payload(state, payload);
+#undef PYCBC_TRACING_BUFSZ
+}
 
-    {
-
+pycbc_tracer_payload* pycbc_persist_span(lcbtrace_SPAN* span)
+{
 #define PYCBC_TRACING_BUFSZ 1000
-        size_t nbuf = PYCBC_TRACING_BUFSZ;
-        char bufarray[PYCBC_TRACING_BUFSZ]={0};
-        char* buf = &bufarray[0];
-        lcbtrace_SPAN *parent;
-        lcb_uint64_t start;
-        pycbc_tracer_payload *payload = calloc(1, sizeof(pycbc_tracer_payload));
-        pycbc_init_span_args(payload);
+    size_t nbuf = PYCBC_TRACING_BUFSZ;
+    char bufarray[PYCBC_TRACING_BUFSZ]={0};
+    char* buf = &bufarray[0];
+    lcbtrace_SPAN *parent;
+    lcb_uint64_t start;
+    pycbc_tracer_payload* payload = calloc(1, sizeof(pycbc_tracer_payload));
+    pycbc_init_span_args(payload);
+    {
+        pycbc_tracer_span_args_t* span_args = payload->span_start_args;
+        pycbc_tracer_tags_t* tags_p = span_args->tags;
+        pycbc_tracer_finish_args_t* span_finish_args = payload->span_finish_args;
+        PYCBC_DEBUG_LOG("got span %p", span);
+
+        PYCBC_TRACING_ADD_TEXT(span_args, operation_name, lcbtrace_span_get_operation(span));
+        parent = lcbtrace_span_get_parent(span);
+        if (parent) {
+            lcb_uint64_t parenti_id = lcbtrace_span_get_trace_id(parent);
+            PYCBC_TRACING_ADD_U64(span_args, child_of, parenti_id);
+        }
+        PYCBC_TRACING_ADD_U64(span_args, id, lcbtrace_span_get_span_id(span));
+        start = lcbtrace_span_get_start_ts(span);
+        PYCBC_TRACING_ADD_U64(span_finish_args, finish_time, lcbtrace_span_get_finish_ts(span));
+        PYCBC_TRACING_ADD_U64(span_args, start_time, start);
         {
-            pycbc_tracer_span_args_t* span_args = payload->span_start_args;
-            pycbc_tracer_tags_t* tags_p = span_args->tags;
-            pycbc_tracer_finish_args_t* span_finish_args = payload->span_finish_args;
-            PYCBC_DEBUG_LOG("got span %p\n", span);
-
-            buf = calloc(nbuf, sizeof(char));
-            PYCBC_TRACING_ADD_TEXT(span_args, operation_name, lcbtrace_span_get_operation(span));
-            parent = lcbtrace_span_get_parent(span);
-            if (parent) {
-                lcb_uint64_t parenti_id = lcbtrace_span_get_trace_id(parent);
-                PYCBC_TRACING_ADD_U64(span_args, child_of, parenti_id);
-                //snprintf(buf, nbuf, "%" PRIx64, parenti_id);
-
-            }
-            PYCBC_TRACING_ADD_U64(span_args, id, lcbtrace_span_get_span_id(span));
-            start = lcbtrace_span_get_start_ts(span);
-            PYCBC_TRACING_ADD_U64(span_finish_args, finish_time, lcbtrace_span_get_finish_ts(span));
-            PYCBC_TRACING_ADD_U64(span_args, start_time, start);
-            {
-                nbuf = PYCBC_TRACING_BUFSZ;
-                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
-                    buf[nbuf] = '\0';
-                    PYCBC_TRACING_ADD_TEXT(tags_p, DB_TYPE, buf);
-                }
-            }
-
-            {
-                lcb_uint64_t latency, operation_id;
-                if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
-                    PYCBC_TRACING_ADD_U64(tags_p, PEER_LATENCY, latency);
-                }
-                if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
-                    PYCBC_TRACING_ADD_U64(tags_p, OPERATION_ID, operation_id);
-                }
-                nbuf = PYCBC_TRACING_BUFSZ;
-                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
-                    buf[nbuf] = '\0';
-                    PYCBC_TRACING_ADD_TEXT(tags_p, COMPONENT, buf);
-                }
-                nbuf = PYCBC_TRACING_BUFSZ;
-                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
-                    buf[nbuf] = '\0';
-                    PYCBC_TRACING_ADD_TEXT(tags_p, PEER_ADDRESS, buf);
-                }
-                nbuf = PYCBC_TRACING_BUFSZ;
-                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
-                    buf[nbuf] = '\0';
-                    PYCBC_TRACING_ADD_TEXT(tags_p, LOCAL_ADDRESS, buf);
-                }
-                nbuf = PYCBC_TRACING_BUFSZ;
-                if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
-                    buf[nbuf] = '\0';
-                    PYCBC_TRACING_ADD_TEXT(tags_p, DB_INSTANCE, buf);
-                }
+            nbuf = PYCBC_TRACING_BUFSZ;
+            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_TYPE, &buf, &nbuf) == LCB_SUCCESS) {
+                buf[nbuf] = '\0';
+                PYCBC_TRACING_ADD_TEXT(tags_p, DB_TYPE, buf);
             }
         }
 
-        pycbc_Tracer_enqueue_payload(state, payload);
+        {
+            lcb_uint64_t latency, operation_id;
+            if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_PEER_LATENCY, &latency) == LCB_SUCCESS) {
+                PYCBC_TRACING_ADD_U64(tags_p, PEER_LATENCY, latency);
+            }
+            if (lcbtrace_span_get_tag_uint64(span, LCBTRACE_TAG_OPERATION_ID, &operation_id) == LCB_SUCCESS) {
+                PYCBC_TRACING_ADD_U64(tags_p, OPERATION_ID, operation_id);
+            }
+            nbuf = PYCBC_TRACING_BUFSZ;
+            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_COMPONENT, &buf, &nbuf) == LCB_SUCCESS) {
+                buf[nbuf] = '\0';
+                PYCBC_TRACING_ADD_TEXT(tags_p, COMPONENT, buf);
+            }
+            nbuf = PYCBC_TRACING_BUFSZ;
+            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_PEER_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
+                buf[nbuf] = '\0';
+                PYCBC_TRACING_ADD_TEXT(tags_p, PEER_ADDRESS, buf);
+            }
+            nbuf = PYCBC_TRACING_BUFSZ;
+            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_LOCAL_ADDRESS, &buf, &nbuf) == LCB_SUCCESS) {
+                buf[nbuf] = '\0';
+                PYCBC_TRACING_ADD_TEXT(tags_p, LOCAL_ADDRESS, buf);
+            }
+            nbuf = PYCBC_TRACING_BUFSZ;
+            if (lcbtrace_span_get_tag_str(span, LCBTRACE_TAG_DB_INSTANCE, &buf, &nbuf) == LCB_SUCCESS) {
+                buf[nbuf] = '\0';
+                PYCBC_TRACING_ADD_TEXT(tags_p, DB_INSTANCE, buf);
+            }
+        }
     }
-#undef PYCBC_TRACING_BUFSZ
+    return payload;
 }
+#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
+
+void pycbc_log_pyformat(const char* file, int line, const char* format, ...)
+{
+    va_list v1;
+    PyObject* type, *value, *traceback;
+    PyErr_Fetch(&type,&value,&traceback);
+    va_start(v1, format);
+    PyObject* formatted = PyUnicode_FromFormatV(format, v1);
+    va_end(v1);
+    if (!formatted || PyErr_Occurred())
+    {
+        PYCBC_EXCEPTION_LOG
+    }
+    else {
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file, line, "%s", PYCBC_CSTR(formatted));
+    }
+    Py_XDECREF(formatted);
+    if (type || value || traceback)
+    {
+        PyErr_Restore(type,value,traceback);
+    }
+}
+
+
 
 
 pycbc_tracer_payload* pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct pycbc_tracer_payload *payload) {
@@ -1066,53 +1032,22 @@ pycbc_tracer_payload* pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct
             }
             else
             {
-                PYCBC_DEBUG_LOG("requeuing %p")
-                return payload;
+                //PYCBC_DEBUG_LOG("requeueing %p", payload);
+                //return payload;
             }
 
         }
+        PYCBC_DEBUG_PYFORMAT("calling start method: %R ( %R )", state->start_span_method,start_span_args);
 
-        PyObject *fresh_span;
-
-        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("calling start method:[");
-        PYCBC_PRINT_REPR(state->start_span_method);
-        PYCBC_DEBUG_LOG_RAW("]");
-        PYCBC_DEBUG_LOG("\nabout to call: %p[\n", state->start_span_method);
-        PYCBC_DEBUG_LOG("] on %p=[", state->parent);
-        PYCBC_PRINT_REPR(state->parent);
-        PYCBC_DEBUG_LOG_WITHOUT_NEWLINE("full args to start_span:[");
-        PYCBC_PRINT_REPR(start_span_args);
-        PYCBC_DEBUG_LOG_RAW("\n");
-
-        fresh_span= PyObject_Call(state->start_span_method, pycbc_DummyTuple,
-                                  start_span_args);
-        if(fresh_span)
         {
-            PyObject *key = PyLong_FromUnsignedLongLong(*payload->span_start_args->id);
-            PyDict_SetItem(state->id_map, key, fresh_span);
-            Py_DecRef(key);
-            PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
-            PYCBC_DEBUG_LOG("Got span'[");
-            PYCBC_PRINT_REPR(fresh_span);
-            PYCBC_DEBUG_LOG("]\n");
-            pycbc_assert(finish_method);
-            PYCBC_DEBUG_LOG("Got finish method'[");
-            PYCBC_PRINT_REPR(finish_method);
-            PYCBC_DEBUG_LOG("]\n");
-            if (finish_method) {
-                PyObject* span_finish_args = pycbc_set_finish_args_from_payload(payload->span_finish_args);
-                PYCBC_DEBUG_LOG("calling finish method with;[");
-                PYCBC_PRINT_REPR(span_finish_args);
-                PYCBC_DEBUG_LOG("]\n");
-                PyObject_Call(finish_method, pycbc_DummyTuple, span_finish_args);
-                PYCBC_EXCEPTION_LOG;
-                PYCBC_XDECREF(span_finish_args);
-            }
+            PyObject *fresh_span = PyObject_Call(state->start_span_method, pycbc_DummyTuple,
+                                                              start_span_args);
+            if (fresh_span) {
+                pycbc_Tracer_span_finish(payload, state, fresh_span);
 
-            PYCBC_XDECREF(finish_method);
-            PYCBC_DECREF(fresh_span);
-        } else{
-            PYCBC_DEBUG_LOG("Yielded no span!");
+            } else {
+                PYCBC_DEBUG_LOG("Yielded no span!");
+            }
         }
         PYCBC_EXCEPTION_LOG;
         PYCBC_DECREF(start_span_args);
@@ -1122,6 +1057,27 @@ pycbc_tracer_payload* pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct
         PyErr_Restore(ptype,pvalue,ptraceback);
     }
     return NULL;
+}
+
+void pycbc_Tracer_span_finish(const struct pycbc_tracer_payload *payload, const pycbc_tracer_state *state,
+                              PyObject *fresh_span) {
+    PyObject *key = PyLong_FromUnsignedLongLong(*payload->span_start_args->id);
+    PyDict_SetItem(state->id_map, key, fresh_span);
+    Py_DecRef(key);
+    PyObject *finish_method = PyObject_GetAttrString(fresh_span, "finish");
+    PYCBC_DEBUG_PYFORMAT("Got span'[%R]", fresh_span);
+    pycbc_assert(finish_method);
+    PYCBC_DEBUG_PYFORMAT("Got finish method'[%R]",finish_method);
+    if (finish_method) {
+        PyObject *span_finish_args = pycbc_set_finish_args_from_payload(payload->span_finish_args);
+        PYCBC_DEBUG_PYFORMAT("calling finish method with;[%R]",span_finish_args);
+        PyObject_Call(finish_method, pycbc_DummyTuple, span_finish_args);
+        PYCBC_EXCEPTION_LOG;
+        PYCBC_XDECREF(span_finish_args);
+    }
+
+    PYCBC_XDECREF(finish_method);
+    PYCBC_DECREF(fresh_span);
 }
 
 void pycbc_tracer_flush(pycbc_Tracer_t *tracer)
@@ -1140,7 +1096,7 @@ void pycbc_tracer_flush(pycbc_Tracer_t *tracer)
     }
     {
         pycbc_tracer_payload *ptr = state->root;
-        PYCBC_DEBUG_LOG("flushing\n");
+        PYCBC_DEBUG_LOG("flushing");
         while (ptr) {
             pycbc_tracer_payload *tmp = ptr;
             ptr = ptr->next;
@@ -1196,15 +1152,11 @@ lcbtrace_TRACER *pycbc_tracer_new(PyObject *parent, PyObject* threshold_tracer_c
                                                                         : NULL);
 
     if (parent) {
-        PYCBC_DEBUG_LOG("initialising tracer start_span method from:[");
-        PYCBC_PRINT_REPR(parent);
-        PYCBC_DEBUG_LOG("]\n");
+        PYCBC_DEBUG_PYFORMAT("initialising tracer start_span method from:[%R]",parent);
         pycbc_tracer->start_span_method = PyObject_GetAttrString(parent, "start_span");
         if (!PyErr_Occurred() && pycbc_tracer->start_span_method)
         {
-            PYCBC_DEBUG_LOG("got start_span method:[");
-            PYCBC_PRINT_REPR(pycbc_tracer->start_span_method);
-            PYCBC_DEBUG_LOG("]\n");
+            PYCBC_DEBUG_PYFORMAT("got start_span method:[%R]", pycbc_tracer->start_span_method);
             pycbc_tracer->parent = parent;
             PYCBC_INCREF(parent);
         }

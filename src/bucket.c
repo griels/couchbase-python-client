@@ -826,7 +826,7 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
 #ifdef PYCBC_TRACING
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, "bucket.connect");
+                                                                                self->tracer, "bucket.connect");
 #endif
     lcb_error_t err;
 

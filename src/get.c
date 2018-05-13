@@ -379,14 +379,16 @@ PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE,
-                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "bucket.lookup_in"));
+                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer,
+                                                                  "bucket.lookup_in"));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI,
-                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "bucket.lookup_in_multi"));
+                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer,
+                                                                  "bucket.lookup_in_multi"));
 }
 
 #define DECLFUNC(name, operation, mode) \

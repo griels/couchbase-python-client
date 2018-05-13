@@ -218,7 +218,8 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
 
 #ifdef PYCBC_TRACING
     parent_context = pycbc_MultiResult_extract_context(*mres, hkey, res);
-    decoding_context = pycbc_Result_start_decoding_context(parent_context, hkey, "get_common_objects");
+    decoding_context = pycbc_Result_start_context(parent_context, hkey, "get_common_objects",
+                                                  LCBTRACE_OP_RESPONSE_DECODING);
 #endif
     if (*res) {
         int exists_ok = (restype & RESTYPE_EXISTS_OK) ||
@@ -633,7 +634,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
 
 #ifdef PYCBC_TRACING
     //parent_context = pycbc_MultiResult_extract_context(mres, skey, (pycbc_Result**)&knodes);
-    //decoding_context = pycbc_Result_start_decoding_context(parent_context, skey);
+    //decoding_context = pycbc_Result_start_context(parent_context, skey);
 #endif
 
     value = pycbc_SimpleStringN(resp->value, resp->nvalue);
