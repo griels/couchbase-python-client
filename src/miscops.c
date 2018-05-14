@@ -277,7 +277,7 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     PyObject *pycbc_Bucket_##name(pycbc_Bucket *self, \
                                       PyObject *args, PyObject *kwargs) { \
     PyObject* result;\
-    PYCBC_TRACE_WRAP_TOPLEVEL(result,#operation,keyop_common, self->tracer, self, args, kwargs, operation, mode); \
+    PYCBC_TRACE_WRAP_TOPLEVEL(result,"Bucket." #name,keyop_common, self->tracer, self, args, kwargs, operation, mode); \
     return result;\
 }
 
@@ -340,13 +340,13 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
             if (is_keystats && PyObject_IsTrue(is_keystats)) {
                 cmd.cmdflags |= LCB_CMDSTATS_F_KV;
             }
-            PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
+            //PYCBC_TRACECMD(cmd, context, cv.mres, curkey, self);
             err = lcb_stats3(self->instance, cv.mres, &cmd);
             Py_XDECREF(newkey);
         }
 
     } else {
-        PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
+        //PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
         err = lcb_stats3(self->instance, cv.mres, &cmd);
     }
 
@@ -381,7 +381,7 @@ TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     if (rv < 0) {
         return NULL;
     }
-    PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
+    //PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
     lcb_sched_enter(self->instance);
     err = lcb_ping3(self->instance, cv.mres, &cmd);
 
@@ -415,7 +415,7 @@ TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
         return NULL;
     }
 
-    PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
+    //PYCBC_TRACECMD(cmd, context, cv.mres, PYCBC_DEFAULT_TRACING_KEY, self);
     lcb_sched_enter(self->instance);
     PYCBC_CONN_THR_BEGIN(self);
     err = lcb_diag(self->instance, cv.mres, &cmd);

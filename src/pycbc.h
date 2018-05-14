@@ -19,10 +19,23 @@
  * This file contains the base header for the Python Couchbase Client
  * @author Mark Nunberg
  */
+#ifndef PYCBC_DEBUG
+//#define PYCBC_DEBUG
+#endif
+
+
 #ifdef PYCBC_DEBUG
 #define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
+void pycbc_log_pyformat(const char* file, int line, const char* format, ...);
+void pycbc_exception_log(const char* file, int line, int clear);
+#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
+#define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
+#define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 #else
 #define PYCBC_DEBUG_LOG_RAW(...)
+#define PYCBC_DEBUG_PYFORMAT(...)
+#define PYCBC_EXCEPTION_LOG_NOCLEAR
+#define PYCBC_EXCEPTION_LOG PyErr_Clear();
 #endif
 
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
@@ -30,16 +43,25 @@
     PYCBC_DEBUG_LOG_RAW(__VA_ARGS__)\
     PYCBC_DEBUG_LOG_RAW(POSTFIX)
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(FILE,LINE,...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,"\n", __VA_ARGS__)
-#define PYCBC_DEBUG_LOG_WITHOUT_NEWLINE(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(__FILE__,__LINE__, "", __VA_ARGS__)
 #define PYCBC_DEBUG_LOG(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(__FILE__,__LINE__,__VA_ARGS__)
 
 #ifdef PYCBC_DEBUG
-#define PYCBC_DECREF(X) pycbc_assert(Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li", X, Py_REFCNT(X)); Py_DECREF(X);
-#define PYCBC_XDECREF(X) pycbc_assert(!X || Py_REFCNT(X)>0);PYCBC_DEBUG_LOG("%p has count of %li", X, X?Py_REFCNT(X):0); Py_XDECREF(X)
+#define LOG_REFOP(Y,OP)     { pycbc_assert((Y) && Py_REFCNT(Y)>0);\
+                              PYCBC_DEBUG_PYFORMAT("%p has count of %ld: *** %R ***: OP: %s", Y, \
+                                              (long)(((PyObject*)(Y))?Py_REFCNT(Y):0), ((PyObject*)(Y)?(PyObject*)(Y):Py_None), #OP);\
+                              Py_##OP((PyObject*)Y); }
+#define LOG_REFOPX(Y,OP)    { pycbc_assert(!(Y) || Py_REFCNT(Y)>0);\
+                              PYCBC_DEBUG_PYFORMAT("%p has count of %ld: *** %R ***: OP: %s", Y, \
+                                              (long)(((PyObject*)(Y))?Py_REFCNT(Y):0), ((PyObject*)(Y)?(PyObject*)(Y):Py_None), #OP);\
+                              Py_##X##OP((PyObject*)(Y)); }
 #else
-#define PYCBC_DECREF(X) Py_DECREF(X);
-#define PYCBC_XDECREF(X) Py_XDECREF(X);
+#define LOG_REFOP(Y,OP) Py_##OP(Y)
+#define LOG_REFOPX(Y,OP) Py_X##OP(Y)
 #endif
+#define PYCBC_DECREF(X) LOG_REFOP(X,DECREF)
+#define PYCBC_XDECREF(X) LOG_REFOPX(X,DECREF)
+#define PYCBC_INCREF(X) LOG_REFOP(X,INCREF)
+#define PYCBC_XINCREF(X) LOG_REFOPX(X,INCREF)
 
 
 #include <Python.h>
@@ -294,18 +316,12 @@ typedef struct {
 } pycbc_dur_params;
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
-void pycbc_print_string( PyObject *curkey);
-void pycbc_print_repr( PyObject *pobj);
-void pycbc_exception_log(const char* file, int line, int clear);
-#ifdef PYCBC_DEBUG
-#define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
-#define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
-#else
-#define PYCBC_EXCEPTION_LOG_NOCLEAR
-#define PYCBC_EXCEPTION_LOG PyErr_Clear();
-#endif
 
 struct pycbc_Tracer;
+#define LCB_TRACING
+#ifndef PYCBC_TRACING_ENABLE
+#define PYCBC_TRACING_ENABLE
+#endif
 
 #ifdef LCB_TRACING
 #ifdef PYCBC_TRACING_ENABLE
@@ -391,10 +407,6 @@ typedef struct {
 typedef struct pycbc_Tracer {
     PyObject_HEAD
     lcbtrace_TRACER *tracer;
-    PyObject* parent;
-    lcb_t *instance;
-
-    int init_called:1;
 } pycbc_Tracer_t;
 
 static PyTypeObject SpanType = {
@@ -409,16 +421,25 @@ typedef struct {
 #endif
 } pycbc_Span_t;
 
+typedef struct pycbc_context_children
+{
+    struct pycbc_stack_context* value;
+    struct pycbc_context_children* next;
+} pycbc_context_children;
 
-typedef struct
+
+typedef struct pycbc_stack_context
 {
 #ifdef PYCBC_TRACING
     pycbc_Tracer_t* tracer;
     lcbtrace_SPAN* span;
+    struct pycbc_stack_context* parent;
+    size_t ref_count;
+    pycbc_context_children* children;
 #endif
 } pycbc_stack_context;
 
-typedef pycbc_stack_context* pycbc_stack_context_handle;
+typedef struct pycbc_stack_context* pycbc_stack_context_handle;
 #else
 
 typedef void* pycbc_stack_context_handle;
@@ -426,75 +447,100 @@ typedef void* pycbc_stack_context_handle;
 #endif
 
 #ifdef PYCBC_TRACING
-
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
+typedef struct pycbc_Result pycbc_Result;
+typedef struct pycbc_MultiResult_st pycbc_MultiResult;
 
-pycbc_stack_context_handle pycbc_Tracer_span_start(pycbc_Tracer_t *tracer, PyObject *kwargs, const char *operation,
-                                                   lcb_uint64_t now, pycbc_stack_context_handle context,
-                                                   lcbtrace_REF_TYPE ref_type, const char* component);
-PyObject* pycbc_Context_finish(pycbc_stack_context_handle context );
+pycbc_stack_context_handle
+pycbc_Result_start_context(pycbc_stack_context *parent_context, PyObject *hkey, char *component,
+                           char *operation);
+void pycbc_Result_propagate_context(pycbc_Result *res, pycbc_stack_context_handle parent_context);
+void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
+                                    pycbc_stack_context_handle context, pycbc_Bucket *bucket);
+pycbc_stack_context_handle pycbc_MultiResult_extract_context(pycbc_MultiResult *self, PyObject *hkey, pycbc_Result** res);
+#define PYCBC_MULTIRESULT_EXTRACT_CONTEXT(MRES, KEY, RES) pycbc_MultiResult_extract_context(MRES,KEY,RES)
+pycbc_stack_context_handle pycbc_Result_extract_context(const pycbc_Result *res);
+#define PYCBC_RESULT_EXTRACT_CONTEXT(RESULT) pycbc_Result_extract_context(RESULT)
+
+pycbc_stack_context_handle
+pycbc_Context_init(pycbc_Tracer_t *py_tracer, const char *operation, lcb_uint64_t now,
+                   pycbc_stack_context_handle ref_context, lcbtrace_REF_TYPE ref_type, const char *component);
+pycbc_stack_context_handle pycbc_Context_check(pycbc_stack_context_handle CONTEXT, const char *file, int line);
+#define PYCBC_CHECK_CONTEXT(CONTEXT) pycbc_Context_check(CONTEXT,__FILE__,__LINE__)
+pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle context, int should_be_final);
+pycbc_stack_context_handle pycbc_Context_deref_debug(pycbc_stack_context_handle context, int should_be_final, const char* file, int line);
+#define PYCBC_CONTEXT_DEREF(CONTEXT,SHOULD_BE_FINAL)\
+    pycbc_Context_deref_debug(CONTEXT,SHOULD_BE_FINAL, __FILE__, __LINE__);
+
+pycbc_stack_context_handle
+pycbc_Tracer_start_span(pycbc_Tracer_t *py_tracer, PyObject *kwargs, const char *operation, lcb_uint64_t now,
+                        pycbc_stack_context_handle context, lcbtrace_REF_TYPE ref_type, const char* component);
+
 void pycbc_Tracer_propagate(pycbc_Tracer_t *tracer);
+void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
 
 
-void pycbc_init_traced_result(pycbc_Bucket *self, PyObject* mres_dict, PyObject *curkey,
-                              pycbc_stack_context_handle context);
 
-#define PYCBC_GET_STACK_CONTEXT(KWARGS,CATEGORY,TRACER, PARENT_CONTEXT) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, PARENT_CONTEXT, LCBTRACE_REF_CHILD_OF )
-#define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_span_start(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
+
+#define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(KWARGS,CATEGORY,TRACER, NAME) pycbc_Tracer_start_span(TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME )
 
 extern PyObject* pycbc_default_key;
-#define PYCBC_DEFAULT_TRACING_KEY pycbc_default_key
 
-pycbc_stack_context_handle pycbc_check_context(pycbc_stack_context_handle CONTEXT, const char* file, int line);
-
-
-#define PYCBC_CHECK_CONTEXT(CONTEXT) pycbc_check_context(CONTEXT,__FILE__,__LINE__)
 #define PYCBC_TRACECMD_PURE(CMD,CONTEXT) {\
     if (PYCBC_CHECK_CONTEXT(CONTEXT))\
     {  \
         PYCBC_DEBUG_LOG("setting trace span on %.*s\n",\
         (int)(CMD).key.contig.nbytes,(const char*)(CMD).key.contig.bytes);\
+        ++(CONTEXT)->ref_count;\
         LCB_CMD_SET_TRACESPAN(&(CMD),(CONTEXT)->span);\
     } else {PYCBC_EXCEPTION_LOG_NOCLEAR;}\
 };
 
 #define PYCBC_TRACECMD(CMD,CONTEXT,MRES,CURKEY,BUCKET) PYCBC_TRACECMD_PURE(CMD,CONTEXT); \
-    pycbc_init_traced_result(BUCKET, pycbc_multiresult_dict(MRES), CURKEY, context);
+    pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
 
-#define PYCBC_TRACE_POP_CONTEXT(CONTEXT) pycbc_Context_finish(CONTEXT);
-
-
+#define PYCBC_TRACE_POP_CONTEXT(context) PYCBC_CONTEXT_DEREF(context,1);
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) \
 {\
-    int should_trace = 1 || !pycbc_is_async_or_pipeline(self);\
-    pycbc_stack_context_handle sub_context = NULL;\
-    if (should_trace) { sub_context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME); };\
+    pycbc_stack_context_handle sub_context = \
+        PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, CATEGORY, TRACER, STRINGNAME);\
     RV = NAME(__VA_ARGS__, sub_context);\
-    if ( 0 && should_trace && sub_context && !pycbc_is_async_or_pipeline(self)) {\
-        pycbc_Context_finish(sub_context);\
-    }\
+    PYCBC_CONTEXT_DEREF(sub_context,!pycbc_is_async_or_pipeline(self));\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
 
 
 
-#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, pycbc_Tracer_span_start(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))
-#define PYCBC_TRACE_WRAP(NAME,KWARGS,...) PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
+#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...)\
+    NAME(__VA_ARGS__,\
+        pycbc_Tracer_start_span(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME)\
+    )
+#define PYCBC_TRACE_WRAP(NAME,KWARGS,...)\
+    PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
+#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    if (PYCBC_CHECK_CONTEXT(CONTEXT)) { lcb_##SCOPE##_set_parent_span(INSTANCE, HANDLE, CONTEXT->span); }\
+    RV=lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #else
 
+#define PYCBC_CONTEXT_DEREF(X,Y)
 #define PYCBC_GET_STACK_CONTEXT(CATEGORY,TRACER, PARENT_CONTEXT) NULL
+#define PYCBC_RESULT_EXTRACT_CONTEXT(RESULT) NULL
+#define PYCBC_MULTIRESULT_EXTRACT_CONTEXT(MRES, KEY, RES) NULL
 #define PYCBC_TRACECMD(...)
 #define PYCBC_TRACECMD_PURE(...)
-#define PYCBC_TRACE_POP_CONTEXT(X)
+#define PYCBC_TRACE_POP_CONTEXT(X) NULL
+#define PYCBC_FINISH_IF_COMPLETE(SELF,CONTEXT)
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, STRINGNAME, ...) { RV = NAME(__VA_ARGS__, NULL); }
 #define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...) NAME(__VA_ARGS__, NULL)
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV,CATEGORY,NAME,TRACER,...) { RV=NAME(__VA_ARGS__,NULL); }
 #define PYCBC_TRACE_WRAP(NAME,KWARGS,...) NAME(__VA_ARGS__, NULL)
 #define PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(...) NULL
+#define PYCBC_TRACECMD_SCOPED(RV,SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    RV=lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__)
 
 #endif
 
@@ -513,7 +559,8 @@ PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyO
 PyObject *pycbc_##CLASS##_##name(pycbc_##CLASS *self, \
                                       PyObject *args, PyObject *kwargs) {\
         PyObject* result;\
-        PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(result, CATEGORY, pycbc_##CLASS##_##name##_real, self->tracer, #CLASS "." #name, self, args, kwargs);\
+        PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(result, CATEGORY, pycbc_##CLASS##_##name##_real, self->tracer,\
+                                           #CLASS "." #name, self, args, kwargs);\
         return result;\
 }\
 PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyObject *kwargs,\
@@ -534,8 +581,7 @@ PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyO
 #ifdef PYCBC_TRACING
 #define TRACING_DATA \
     pycbc_stack_context_handle tracing_context;\
-    int is_tracing_stub;\
-    PyObject* tracing_output;
+    char is_tracing_stub;
 #else
 #define TRACING_DATA
 #endif
@@ -551,7 +597,7 @@ PyObject *pycbc_##CLASS##_##name##_real(pycbc_##CLASS *self, PyObject *args, PyO
     lcb_uint64_t cas; \
     PyObject *mutinfo;
 
-typedef struct {
+typedef struct pycbc_Result {
     pycbc_Result_HEAD
 } pycbc_Result;
 
@@ -618,8 +664,7 @@ typedef struct {
     long rows_per_call;
     char has_parse_error;
 #ifdef PYCBC_TRACING
-    pycbc_Tracer_t* py_tracer;
-    int own_tracer;
+    PyObject* context_capsule;
 #endif
 } pycbc_ViewResult;
 
@@ -1025,6 +1070,7 @@ pycbc_ObserveInfo * pycbc_observeinfo_new(pycbc_Bucket *parent);
  */
 int pycbc_httpresult_ok(pycbc_HttpResult *self);
 
+pycbc_ViewResult *pycbc_propagate_view_result(pycbc_stack_context_handle context);
 
 /**
  * Append data to the HTTP result
@@ -1354,6 +1400,7 @@ PyObject *pycbc_Bucket__ping(pycbc_Bucket *self,
 PyObject *pycbc_Bucket__diagnostics(pycbc_Bucket *self,
                                     PyObject *args,
                                     PyObject *kwargs);
+
 /**
  * Flag to check if logging is enabled for the library via Python's logging
  */

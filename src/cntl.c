@@ -347,6 +347,7 @@ pycbc_Bucket__cntl(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         if (!rv) {
             return NULL; /* error raised */
         }
+        PYCBC_DEBUG_LOG("Setting cntl %d on instance %p with %d or %f", cmd, self->instance, input.i, input.f);
         err = lcb_cntl(self->instance, LCB_CNTL_SET, cmd, &input);
         if (err == LCB_SUCCESS) {
             Py_RETURN_TRUE;

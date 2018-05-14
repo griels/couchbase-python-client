@@ -101,61 +101,62 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         }
     }
     u_cmd.base.exptime = ttl;
-    PYCBC_TRACE_POP_CONTEXT(context);
+    {
+        //pycbc_stack_context_handle next_context =  pycbc_Context_init(context->tracer, LCBTRACE_OP_REQUEST_ENCODING,0, context, lcbtrace_REF_TYPE, "")
+        context = PYCBC_TRACE_POP_CONTEXT(context);
+        switch (optype) {
+            case PYCBC_CMD_GAT:
+                if (!ttl) {
+                    PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "GAT must have positive TTL");
+                    rv = -1;
+                    goto GT_DONE;
+                }
+                goto GT_GET;
 
-    switch (optype) {
-    case PYCBC_CMD_GAT:
-        if (!ttl) {
-            PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "GAT must have positive TTL");
+            case PYCBC_CMD_LOCK:
+                if (!ttl) {
+                    PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Lock must have an expiry");
+                    rv = -1;
+                    goto GT_DONE;
+                }
+                lock = 1;
+                goto GT_GET;
+
+            case PYCBC_CMD_GET:
+            GT_GET:
+                u_cmd.get.lock = lock;
+                PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
+                err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
+                break;
+
+            case PYCBC_CMD_TOUCH:
+                u_cmd.touch.exptime = ttl;
+                PYCBC_TRACECMD(u_cmd.touch, context, cv->mres, curkey, self);
+                err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
+                break;
+
+            case PYCBC_CMD_GETREPLICA:
+            case PYCBC_CMD_GETREPLICA_INDEX:
+            case PYCBC_CMD_GETREPLICA_ALL:
+                u_cmd.rget.strategy = gv->u.replica.strategy;
+                u_cmd.rget.index = gv->u.replica.index;
+                PYCBC_TRACECMD(u_cmd.rget, context, cv->mres, curkey, self);
+                err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
+                break;
+            default:
+                err = LCB_ERROR;
+                abort();
+                break;
+        }
+
+        if (err != LCB_SUCCESS) {
+            PYCBC_EXCTHROW_SCHED(err);
             rv = -1;
             goto GT_DONE;
+        } else {
+            rv = 0;
         }
-        goto GT_GET;
-
-    case PYCBC_CMD_LOCK:
-        if (!ttl) {
-            PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Lock must have an expiry");
-            rv = -1;
-            goto GT_DONE;
-        }
-        lock = 1;
-        goto GT_GET;
-
-    case PYCBC_CMD_GET:
-        GT_GET:
-        u_cmd.get.lock = lock;
-        PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
-        err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
-        break;
-
-    case PYCBC_CMD_TOUCH:
-        u_cmd.touch.exptime = ttl;
-        PYCBC_TRACECMD(u_cmd.touch, context, cv->mres, curkey, self);
-        err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
-        break;
-
-    case PYCBC_CMD_GETREPLICA:
-    case PYCBC_CMD_GETREPLICA_INDEX:
-    case PYCBC_CMD_GETREPLICA_ALL:
-        u_cmd.rget.strategy = gv->u.replica.strategy;
-        u_cmd.rget.index = gv->u.replica.index;
-        PYCBC_TRACECMD(u_cmd.rget,context, cv->mres, curkey, self);
-        err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
-        break;
-    default:
-        err = LCB_ERROR;
-        abort();
-        break;
     }
-
-    if (err != LCB_SUCCESS) {
-        PYCBC_EXCTHROW_SCHED(err);
-        rv = -1;
-        goto GT_DONE;
-    } else {
-        rv = 0;
-    }
-
     GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
@@ -378,14 +379,16 @@ PyObject *
 pycbc_Bucket_lookup_in(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_SINGLE,
-                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "bucket.lookup_in"));
+                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer,
+                                                                  "bucket.lookup_in"));
 }
 
 PyObject *
 pycbc_Bucket_lookup_in_multi(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
     return sdlookup_common(self, args, kwargs, PYCBC_ARGOPT_MULTI,
-                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer, "bucket.lookup_in_multi"));
+                           PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING, self->tracer,
+                                                                  "bucket.lookup_in_multi"));
 }
 
 #define DECLFUNC(name, operation, mode) \

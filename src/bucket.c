@@ -163,6 +163,14 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
     return ret;
 }
 
+#ifdef PYCBC_TRACING
+static PyObject *
+Bucket_tracer(pycbc_Bucket *self, void *unused) {
+    PyObject* result = self->tracer?(PyObject*)self->tracer:Py_None;
+    PYCBC_INCREF(result);
+    return result;
+}
+#endif
 static PyObject *
 Bucket__instance_pointer(pycbc_Bucket *self, void *unused)
 {
@@ -227,7 +235,10 @@ Bucket__close(pycbc_Bucket *self)
     }
 
     self->flags |= PYCBC_CONN_F_CLOSED;
-
+#ifdef PYCBC_TRACING
+    Py_XDECREF(self->tracer);
+    self->tracer = NULL;
+#endif
     lcb_destroy(self->instance);
 
     if (self->iopswrap) {
@@ -382,7 +393,13 @@ static PyGetSetDef Bucket_TABLE_getset[] = {
                         "Note that this will still return true even if\n"
                         "it is subsequently closed via :meth:`_close`\n")
         },
-
+#ifdef PYCBC_TRACING
+        {"tracer",
+                (getter) Bucket_tracer,
+                NULL,
+                PyDoc_STR("Tracer used by bucket, if any.\n")
+        },
+#endif
         { "_instance_pointer",
                 (getter)Bucket__instance_pointer,
                 NULL,
@@ -622,6 +639,11 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         { NULL, NULL, 0, NULL }
 };
 
+PyObject *pycbc_value_or_none( PyObject *tracer)
+{
+    return tracer?tracer:Py_None;
+}
+
 static int
 Bucket__init__(pycbc_Bucket *self,
                        PyObject *args, PyObject *kwargs)
@@ -636,7 +658,9 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *tc = NULL;
     PyObject *tracer = NULL;
     struct lcb_create_st create_opts = { 0 };
-
+#ifdef PYCBC_TRACING
+    lcbtrace_TRACER* threshold_tracer = NULL;
+#endif
 
     /**
      * This xmacro enumerates the constructor keywords, targets, and types.
@@ -693,17 +717,8 @@ Bucket__init__(pycbc_Bucket *self,
         self->unlock_gil = 0;
     }
 #ifdef PYCBC_TRACING
-    if (tracer){
-        PyObject *tracer_args = PyTuple_New(2);
-        PyTuple_SetItem(tracer_args, 0, tracer);
-        PyTuple_SetItem(tracer_args, 1, (PyObject*) self);
-        self->tracer = (pycbc_Tracer_t *) PyObject_CallFunction((PyObject *) &pycbc_TracerType, "O", tracer_args);
-        if (PyErr_Occurred()) {
-            PYCBC_EXCEPTION_LOG_NOCLEAR;
-            PYCBC_XDECREF(self->tracer);
-            self->tracer = NULL;
-        }
-    }
+    PYCBC_DEBUG_LOG("threshold tracer %p",threshold_tracer);
+
 #endif
     create_opts.version = 3;
     create_opts.v.v3.type = conntype;
@@ -748,8 +763,23 @@ Bucket__init__(pycbc_Bucket *self,
 
     err = lcb_create(&self->instance, &create_opts);
 #ifdef PYCBC_TRACING
-    if (self->tracer) {
-        lcb_set_tracer(self->instance, self->tracer->tracer);
+    threshold_tracer = lcb_get_tracer(self->instance);
+
+    if (tracer || threshold_tracer){
+        PyObject *tracer_args = PyTuple_New(2);
+        PyObject *threshold_tracer_capsule = threshold_tracer ? PyCapsule_New(threshold_tracer, "threshold_tracer", NULL) : NULL;
+        PyTuple_SetItem(tracer_args, 0, pycbc_value_or_none(tracer));
+        PyTuple_SetItem(tracer_args, 1, pycbc_value_or_none(threshold_tracer_capsule));
+        self->tracer = (pycbc_Tracer_t *) PyObject_Call((PyObject *) &pycbc_TracerType, tracer_args, pycbc_DummyKeywords);
+        if (PyErr_Occurred()) {
+            PYCBC_EXCEPTION_LOG_NOCLEAR;
+            self->tracer = NULL;
+        }
+        else {
+            PYCBC_XINCREF(self->tracer);
+            lcb_set_tracer(self->instance, self->tracer->tracer);
+        }
+        PYCBC_DECREF(tracer_args);
     }
 #endif
     if (err != LCB_SUCCESS) {
@@ -786,12 +816,13 @@ Bucket__init__(pycbc_Bucket *self,
 
     return 0;
 }
-
 static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
+#ifdef PYCBC_TRACING
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(kwargs, LCBTRACE_OP_REQUEST_ENCODING,
-                                                                          self->tracer, "bucket.connect");
+                                                                                self->tracer, "bucket.connect");
+#endif
     lcb_error_t err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
@@ -829,6 +860,7 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 static void
 Bucket_dtor(pycbc_Bucket *self)
 {
+    PYCBC_DEBUG_LOG("destroying %p",self);
     if (self->flags & PYCBC_CONN_F_CLOSED) {
         lcb_destroy(self->instance);
         self->instance = NULL;
@@ -852,6 +884,7 @@ Bucket_dtor(pycbc_Bucket *self)
     }
 #ifdef PYCBC_TRACING
     PYCBC_XDECREF((PyObject*)self->tracer);
+    self->tracer = NULL;
 #endif
 
 #ifdef WITH_THREAD
