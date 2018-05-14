@@ -32,11 +32,8 @@ import os
 import time
 from basictracer import BasicTracer, SpanRecorder
 import couchbase
-#import cppyy
-#import cpycppyy
-if os.environ.get("PYCBC_TRACE_GC") in ['FULL','STATS_LEAK_ONLY']:
+if os.environ.get("PYCBC_TRACE_GC") in ['FULL', 'STATS_LEAK_ONLY']:
     gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
-
 
 
 class ResourcedTestCase(ResourcedTestCaseReal):
@@ -562,8 +559,6 @@ class TracedCase(ConnectionTestCaseBase):
         logging.getLogger('').handlers = []
         logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
         super(TracedCase, self).setUp(enable_tracing = "true", init_tracer = self.init_tracer, **kwargs)
-        import couchbase._libcouchbase
-        import couchbase
         if os.environ.get("PYCBC_TRACE_ALL"):
             couchbase.enable_logging()
             self.cb.THRESHOLD_KV = 10
@@ -574,6 +569,7 @@ class TracedCase(ConnectionTestCaseBase):
 
     def tearDown(self):
         super(TracedCase,self).tearDown()
+        couchbase.disable_logging()
         if self.tracer and getattr(self.tracer,"close", None):
             try:
                 time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50

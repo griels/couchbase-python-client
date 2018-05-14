@@ -26,8 +26,11 @@
 
 #ifdef PYCBC_DEBUG
 #define PYCBC_DEBUG_LOG_RAW(...) printf(__VA_ARGS__);
+void pycbc_log_pyformat(const char* file, int line, const char* format, ...);
+#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
 #else
 #define PYCBC_DEBUG_LOG_RAW(...)
+#define PYCBC_DEBUG_PYFORMAT(...)
 #endif
 
 #define PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_POSTFIX(FILE,LINE,POSTFIX,...)\
@@ -39,17 +42,13 @@
 #define PYCBC_DEBUG_LOG(...) PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(__FILE__,__LINE__,__VA_ARGS__)
 
 #ifdef PYCBC_DEBUG
-#define LOG_REFOP(Y,OP)     { PyObject* repr;\
-                              pycbc_assert(Y && Py_REFCNT(Y)>0);repr=Y?PyObject_Repr((PyObject*)Y):NULL;\
-                              PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, \
-                                              Y?Py_REFCNT(Y):0, repr?pycbc_get_string(repr):"<NULL>", #OP);\
-                              Py_XDECREF(repr);\
+#define LOG_REFOP(Y,OP)     { pycbc_assert(Y && Py_REFCNT(Y)>0);\
+                              PYCBC_DEBUG_PYFORMAT("%p has count of %li: *** %R ***: OP: %s", Y, \
+                                              ((PyObject*)(Y))?Py_REFCNT(Y):0, ((PyObject*)(Y)?(PyObject*)(Y):Py_None), #OP);\
                               Py_##OP((PyObject*)Y); }
-#define LOG_REFOPX(Y,OP)    { PyObject* repr;\
-                              pycbc_assert(!Y || Py_REFCNT(Y)>0);repr=Y?PyObject_Repr((PyObject*)Y):NULL;\
-                              PYCBC_DEBUG_LOG("%p has count of %li: *** %s ***: OP: %s", Y, \
-                                              Y?Py_REFCNT(Y):0, repr?pycbc_get_string(repr):"<NULL>", #OP); \
-                              Py_XDECREF(repr);\
+#define LOG_REFOPX(Y,OP)    { pycbc_assert(!Y || Py_REFCNT(Y)>0);\
+                              PYCBC_DEBUG_PYFORMAT("%p has count of %li: *** %R ***: OP: %s", Y, \
+                                              ((PyObject*)(Y))?Py_REFCNT(Y):0, ((PyObject*)(Y)?(PyObject*)(Y):Py_None), #OP);\
                               Py_##X##OP((PyObject*)Y); }
 #else
 #define LOG_REFOP(Y,OP) Py_##OP(Y)
@@ -319,14 +318,11 @@ const char* pycbc_get_string(PyObject *string);
 void pycbc_print_string( PyObject *curkey, const char* file, int line);
 void pycbc_print_repr( PyObject *pobj, const char* file, int line);
 void pycbc_exception_log(const char* file, int line, int clear);
-void pycbc_log_pyformat(const char* file, int line, const char* format, ...);
-#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
 #define PYCBC_EXCEPTION_LOG_NOCLEAR pycbc_exception_log(__FILE__,__LINE__,0);
 #define PYCBC_EXCEPTION_LOG pycbc_exception_log(__FILE__,__LINE__,1);
 #define PYCBC_PRINT_REPR(...) pycbc_print_repr(__VA_ARGS__,__FILE__,__LINE__)
 #define PYCBC_PRINT_STRING(...) pycbc_print_string(__VA_ARGS__,__FILE__,__LINE__)
 #else
-#define PYCBC_DEBUG_PYFORMAT(FORMAT,...)
 #define PYCBC_EXCEPTION_LOG_NOCLEAR
 #define PYCBC_EXCEPTION_LOG PyErr_Clear();
 #define PYCBC_PRINT_REPR(...)

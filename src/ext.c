@@ -520,6 +520,29 @@ void pycbc_exception_log(const char* file, int line, int clear)
     }
 }
 
+void pycbc_log_pyformat(const char* file, int line, const char* format, ...)
+{
+    va_list v1;
+    PyObject* type = NULL, *value = NULL, *traceback = NULL;
+    PyErr_Fetch(&type,&value,&traceback);
+    va_start(v1, format);
+    PyObject* formatted = PyUnicode_FromFormatV(format, v1);
+    va_end(v1);
+    if (!formatted || PyErr_Occurred())
+    {
+        PYCBC_EXCEPTION_LOG
+    }
+    else {
+        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file, line, "%s", PYCBC_CSTR(formatted));
+    }
+    Py_XDECREF(formatted);
+    PyErr_Print();
+    if (type || value || traceback)
+    {
+        PyErr_Restore(type,value,traceback);
+    }
+}
+
 #endif
 
 #ifdef PYCBC_TRACING
@@ -988,32 +1011,6 @@ pycbc_tracer_payload* pycbc_persist_span(lcbtrace_SPAN* span)
     }
     return payload;
 }
-#define PYCBC_DEBUG_PYFORMAT(FORMAT,...) pycbc_log_pyformat(__FILE__,__LINE__,FORMAT, __VA_ARGS__, NULL)
-
-void pycbc_log_pyformat(const char* file, int line, const char* format, ...)
-{
-    va_list v1;
-    PyObject* type, *value, *traceback;
-    PyErr_Fetch(&type,&value,&traceback);
-    va_start(v1, format);
-    PyObject* formatted = PyUnicode_FromFormatV(format, v1);
-    va_end(v1);
-    if (!formatted || PyErr_Occurred())
-    {
-        PYCBC_EXCEPTION_LOG
-    }
-    else {
-        PYCBC_DEBUG_LOG_WITH_FILE_AND_LINE_NEWLINE(file, line, "%s", PYCBC_CSTR(formatted));
-    }
-    Py_XDECREF(formatted);
-    if (type || value || traceback)
-    {
-        PyErr_Restore(type,value,traceback);
-    }
-}
-
-
-
 
 pycbc_tracer_payload* pycbc_Tracer_propagate_span(pycbc_Tracer_t *tracer, struct pycbc_tracer_payload *payload) {
     pycbc_tracer_state *state = (pycbc_tracer_state *) tracer->tracer->cookie;

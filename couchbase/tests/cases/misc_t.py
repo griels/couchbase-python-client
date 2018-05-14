@@ -27,7 +27,7 @@ except ImportError:
     unittest2 = None
 
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase.tests.base import ConnectionTestCaseBase
 from couchbase.user_constants import FMT_JSON, FMT_AUTO, FMT_JSON, FMT_PICKLE
 from couchbase.exceptions import ClientTemporaryFailError
 from couchbase.exceptions import CouchbaseError
@@ -38,7 +38,7 @@ from couchbase import enable_logging
 import logging
 
 
-class MiscTest(ConnectionTestCase):
+class MiscTest(ConnectionTestCaseBase):
 
     def test_server_nodes(self):
         nodes = self.cb.server_nodes
