@@ -103,7 +103,8 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     u_cmd.base.exptime = ttl;
     {
         //pycbc_stack_context_handle next_context =  pycbc_Context_init(context->tracer, LCBTRACE_OP_REQUEST_ENCODING,0, context, lcbtrace_REF_TYPE, "")
-        context = PYCBC_TRACE_POP_CONTEXT(context);
+        context = context->parent;
+        //PYCBC_TRACE_POP_CONTEXT(context);
         switch (optype) {
             case PYCBC_CMD_GAT:
                 if (!ttl) {

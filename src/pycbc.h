@@ -508,32 +508,28 @@ extern PyObject* pycbc_default_key;
     PYCBC_CONTEXT_DEREF(sub_context,!pycbc_is_async_or_pipeline(self));\
     PYCBC_EXCEPTION_LOG_NOCLEAR;\
 };
-
+/*
 static int pycbc_wrap_function_and_pop(pycbc_stack_context_handle* context, int should_be_final, int result)
 {
     //if (context) {*context = PYCBC_CONTEXT_DEREF(*context, should_be_final);};
     return result;
 }
+*/
+#define pycbc_wrap_function_and_pop(A,B,C) (C)
 #define PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME,COMPONENTNAME,CATEGORY,KWARGS,...)\
-    pycbc_wrap_function_and_pop(\
-        &context,0,\
-            NAME(__VA_ARGS__,pycbc_Tracer_start_span(\
-            self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME))\
-        )\
-
-
-#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED_VOID(NAME,COMPONENTNAME,CATEGORY,KWARGS,...)\
-    {\
-        pycbc_stack_context_handle sub_context=pycbc_Tracer_start_span(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME);\
-        NAME(__VA_ARGS__,sub_context);\
-        PYCBC_CONTEXT_DEREF(sub_context, 0);\
-    }
-
+    NAME(__VA_ARGS__,\
+        pycbc_Tracer_start_span(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME)\
+    )
 #define PYCBC_TRACE_WRAP(NAME,KWARGS,...)\
     PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 
+#define PYCBC_TRACE_WRAP_EXPLICIT_NAMED_VOID(NAME,COMPONENTNAME,CATEGORY,KWARGS,...)\
+    NAME(__VA_ARGS__,\
+        pycbc_Tracer_start_span(self->tracer,KWARGS,CATEGORY,0, context, LCBTRACE_REF_CHILD_OF, COMPONENTNAME)\
+    )
+
 #define PYCBC_TRACE_WRAP_VOID(NAME,KWARGS,...)\
-    PYCBC_TRACE_WRAP_EXPLICIT_NAMED_VOID(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
+    PYCBC_TRACE_WRAP_EXPLICIT_NAMED(NAME, #NAME, NAME##_category(), KWARGS, __VA_ARGS__)
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL(RV, CATEGORY, NAME, TRACER, ...)\
     PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(RV, CATEGORY, NAME, TRACER, #NAME, __VA_ARGS__);
