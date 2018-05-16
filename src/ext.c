@@ -560,7 +560,6 @@ pycbc_stack_context_handle pycbc_Context_deref(pycbc_stack_context_handle contex
             if (should_be_final && context->children){
                 PYCBC_DEBUG_LOG("*** %p Should have lost all children by now ***", context);
                 pycbc_Context_enumerate_chiidren(context, 0);
-                //pycbc_assert(!should_be_final);
             }
         }
     };

@@ -62,7 +62,7 @@ pycbc_common_vars_wait, struct pycbc_common_vars *cv, pycbc_Bucket *self)
         Py_INCREF(Py_None);
         return 0;
     }
-    PYCBC_TRACE_WRAP(pycbc_oputil_wait_common, NULL, self);
+    PYCBC_TRACE_WRAP_VOID(pycbc_oputil_wait_common, NULL, self);
 
     if (!pycbc_assert(self->nremaining == 0)) {
         fprintf(stderr, "Remaining count != 0. Adjusting");

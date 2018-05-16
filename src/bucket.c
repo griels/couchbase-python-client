@@ -838,7 +838,7 @@ Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
         return NULL;
     }
 
-    PYCBC_TRACE_WRAP(pycbc_oputil_wait_common, NULL, self);
+    PYCBC_TRACE_WRAP_VOID(pycbc_oputil_wait_common, NULL, self);
     if ((self->flags & PYCBC_CONN_F_ASYNC) == 0) {
         err = lcb_get_bootstrap_status(self->instance);
         if (err != LCB_SUCCESS) {
