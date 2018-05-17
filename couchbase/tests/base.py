@@ -544,15 +544,15 @@ class TracedCase(ConnectionTestCaseBase):
             couchbase.enable_logging()
         super(TracedCase, self).setUp(enable_tracing = "true", init_tracer = self.init_tracer, **kwargs)
         if self.trace_all:
-            self.cb.TRACING_ORPHANED_QUEUE_FLUSH_INTERVAL = 0.0001
-            self.cb.TRACING_ORPHANED_QUEUE_SIZE =10
-            self.cb.TRACING_THRESHOLD_QUEUE_FLUSH_INTERVAL = 0.00001
-            self.cb.TRACING_THRESHOLD_QUEUE_SIZE = 10
-            self.cb.TRACING_THRESHOLD_KV = 0.00001
-            self.cb.TRACING_THRESHOLD_N1QL= 0.00001
-            self.cb.TRACING_THRESHOLD_VIEW =0.00001
-            self.cb.TRACING_THRESHOLD_FTS =0.00001
-            self.cb.TRACING_THRESHOLD_ANALYTICS =0.00001
+            self.cb.tracing_orphaned_queue_flush_interval = 0.0001
+            self.cb.tracing_orphaned_queue_size =10
+            self.cb.tracing_threshold_queue_flush_interval = 0.00001
+            self.cb.tracing_threshold_queue_size = 10
+            self.cb.tracing_threshold_kv = 0.00001
+            self.cb.tracing_threshold_n1ql= 0.00001
+            self.cb.tracing_threshold_view =0.00001
+            self.cb.tracing_threshold_fts =0.00001
+            self.cb.tracing_threshold_analytics =0.00001
 
     def flush_tracer(self):
         for entry in range(1, self.flushcount):
