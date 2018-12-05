@@ -153,6 +153,8 @@ endif (WIN32)
 
 if("${PYCBC_ADD_INLINE}")
     add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
+   # add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
+   # add_subdirectory(/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/libcouchbase-prefix/src/libcouchbase)
 endif()
 
 ExternalProject_Get_Property(libcouchbase install_dir)
