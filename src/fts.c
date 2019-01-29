@@ -1,12 +1,16 @@
-#include "pycbc.h"
 #include "oputil.h"
+#include "pycbc_http.h"
 #include "structmember.h"
-#include <libcouchbase/cbft.h>
+#ifndef PYCBC_FTS_DISABLED
+#    include <libcouchbase/cbft.h>
+#    define FTS_GETTERS(X) X(fts, lcb_RESPFTS *, cookie, void *)
+
+FTS_GETTERS(PYCBC_SCOPE_GET)
 
 static void
 fts_row_callback(lcb_t instance, int ign, const lcb_RESPFTS *resp)
 {
-    pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
+    pycbc_MultiResult *mres = pycbc_fts_cookie(resp);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
@@ -79,9 +83,15 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     cmd.query = buf.buffer;
     cmd.nquery = buf.length;
     cmd.handle = &vres->base.u.fts;
-
-    PYCBC_TRACECMD_SCOPED(
-            rc, fts, query, self->instance, *cmd.handle, context, mres, &cmd);
+    PYCBC_TRACECMD_SCOPED(rc,
+                          fts,
+                          query,
+                          self->instance,
+                          cmd,
+                          *cmd.handle,
+                          context,
+                          mres,
+                          &cmd);
     PYCBC_PYBUF_RELEASE(&buf);
 
     if (rc != LCB_SUCCESS) {
@@ -97,3 +107,4 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     pycbc_oputil_conn_unlock(self);
     return ret;
 }
+#endif
