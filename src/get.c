@@ -16,6 +16,7 @@
 
 #include "oputil.h"
 #include "pycbc.h"
+//#include "../cmake-build-release/libcouchbase-prefix/src/libcouchbase/include/libcouchbase/couchbase.h"
 
 /**
  * Covers 'lock', 'touch', and 'get_and_touch'
@@ -34,10 +35,11 @@ struct getcmd_vars_st {
 };
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
-                handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+                handle_single_key, pycbc_oputil_keyhandler_raw_Bucket original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
                 void *arg)
 {
+    pycbc_Bucket* self=collection->bucket;
     int rv;
     unsigned int lock = 0;
     struct getcmd_vars_st *gv = (struct getcmd_vars_st *)arg;
@@ -61,7 +63,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         return -1;
     }
 
-    LCB_CMD_SET_KEY(&u_cmd.base, keybuf.buffer, keybuf.length);
+    PYCBC_CMD_SET_COORDS(&u_cmd.base, keybuf.buffer, keybuf.length);
 
     if (curval && gv->allow_dval && options == NULL) {
         options = curval;
@@ -123,6 +125,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         case PYCBC_CMD_GET:
         GT_GET:
             u_cmd.get.lock = lock;
+
             PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
             err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
             break;
@@ -205,11 +208,11 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
 }
 
 
+
 static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts, pycbc_stack_context_handle context)
 {
-    int rv;
     Py_ssize_t ncmds = 0;
     pycbc_seqtype_t seqtype;
     PyObject *kobj = NULL;
@@ -217,15 +220,20 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     PyObject *ttl_O = NULL;
     PyObject *replica_O = NULL;
     PyObject *nofmt_O = NULL;
-
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     struct getcmd_vars_st gv = { 0 };
+#define X(name, target, type) name,
     static char *kwlist[] = {
-            "keys", "ttl", "quiet", "replica", "no_format", NULL
+            "keys", "ttl", "quiet", "replica", "no_format", PYCBC_COLLECTION_XARGS(X) NULL
     };
-
-    rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist,
+#undef X
+#define X(name, target, type ) type
+#define PYCBC_TARGET(name, target, type) ,target
+    int rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOs", kwlist,
         &kobj, &ttl_O, &is_quiet, &replica_O, &nofmt_O);
+#undef PYCBC_TARGET
+#undef X
+    pycbc_Collection* unit=pycbc_Bucket_init_collection(self, args, kwargs);
 
     if (!rv) {
         PYCBC_EXCTHROW_ARGS()
@@ -292,17 +300,23 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, kobj, &cv, optype,
-            handle_single_key, &gv, context);
+        pycbc_oputil_keyhandler_Collection blah = pycbc_oputil_keyhandler_build_Collection(handle_single_key,
+                                                                                           handle_single_key_category(),
+                                                                                           "handle_single_key");
+        rv = pycbc_oputil_iter_multi_Collection(unit, seqtype, kobj, &cv, optype,
+                                                blah, &gv,
+                                                context);
 
     } else {
+#ifndef PYCBC_UNIT_GEN
         rv = PYCBC_TRACE_WRAP_NOTERV(handle_single_key,
                                      kwargs,
                                      1,
                                      &cv,
                                      &context,
                                      self,
-                                     self,
+                                     NULL,
+                                     unit,
                                      &cv,
                                      optype,
                                      kobj,
@@ -310,6 +324,23 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
                                      NULL,
                                      NULL,
                                      &gv);
+#else
+        rv = PYCBC_TRACE_WRAP_NOTERV(handle_single_key,
+                                     kwargs,
+                                     1,
+                                     &cv,
+                                     &context,
+                                     self,
+                                     NULL,
+                                     unit,
+                                     &cv,
+                                     optype,
+                                     kobj,
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     &gv);
+#endif
 #ifndef PYCBC_GLOBAL_SCHED
         if (!rv) {
             cv.sched_cmds++;
@@ -355,6 +386,7 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
         return -1;
     }
+
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
     rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
