@@ -83,7 +83,6 @@ if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase']
     if debug_symbols:
         extoptions['extra_compile_args'] += ['-O0', '-g3']
-        #, '-fdebug-macro']
         extoptions['extra_link_args'] += ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
@@ -124,7 +123,48 @@ else:
     pkgdata['couchbase'] = ['libcouchbase.dll']
 
 
-cmake_build=not os.environ.get("PYCBC_CMAKE_BUILD_DISABLE")
+SOURCEMODS = [
+        'exceptions',
+        'ext',
+        'result',
+        'opresult',
+        'callbacks',
+        'cntl',
+        'convert',
+        'bucket',
+        'store',
+        'constants',
+        'multiresult',
+        'miscops',
+        'typeutil',
+        'oputil',
+        'get',
+        'counter',
+        'http',
+        'htresult',
+        'ctranscoder',
+        'crypto',
+        'observe',
+        'iops',
+        'connevents',
+        'pipeline',
+        'views',
+        'n1ql',
+        'fts',
+        'ixmgmt'
+        ]
+
+if platform.python_implementation() != 'PyPy':
+    extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    module = Extension('couchbase._libcouchbase', **extoptions)
+    setup_kw = {'ext_modules': [module]}
+else:
+    warnings.warn('The C extension libary does not work on PyPy. '
+            'You should install the couchbase_ffi module. Installation of this '
+            'module will continue but will be unusable without couchbase_ffi')
+    setup_kw = {}
+
+cmake_build=os.environ.get("PYCBC_CMAKE_BUILD")
 
 # Dummy dependency to prevent installation of Python < 3 package on Windows.
 
@@ -234,11 +274,7 @@ setup(
     package_data=pkgdata,
     setup_requires=exec_requires + conan_and_cmake_deps,
     install_requires=exec_requires + pip_not_on_win_python_lt_3,
-    dependency_links=dependency_links,
     tests_require=['nose', 'testresources>=0.2.7', 'basictracer==2.2.0'],
     test_suite='couchbase.tests.test_sync',
-    headers=all_headers,
-    ext_modules=e_mods,
-    cmdclass={'install_headers': install_headers, 'build_ext':b_ext},
     **setup_kw
 )

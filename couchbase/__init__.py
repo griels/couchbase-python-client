@@ -33,20 +33,26 @@ import os.path
 
 JSON = Union[str, int, float, bool, None, Mapping[str, 'JSON'], List['JSON']]
 import cppyy
+import logging
 
-
-def dump_declarations(decls):
-    dump.write("declarations:[")
+def dump_declarations(decls,dump, depth=0):
+    indent=' '*(depth*4)
+    dump.write("{}declarations:[".format(indent))
+    depth+=1
+    indent=' '*(depth*4)
     for declar in decls:
-        dump.write("subdecl:")
+        if not hasattr(declar,"declarations"):
+            continue
         for subdecl in declar.declarations:
             # builder.decl()
-            if "Couchbase" in subdecl.name:
-                dump_declarations(subdecl.declarations)
             items = []
-            items.append(str(subdecl) + '\n')
+            items.append("{}{}".format(indent,str(subdecl)) + '\n')
             dump.writelines(items)
-    dump.write("declarations:]")
+            if hasattr(subdecl,"declarations"):
+                dump_declarations(subdecl.declarations,dump,depth)
+    depth-=1
+    indent=' '*(depth*4)
+    dump.write("{}]".format(indent))
 
 
 try:
@@ -110,6 +116,7 @@ try:
     gccxml_options = {'xml_generator': "castxml", 'xml_generator_path': "/usr/local/bin/castxml",
                       'cflags': '-std=c++1y ' + ' '.join(map(lambda x: "-I " + x, inc_paths))}
 
+    source_files=[os.path.join(get_repo("cmake-build-release"), "libcouchbase", "couchbase++.h")]
 
     def my_module_gen():
         module_parser = ModuleParser('a2')
@@ -132,12 +139,21 @@ try:
     import pyplusplus
     import logging
     import pygccxml
-    declarations=pyplusplus.module_builder.boost_python_builder.parser.parse([os.path.join(get_repo("cmake-build-release"), "libcouchbase", "couchbase++.h")],config=pygccxml.parser.config.xml_generator_configuration_t(**gccxml_options))
-    logging.error("declarations {}".format(declarations))
-    builder=pyplusplus.module_builder.boost_python_builder.module_builder.module_builder_t()
-    with open('dump.txt','w+') as dump:
-        dump_declarations(declarations)
-    mypy.stubgen.generate_stub_for_module("cppyy.gbl.Couchbase", "couchbase_genned")
+    gccxml_config=pygccxml.parser.config.xml_generator_configuration_t(**gccxml_options)
+    if False:
+        declarations=pyplusplus.module_builder.boost_python_builder.parser.parse(source_files,config=gccxml_config)
+        logging.error("declarations {}".format(declarations))
+        #module_builder.module_builder_t()
+        with open('dump.txt','w+') as dump:
+            import pprint
+            #pprint.pprint(declarations,dump)
+            dump_declarations(declarations,dump)
+        #mypy.stubgen.generate_stub_for_module("cppyy.gbl.Couchbase", "couchbase_genned")
+    builder=pyplusplus.module_builder.boost_python_builder.builder_t(source_files,include_paths=inc_paths,cflags=gccxml_options['cflags'],gccxml_config=gccxml_config)
+    creator=builder.build_code_creator("couchbase")
+    with open('src/bindings.cpp','w+') as bindings:
+        output=creator.create()
+        bindings.write(output)
 except BaseException as e:
     import traceback
     logging.error(repr(e))

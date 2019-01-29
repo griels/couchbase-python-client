@@ -844,8 +844,36 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 
 #ifdef PYCBC_TRACING
 void pycbc_Bucket_init_tracer(pycbc_Bucket *self);
+
+
 #endif
 
+#ifdef PYCBC_COLLECTIONS
+
+lcb_error_t pycbc_Collection_init_cid(pycbc_Collection* self, PyObject *collection, PyObject *scope) {
+    lcb_error_t err=LCB_SUCCESS;
+    self->get_cid_cmd.collection=PYCBC_CSTRN(collection, &self->get_cid_cmd.ncollection);
+    self->get_cid_cmd.scope=PYCBC_CSTRN(scope, &self->get_cid_cmd.nscope);
+    return err;
+}
+
+lcb_error_t pycbc_Collection_get_cid_async(const pycbc_Collection *bucket, pycbc_coll_res_t *result) {
+    lcb_error_t err;
+    lcb_sched_enter(bucket->instance);
+    err = lcb_getcid(bucket->instance, result, &bucket->get_cid_cmd);
+    lcb_sched_leave(bucket->instance);
+    return err;
+}
+
+pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *bucket) {
+    pycbc_coll_res_t result;
+    result.err=pycbc_Collection_get_cid_async(bucket, &result);
+    lcb_wait(bucket->instance);
+    return result;
+}
+
+
+#endif
 static int
 Bucket__init__(pycbc_Bucket *self,
                        PyObject *args, PyObject *kwargs)
@@ -858,6 +886,10 @@ Bucket__init__(pycbc_Bucket *self,
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
     PyObject *tc = NULL;
+#ifdef PYCBC_COLLECTIONS
+    PyObject *collection = NULL;
+    PyObject *scope = NULL;
+#endif
     struct lcb_create_st create_opts = { 0 };
 
     /**
@@ -877,15 +909,27 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i")                    \
     X("_flags", &self->flags, "I")                         \
     X("_conntype", &conntype, "i")                         \
-    X("_iops", &iops_O, "O")                               \
+    X("_iops", &iops_O, "O")
 
 #ifdef PYCBC_TRACING
-#define XCTOR_ARGS(X)\
+#define XCTOR_ARGS_NO_COLLECTIONS(X)\
     XCTOR_ARGS_NOTRACING(X)\
     X("tracer", &self->parent_tracer, "O")
 #else
-#define XCTOR_ARGS(X)\
+#define XCTOR_ARGS_NO_COLLECTIONS(X)\
     XCTOR_ARGS_NOTRACING(X)
+#endif
+
+#define XCTOR_COLLECTIONS(X)\
+    X("collection", &collection, "O")                      \
+    X("scope", &scope, "O")
+
+#ifdef PYCBC_COLLECTIONS
+#define XCTOR_ARGS(X)\
+    XCTOR_ARGS_NO_COLLECTIONS(X)\
+    XCTOR_COLLECTIONS(X)
+#else
+    XCTOR_ARGS_NO_COLLECTIONS(X)
 #endif
 
     static char *kwlist[] = {
@@ -913,6 +957,13 @@ Bucket__init__(pycbc_Bucket *self,
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, argspec, kwlist,
         XCTOR_ARGS(X) NULL);
     #undef X
+
+    if (!rv) {
+        PYCBC_EXCTHROW_ARGS();
+        return -1;
+    }
+
+    rv = pycbc_Collection_init_cid(self, collection, scope);
 
     if (!rv) {
         PYCBC_EXCTHROW_ARGS();
@@ -1152,3 +1203,4 @@ pycbc_BucketType_init(PyObject **ptr)
 
     return PyType_Ready(p);
 }
+

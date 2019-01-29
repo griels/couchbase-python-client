@@ -12,6 +12,16 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
 else()
     set(RELEASE_TYPE Release)
 endif()
+set (CMAKE_CXX_STANDARD 11)
+macro(use_cxx11)
+if (CMAKE_VERSION VERSION_LESS "3.1")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+endif ()
+else ()
+set (CMAKE_CXX_STANDARD 11)
+endif ()
+endmacro(use_cxx11)
 
 if ("$PYCBC_USE_CONAN")
     # Download automatically, you can also just copy the conan.cmake file
@@ -56,8 +66,8 @@ else(LCB_REPO_USERNAME)
     set(LCB_REPO_AT "")
 endif()
 
-set(LCB_COLLECTIONS_REF refs/changes/81/100581/11)
-set(LCB_COLLECTIONS_TAG 0415c1dd4d7dd77bd24bf027f382ec8f96127a3a)
+set(LCB_COLLECTIONS_REF refs/changes/81/100581/15)
+set(LCB_COLLECTIONS_TAG 48d1ba0010e5b408ddcf54994c41c766a607f4d7)
 set(LCB_REPO ${LCB_REPO_PROTOCOL}://${LCB_REPO_AT}${LCB_REPO_USERNAME}review.couchbase.org/libcouchbase)
 #set(LCB_TAG ${LCB_COLLECTIONS_TAG})
 function(make_dir path)
@@ -76,6 +86,7 @@ if (WIN32)
             GIT_TAG ${LCB_TAG}
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory <SOURCE_DIR>/build
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/install
+            COMMAND git reset --hard
             COMMAND git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
 
             COMMAND cd <SOURCE_DIR>/build && cmake -DLCB_NO_PLUGINS=1 .. -G "Visual Studio 14 2015 Win64" ${LCB_CMAKE_ARGS}
@@ -132,9 +143,11 @@ else (WIN32)
             make_dir <SOURCE_DIR>/dbgbuild
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/install
             COMMAND git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
-            COMMAND git cherry-pick FETCH_HEAD
-            COMMAND cd <SOURCE_DIR>/build && cmake .. -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Release ${LCB_CMAKE_ARGS}
-            COMMAND cd <SOURCE_DIR>/dbgbuild && cmake .. -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Debug ${LCB_CMAKE_ARGS}
+            COMMAND git reset --hard
+            COMMAND git clean -f
+            COMMAND git checkout FETCH_HEAD
+            COMMAND cd <SOURCE_DIR>/build && cmake .. -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Release ${LCB_CMAKE_ARGS}
+            COMMAND cd <SOURCE_DIR>/dbgbuild && cmake .. -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Debug ${LCB_CMAKE_ARGS}
 
             BUILD_IN_SOURCE 1
             BUILD_COMMAND $(MAKE) -j${_parallelism} all install -C build
@@ -161,10 +174,13 @@ else (WIN32)
     endif (APPLE)
 endif (WIN32)
 
+#set(LCBCXX_ROOT_PATH ${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
+set(LCBCXX_ROOT_PATH /Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx)
 if("${PYCBC_ADD_INLINE}")
     add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
-    add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
+    #add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
 endif()
+
 
 ExternalProject_Get_Property(libcouchbase install_dir)
 ExternalProject_Get_Property(libcouchbase source_dir)
@@ -178,12 +194,15 @@ if ("${PYCBC_CPPYY}")
 endif()
 
 include_directories(
+        /usr/local/include
+        ${LCBCXX_ROOT_PATH}/include
         ${CMAKE_BINARY_DIR}/${install_dir}/include
         ${install_dir}/include
         ${source_dir} ${source_dir}/src/*
         ${source_dir}
         ${PYTHON_INCLUDE_DIRS}
         ${PYTHON_INCLUDE_PATH}
+        cmake-build-release/install/include
 )
 
 aux_source_directory(LIBCOUCHBASE ${CMAKE_BINARY_DIR}/${source_dir})
@@ -354,6 +373,7 @@ add_library(couchbase_python_client SHARED
         src/store.c
         src/typeutil.c
         src/views.c
+        src/bindings.cpp
         )
 add_dependencies(couchbase_python_client libcouchbase ${CPP_DEPS})
 

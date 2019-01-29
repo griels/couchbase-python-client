@@ -19,6 +19,7 @@
  * This file contains the base header for the Python Couchbase Client
  * @author Mark Nunberg
  */
+#define PYCBC_VERSION 0x030000
 #define PYCBC_TRACE_FINISH_SPANS
 #define PYCBC_GLOBAL_SCHED
 #define PYCBC_POSTINCREMENT
@@ -505,6 +506,10 @@ struct pycbc_Tracer;
 #endif
 #endif
 
+#if PYCBC_VERSION>=0x030000
+#define PYCBC_COLLECTIONS
+#endif
+
 typedef struct {
     PyObject_HEAD
 
@@ -576,8 +581,40 @@ typedef struct {
 
     pycbc_dur_params dur_global;
     unsigned long dur_timeout;
+#ifdef PYCBC_COLLECTIONS
+    lcb_CMDGETCID get_cid_cmd;
+#endif
 
 } pycbc_Bucket;
+
+#ifdef PYCBC_COLLECTIONS
+typedef pycbc_Bucket pycbc_Collection;
+
+typedef struct pycbc_coll_res_success{
+    lcb_U64 manifest_id;
+    lcb_U32 collection_id;
+} pycbc_coll_res_success_t;
+
+typedef struct pycbc_coll_res{
+    pycbc_coll_res_success_t value;
+    lcb_error_t err;
+} pycbc_coll_res_t;
+
+lcb_error_t pycbc_Collection_get_cid_async(const pycbc_Collection *bucket, pycbc_coll_res_t *result);
+pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *bucket);
+
+#define PYCBC_CMD_SET_COORDS(cmd, keybuf, keylen) \
+        LCB_CMD_SET_KEY(cmd, keybuf, keylen);\
+        {\
+            pycbc_coll_res_t result=pycbc_Collection_get_cid(self);\
+            if (!result.err){\
+                (cmd)->cid=result.value.collection_id;\
+            }\
+        }
+
+
+
+#endif
 
 #ifdef PYCBC_TRACING
 void *pycbc_null_or_capsule_value(PyObject *maybe_capsule,
@@ -835,9 +872,6 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
             PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
                             (int)(CMD).key.contig.nbytes,          \
                             (const char *)(CMD).key.contig.bytes); \
-            if (0) {                                               \
-                PYCBC_REF_CONTEXT(CONTEXT);                        \
-            }                                                      \
             LCB_CMD_SET_TRACESPAN(&(CMD), (CONTEXT)->span);        \
         } else {                                                   \
             PYCBC_EXCEPTION_LOG_NOCLEAR;                           \
