@@ -7,6 +7,8 @@ import warnings
 import couchbase_version
 import pip
 
+from cmodule import module, setup_kw, extoptions
+
 try:
     if os.environ.get('PYCBC_NO_DISTRIBUTE'):
         raise ImportError()
@@ -16,7 +18,6 @@ except ImportError:
     from distutils.core import setup, Extension
 
 import re
-extoptions = {}
 pkgdata = {}
 pkgversion = None
 
@@ -82,6 +83,7 @@ if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase']
     if debug_symbols:
         extoptions['extra_compile_args'] += ['-O0', '-g3']
+        #, '-fdebug-macro']
         extoptions['extra_link_args'] += ['-O0', '-g3']
     if sys.platform == 'darwin':
         warnings.warn('Adding /usr/local to search path for OS X')
@@ -122,48 +124,7 @@ else:
     pkgdata['couchbase'] = ['libcouchbase.dll']
 
 
-SOURCEMODS = [
-        'exceptions',
-        'ext',
-        'result',
-        'opresult',
-        'callbacks',
-        'cntl',
-        'convert',
-        'bucket',
-        'store',
-        'constants',
-        'multiresult',
-        'miscops',
-        'typeutil',
-        'oputil',
-        'get',
-        'counter',
-        'http',
-        'htresult',
-        'ctranscoder',
-        'crypto',
-        'observe',
-        'iops',
-        'connevents',
-        'pipeline',
-        'views',
-        'n1ql',
-        'fts',
-        'ixmgmt'
-        ]
-
-if platform.python_implementation() != 'PyPy':
-    extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
-    module = Extension('couchbase._libcouchbase', **extoptions)
-    setup_kw = {'ext_modules': [module]}
-else:
-    warnings.warn('The C extension libary does not work on PyPy. '
-            'You should install the couchbase_ffi module. Installation of this '
-            'module will continue but will be unusable without couchbase_ffi')
-    setup_kw = {}
-
-cmake_build=os.environ.get("PYCBC_CMAKE_BUILD")
+cmake_build=not os.environ.get("PYCBC_CMAKE_BUILD_DISABLE")
 
 # Dummy dependency to prevent installation of Python < 3 package on Windows.
 
@@ -177,7 +138,60 @@ conan_and_cmake_deps = (['conan', 'cmake>=3.0.2'] if
 
 typing_requires = (['typing'] if sys.version_info < (3, 7) else [])
 general_requires = ['pyrsistent']
+
+
+def cppyy_deps(deps):
+    return {"dependency_links": list(map(
+        lambda dep: u'https://bitbucket.org/wlav/{}/get/master.tar.bz2'.format(str.lower(dep)), deps))} if "linux" in platform.system().lower() else {
+        "requires":deps
+    }
+
+
+from distutils.command.install_headers import install_headers as install_headers_orig
+
+import os
+import re
+import sys
+import platform
+
+from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
+
+
+class install_headers(install_headers_orig):
+
+    def run(self):
+        headers = self.distribution.headers or []
+        for header in headers:
+            dst = os.path.join(self.install_dir, os.path.dirname(header))
+            self.mkpath(dst)
+            (out, _) = self.copy_file(header, dst)
+            self.outfiles.append(out)
+
+
+deps = cppyy_deps(['cppyy-backend', 'cppyy'])
+general_requires = ['pyrsistent'] + deps.pop("requires", [])
+dependency_links = deps.pop("dependency_links", [])
+
+if cmake_build:
+    print("Cmake build")
+    from cmake_build import CMakeExtension, CMakeBuild
+    b_ext = CMakeBuild
+    e_mods=[CMakeExtension('couchbase-python-client')]
+    general_requires+=['cmake']
+else:
+    print("Legacy build")
+    b_ext = build_ext
+    e_mods=[module]
+
+import glob
+
 exec_requires = typing_requires + general_requires
+
+cxx_includes = 'cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/libcouchbase/'
+cxx_includes_inner = os.path.join(cxx_includes, 'couchbase++')
+all_headers = ([os.path.join(cxx_includes, 'couchbase++.h')] +
+               glob.glob(os.path.join(cxx_includes_inner, "*.h")))
 setup(
     name = 'couchbase',
     version = pkgversion,
@@ -220,7 +234,11 @@ setup(
     package_data=pkgdata,
     setup_requires=exec_requires + conan_and_cmake_deps,
     install_requires=exec_requires + pip_not_on_win_python_lt_3,
+    dependency_links=dependency_links,
     tests_require=['nose', 'testresources>=0.2.7', 'basictracer==2.2.0'],
     test_suite='couchbase.tests.test_sync',
+    headers=all_headers,
+    ext_modules=e_mods,
+    cmdclass={'install_headers': install_headers, 'build_ext':b_ext},
     **setup_kw
 )

@@ -22,21 +22,31 @@ if ("$PYCBC_USE_CONAN")
                 "${CMAKE_BINARY_DIR}/conan.cmake")
     endif()
     conan_cmake_run(REQUIRES OpenSSL/1.0.2n@conan/stable
-                BASIC_SETUP
-                BUILD missing)
+            BASIC_SETUP
+            BUILD missing)
 endif()
 
 include(ExternalProject)
 add_definitions(-DLCB_TRACING=TRUE
         -DPYCBC_TRACING_ENABLE=TRUE
         )
-
+set(PYCBC_CXX "true")
+SET(CPP_DEPS "")
 if ("${PYCBC_CXX}")
+    set(CPP_DEPS libcouchbase-cxx)
+    #binder)
     ExternalProject_Add(libcouchbase-cxx
-            GIT_REPOSITORY https://github.com/couchbaselabs/libcouchbase-cxx.git
+            GIT_REPOSITORY https://github.com/griels/libcouchbase-cxx.git
             GIT_TAG master
             )
+    #    ExternalProject_Add(binder
+    #            GIT_REPOSITORY https://github.com/RosettaCommons/binder.git
+    #    )
+    #add_subdirectory(../cpycppyy/ ${CMAKE_CURRENT_BINARY_DIR}/cpycppyy)
+    #add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/libcouchbase-cxx-prefix/src/libcouchbase-cxx)
+
 endif()
+
 set(LCB_CMAKE_ARGS -DLCB_NO_TESTS=1)
 set(CMAKE_MACOSX_RPATH 1)
 set(LCB_REPO_PROTOCOL http)
@@ -153,19 +163,18 @@ endif (WIN32)
 
 if("${PYCBC_ADD_INLINE}")
     add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
-   # add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
-   # add_subdirectory(/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/libcouchbase-prefix/src/libcouchbase)
+    add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
 endif()
 
 ExternalProject_Get_Property(libcouchbase install_dir)
 ExternalProject_Get_Property(libcouchbase source_dir)
 
 if ("${PYCBC_CPPYY}")
-find_package(Cppyy REQUIRED)
-cppyy_add_bindings(
-        "Stuff" "0" "Enrico" "enrico.guiraud@cern.ch"
-        LANGUAGE_STANDARD "11"
-H_FILES "couchbase.h")
+    find_package(Cppyy REQUIRED)
+    cppyy_add_bindings(
+            "Stuff" "0" "Enrico" "enrico.guiraud@cern.ch"
+            LANGUAGE_STANDARD "11"
+            H_FILES "couchbase.h")
 endif()
 
 include_directories(
@@ -345,8 +354,8 @@ add_library(couchbase_python_client SHARED
         src/store.c
         src/typeutil.c
         src/views.c
-)
-add_dependencies(couchbase_python_client libcouchbase)
+        )
+add_dependencies(couchbase_python_client libcouchbase ${CPP_DEPS})
 
 cmake_policy(SET CMP0015 NEW)
 find_library(LCB_ROOT_FND libcouchbase)
