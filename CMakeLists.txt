@@ -318,6 +318,9 @@ include_directories(
         ${source_dir} ${source_dir}/src/*
         ${source_dir}
         #cmake-build-release/install/include
+        ${CMAKE_BINARY_DIR}/Release/lcb_dbgbuild/generated/
+        ${libcouchbase_src}/src
+        ${libcouchbase_src}/include
 )
 
 #aux_source_directory(LIBCOUCHBASE ${CMAKE_BINARY_DIR}/${source_dir})
