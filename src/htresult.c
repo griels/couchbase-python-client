@@ -16,6 +16,7 @@
 
 #include "pycbc.h"
 #include "structmember.h"
+#include "pycbc_http.h"
 
 int
 pycbc_httpresult_ok(pycbc_HttpResult *self)
@@ -54,6 +55,7 @@ HttpResult_headers(pycbc_HttpResult *self, void *unused)
     return self->headers;
 }
 
+
 static void
 HttpResult_dealloc(pycbc_HttpResult *self)
 {
@@ -66,7 +68,7 @@ HttpResult_dealloc(pycbc_HttpResult *self)
             } else if (self->htype == PYCBC_HTTP_HFTS) {
                 lcb_fts_cancel(self->parent->instance, self->u.fts);
             } else {
-                lcb_cancel_http_request(self->parent->instance, self->u.htreq);
+                lcb_http_cancel(self->parent->instance, self->u.htreq);
             }
         }
         self->u.htreq = NULL;

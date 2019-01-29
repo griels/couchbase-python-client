@@ -16,6 +16,7 @@
 
 #include "oputil.h"
 #include "pycbc.h"
+//#include "../cmake-build-release/libcouchbase-prefix/src/libcouchbase/include/libcouchbase/couchbase.h"
 
 /**
  * Covers 'lock', 'touch', and 'get_and_touch'
@@ -28,16 +29,18 @@ struct getcmd_vars_st {
         unsigned long ttl;
         struct {
             int strategy;
-            short index;
         } replica;
     } u;
 };
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
-                handle_single_key, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
+                handle_single_key, pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
                 void *arg)
+
+
 {
+    pycbc_Bucket* self=collection->bucket;
     int rv;
     unsigned int lock = 0;
     struct getcmd_vars_st *gv = (struct getcmd_vars_st *)arg;
@@ -45,23 +48,15 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     lcb_error_t err = LCB_SUCCESS;
     pycbc_pybuffer keybuf = { NULL };
 
-    union {
-        lcb_CMDBASE base;
-        lcb_CMDGET get;
-        lcb_CMDTOUCH touch;
-        lcb_CMDGETREPLICA rget;
-    } u_cmd;
-
     PYCBC_DEBUG_LOG_CONTEXT(context,"Started processing")
-    memset(&u_cmd, 0, sizeof u_cmd);
     (void)itm;
 
+    PYCBC_DEBUG_LOG_CONTEXT(context,"Encoding")
     rv = pycbc_tc_encode_key(self, curkey, &keybuf);
+    PYCBC_DEBUG_LOG_CONTEXT(context,"Encoded")
     if (rv == -1) {
         return -1;
     }
-
-    LCB_CMD_SET_KEY(&u_cmd.base, keybuf.buffer, keybuf.length);
 
     if (curval && gv->allow_dval && options == NULL) {
         options = curval;
@@ -101,7 +96,11 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
             goto GT_DONE;
         }
     }
-    u_cmd.base.exptime = ttl;
+#define COMMON_OPTS(X,NAME,CMDNAME)\
+    lcb_cmd##CMDNAME##_expiration(cmd,ttl);\
+    PYCBC_CMD_SET_KEY_SCOPE(CMDNAME,cmd,keybuf);\
+    PYCBC_TRACECMD_TYPED(CMDNAME,cmd, context, cv->mres, curkey, self);
+
     switch (optype) {
         case PYCBC_CMD_GAT:
             if (!ttl) {
@@ -122,24 +121,41 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
         case PYCBC_CMD_GET:
         GT_GET:
-            u_cmd.get.lock = lock;
-            PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
-            err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
-            break;
+        {
+            CMDSCOPE_NG(GET,get) {
+                lcb_cmdget_locktime(cmd, lock);
+                COMMON_OPTS(PYCBC_get_ATTR, get, get);
+                err = pycbc_get(self->instance, cv->mres, cmd);
+            }
+        }
+        break;
 
         case PYCBC_CMD_TOUCH:
-            u_cmd.touch.exptime = ttl;
-            PYCBC_TRACECMD(u_cmd.touch, context, cv->mres, curkey, self);
-            err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
+            {
+                CMDSCOPE_NG_V4(TOUCH, touch) {
+                    COMMON_OPTS(PYCBC_touch_ATTR, touch, touch);
+                    err = pycbc_touch(self->instance, cv->mres, cmd);
+                }
+            }
             break;
 
         case PYCBC_CMD_GETREPLICA:
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL:
-            u_cmd.rget.strategy = gv->u.replica.strategy;
-            u_cmd.rget.index = gv->u.replica.index;
-            PYCBC_TRACECMD(u_cmd.rget, context, cv->mres, curkey, self);
-            err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
+        {
+#if PYCBC_LCB_API>0x030000
+            lcb_CMDGETREPLICA* cmd=NULL;
+#else
+            lcb_CMDGETREPLICA cmd_real={0};
+            lcb_CMDGETREPLICA* cmd=&cmd_real;
+#endif
+            lcb_cmdgetreplica_create(&cmd,gv->u.replica.strategy);
+            COMMON_OPTS(PYCBC_getreplica_ATTR,rget,getreplica);
+            err = pycbc_rget(self->instance, cv->mres, cmd);
+#if PYCBC_LCB_API>0x030000
+            lcb_cmdgetreplica_destroy(cmd);
+#endif
+        }
             break;
         default:
             err = LCB_ERROR;
@@ -164,6 +180,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     return rv;
 }
 
+
 static int
 handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica_O)
 {
@@ -174,27 +191,38 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "TTL specified along with replica");
             return -1;
         }
-        gv->u.replica.strategy = LCB_REPLICA_FIRST;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ANY;
         return 0;
 
     case PYCBC_CMD_GETREPLICA:
-        gv->u.replica.strategy = LCB_REPLICA_FIRST;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ANY;
         return 0;
 
     case PYCBC_CMD_GETREPLICA_INDEX:
-        gv->u.replica.strategy = LCB_REPLICA_SELECT;
         if (replica_O == NULL || replica_O == Py_None) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "rgetix must have a valid replica index");
             return -1;
         }
-        gv->u.replica.index = (short)pycbc_IntAsL(replica_O);
+        switch ((short)pycbc_IntAsL(replica_O)) {
+            case 0:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX0;
+                break;
+            case 1:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX1;
+                break;
+            case 2:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX2;
+                break;
+            default:
+                break;
+        }
         if (PyErr_Occurred()) {
             return -1;
         }
         return 0;
 
     case PYCBC_CMD_GETREPLICA_ALL:
-        gv->u.replica.strategy = LCB_REPLICA_ALL;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ALL;
         return 0;
 
     default:
@@ -205,11 +233,11 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
 }
 
 
+
 static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts, pycbc_stack_context_handle context)
 {
-    int rv;
     Py_ssize_t ncmds = 0;
     pycbc_seqtype_t seqtype;
     PyObject *kobj = NULL;
@@ -217,15 +245,21 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     PyObject *ttl_O = NULL;
     PyObject *replica_O = NULL;
     PyObject *nofmt_O = NULL;
-
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     struct getcmd_vars_st gv = { 0 };
+#define X(name, target, type) name,
     static char *kwlist[] = {
-            "keys", "ttl", "quiet", "replica", "no_format", NULL
+            "keys", "ttl", "quiet", "replica", "no_format", PYCBC_COLLECTION_XARGS(X) NULL
     };
-
-    rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist,
+#undef X
+#define X(name, target, type ) type
+#define PYCBC_TARGET(name, target, type) ,target
+    int rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOs", kwlist,
         &kobj, &ttl_O, &is_quiet, &replica_O, &nofmt_O);
+#undef PYCBC_TARGET
+#undef X
+
+    pycbc_Collection* unit=pycbc_Bucket_init_collection(self, args, kwargs);
 
     if (!rv) {
         PYCBC_EXCTHROW_ARGS()
@@ -292,17 +326,23 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     }
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = PYCBC_OPUTIL_ITER_MULTI(self, seqtype, kobj, &cv, optype,
-            handle_single_key, &gv, context);
+        pycbc_oputil_keyhandler_Collection blah = pycbc_oputil_keyhandler_build_Collection(handle_single_key,
+                                                                                           handle_single_key_category(),
+                                                                                           "handle_single_key");
+        rv = pycbc_oputil_iter_multi_Collection(unit, seqtype, kobj, &cv, optype,
+                                                blah, &gv,
+                                                context);
 
     } else {
+#ifndef PYCBC_UNIT_GEN
         rv = PYCBC_TRACE_WRAP_NOTERV(handle_single_key,
                                      kwargs,
                                      1,
                                      &cv,
                                      &context,
                                      self,
-                                     self,
+                                     NULL,
+                                     unit,
                                      &cv,
                                      optype,
                                      kobj,
@@ -310,6 +350,23 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
                                      NULL,
                                      NULL,
                                      &gv);
+#else
+        rv = PYCBC_TRACE_WRAP_NOTERV(handle_single_key,
+                                     kwargs,
+                                     1,
+                                     &cv,
+                                     &context,
+                                     self,
+                                     NULL,
+                                     unit,
+                                     &cv,
+                                     optype,
+                                     kobj,
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     &gv);
+#endif
 #ifndef PYCBC_GLOBAL_SCHED
         if (!rv) {
             cv.sched_cmds++;
@@ -345,7 +402,13 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     void *arg)
 {
     pycbc_pybuffer keybuf = { NULL };
-    lcb_CMDSUBDOC cmd = { 0 };
+#ifdef PYCBC_V4
+    lcb_CMDSUBDOC* cmd=NULL;
+    lcb_cmdsubdoc_create(&cmd);
+#else
+    lcb_CMDSUBDOC cmd_real ={0};
+    lcb_CMDSUBDOC* cmd = &cmd_real;
+#endif
     int rv = 0;
 
     if (itm) {
@@ -355,9 +418,14 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
         return -1;
     }
-    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, &cmd);
+
+    PYCBC_CMD_SET_KEY_SCOPE(subdoc,cmd, keybuf);
+    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
+#ifdef PYCBC_V4
+    lcb_cmdsubdoc_destroy(cmd);
+#endif
+
     return rv;
 }
 

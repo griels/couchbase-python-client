@@ -14,7 +14,7 @@
  *   limitations under the License.
  **/
 
-#include "pycbc.h"
+#include "pycbc_http.h"
 #include "iops.h"
 
 /**
@@ -75,7 +75,6 @@
     X(HTTP_METHOD_DELETE)
 
 
-
 #define XSTORAGE(X) \
     X(ADD) \
     X(REPLACE) \
@@ -113,9 +112,9 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     }
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
-    XSTORAGE(X);
     XHTTP(X);
-    #undef X
+#undef X
+    XSTORAGE(LCB_STORE_WRAPPER)
 
     ADD_MACRO(LCB_MAX_ERROR);
     ADD_MACRO(PYCBC_CMD_GET);
@@ -211,7 +210,6 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
     ADD_MACRO(LCB_CMDVIEWQUERY_F_SPATIAL);
-
     ADD_MACRO(LCB_SDCMD_REPLACE);
     ADD_MACRO(LCB_SDCMD_DICT_ADD);
     ADD_MACRO(LCB_SDCMD_DICT_UPSERT);
@@ -223,16 +221,16 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_SDCMD_COUNTER);
     ADD_MACRO(LCB_SDCMD_REMOVE);
     ADD_MACRO(LCB_SDCMD_ARRAY_INSERT);
-
     /* Bucket types */
     ADD_MACRO(LCB_BTYPE_UNSPEC);
     ADD_MACRO(LCB_BTYPE_COUCHBASE);
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
     /* Encryption options */
+#if PYCBC_LCB_API<0x030001
     ADD_MACRO(LCBCRYPTO_KEY_ENCRYPT);
     ADD_MACRO(LCBCRYPTO_KEY_DECRYPT);
-
+#endif
     LCB_CONSTANT(VERSION);
     ADD_MACRO(PYCBC_CRYPTO_VERSION);
 #ifdef PYCBC_TRACING
@@ -289,7 +287,6 @@ static void setup_tracing_map(PyObject *module,
 #define convert_intbool_desc_val_units ""
     PyObject *result = PyDict_New();
     LCB_FOR_EACH_THRESHOLD_PARAM(LCB_CNTL_CONSTANT, ;);
-    LCB_CNTL_TRACING_THRESHOLD_KV;
 #define X(NAME, TYPE)                                       \
     {                                                       \
         PyObject *attrdict = PyDict_New();                  \
