@@ -16,6 +16,7 @@
 
 #include "oputil.h"
 #include "pycbc.h"
+#include "../cmake-build-release/libcouchbase-prefix/src/libcouchbase/include/libcouchbase/couchbase.h"
 
 /**
  * Covers 'lock', 'touch', and 'get_and_touch'
@@ -61,7 +62,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         return -1;
     }
 
-    LCB_CMD_SET_KEY(&u_cmd.base, keybuf.buffer, keybuf.length);
+    PYCBC_CMD_SET_COORDS(&u_cmd.base, keybuf.buffer, keybuf.length);
 
     if (curval && gv->allow_dval && options == NULL) {
         options = curval;
@@ -123,6 +124,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         case PYCBC_CMD_GET:
         GT_GET:
             u_cmd.get.lock = lock;
+
             PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
             err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
             break;
@@ -209,7 +211,6 @@ static PyObject*
 get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     int argopts, pycbc_stack_context_handle context)
 {
-    int rv;
     Py_ssize_t ncmds = 0;
     pycbc_seqtype_t seqtype;
     PyObject *kobj = NULL;
@@ -217,15 +218,16 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
     PyObject *ttl_O = NULL;
     PyObject *replica_O = NULL;
     PyObject *nofmt_O = NULL;
-
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     struct getcmd_vars_st gv = { 0 };
     static char *kwlist[] = {
             "keys", "ttl", "quiet", "replica", "no_format", NULL
     };
 
-    rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist,
+    int rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOs", kwlist,
         &kobj, &ttl_O, &is_quiet, &replica_O, &nofmt_O);
+
+
 
     if (!rv) {
         PYCBC_EXCTHROW_ARGS()
@@ -355,6 +357,7 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
         return -1;
     }
+
     LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
     rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
