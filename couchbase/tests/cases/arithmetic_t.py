@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from unittest import SkipTest
 
 from couchbase.exceptions import (NotFoundError, DeltaBadvalError)
 from couchbase.tests.base import ConnectionTestCase
+import couchbase._libcouchbase as _LCB
 
 
 class ArithmeticTest(ConnectionTestCase):
@@ -42,6 +44,8 @@ class ArithmeticTest(ConnectionTestCase):
         self.assertEqual(int(self.cb.get(key).value), 0)
 
     def test_incr_notfound(self):
+        if _LCB.PYCBC_LCB_API>0x030000:
+            raise SkipTest("Counter not fully implemented with LCB V4 API")
         key = self.gen_key("incr_notfound")
         self.cb.remove(key, quiet=True)
         self.assertRaises(NotFoundError, self.cb.counter, key)
@@ -52,6 +56,8 @@ class ArithmeticTest(ConnectionTestCase):
         self.assertRaises(DeltaBadvalError, self.cb.counter, key)
 
     def test_incr_multi(self):
+        if _LCB.PYCBC_LCB_API>0x030000:
+            raise SkipTest("Counter not fully implemented with LCB V4 API")
         keys = self.gen_key_list(amount=5, prefix="incr_multi")
 
         def _multi_lim_assert(expected):
