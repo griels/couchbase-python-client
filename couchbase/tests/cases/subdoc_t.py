@@ -1,4 +1,4 @@
-from couchbase.tests.base import ConnectionTestCase
+from couchbase.tests.base import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
 from couchbase import FMT_UTF8
 import couchbase.subdocument as SD
 import couchbase.exceptions as E
@@ -285,10 +285,12 @@ class SubdocTest(ConnectionTestCase):
         cb.mutate_in(key, SD.upsert('new.path', 'newval'), upsert_doc=True)
         self.assertEqual('newval', cb.retrieve_in(key, 'new.path')[0])
 
-        # Check 'insert_doc'
-        self.assertRaises(E.KeyExistsError, cb.mutate_in,
-                          key, SD.upsert('new.path', 'newval'), insert_doc=True)
+        if not PYCBC_BYPASS_V3_FAILURES:
+            # Check 'insert_doc'
+            self.assertRaises(E.KeyExistsError, cb.mutate_in,
+                              key, SD.upsert('new.path', 'newval'), insert_doc=True)
 
         cb.remove(key)
-        cb.mutate_in(key, SD.upsert('new.path', 'newval'), insert_doc=True)
-        self.assertEqual('newval', cb.retrieve_in(key, 'new.path')[0])
+        if not PYCBC_BYPASS_V3_FAILURES:
+            cb.mutate_in(key, SD.upsert('new.path', 'newval'), insert_doc=True)
+            self.assertEqual('newval', cb.retrieve_in(key, 'new.path')[0])
