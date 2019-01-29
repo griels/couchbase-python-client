@@ -1,7 +1,7 @@
 #include "pycbc.h"
 #include "oputil.h"
 #include "structmember.h"
-#include <libcouchbase/ixmgmt.h>
+#include "pycbc_http.h"
 
 #ifdef LCB_N1XSPEC_F_PRIMARY
 /* lcb callback for index management operations */
@@ -23,11 +23,21 @@ mgmt_callback(lcb_t instance, int ign, const lcb_RESPN1XMGMT *resp)
     }
 
     pycbc_viewresult_step(vres, mres, bucket, 1);
+
     if (resp->inner) {
-        pycbc_httpresult_add_data(mres, &vres->base, resp->inner->row, resp->inner->nrow);
-        if (resp->inner->htresp) {
-            hdrs = resp->inner->htresp->headers;
-            htcode = resp->inner->htresp->htstatus;
+        const char* row=NULL;
+        size_t row_count;
+        lcb_respn1ql_row(resp->inner,&row,&row_count);
+        pycbc_httpresult_add_data(mres, &vres->base, row, row_count);
+        {
+            const lcb_RESPHTTP* inner_http=NULL;
+            lcb_respn1ql_http_response(resp->inner,&inner_http);
+            if (inner_http) {
+                lcb_resphttp_headers(inner_http,&hdrs);
+                //hdrs = resp->inner->htresp->headers;
+                htcode = lcb_resphttp_status(inner_http);
+
+            }
         }
     }
     pycbc_httpresult_complete(&vres->base, mres, resp->rc, htcode, NULL);
