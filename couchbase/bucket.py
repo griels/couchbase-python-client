@@ -36,6 +36,7 @@ import couchbase.priv_constants as _P
 import json
 from couchbase.analytics import AnalyticsRequest, AnalyticsQuery
 from couchbase.connstr import ConnectionString
+import cppyy
 import couchbase.result
 from typing import *
 
@@ -126,6 +127,21 @@ def _dsop(create_type=None, wrap_missing_path=True):
         return newfn
 
     return real_decorator
+
+
+
+from cppyy.gbl import Couchbase
+#from cppyy.gbl.Couchbase import GetResponse
+class CPPYYBucket(Couchbase.Client):
+    def __init__(self, *args, **kwargs):
+        connstr = args[0] if args else kwargs.get("connection_string", "")
+        super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
+        super(CPPYYBucket,self).connect()
+
+    def get(self, *args, **kwargs):
+        # type: (...)->Couchbase.GetResponse
+        Couchbase.Client
+        return
 
 
 class Bucket(_Base):
