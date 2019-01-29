@@ -14,10 +14,11 @@
     "src/fts.c",
     "src/get.c",
     "src/htresult.c",
-    "src/http.c",
     "src/iops.c",
     "src/iops.h",
     "src/ixmgmt.c",
+    "src/lcb_v4_wrapper.h",
+    "src/lcb_v4_backport.h",
     "src/miscops.c",
     "src/mresdict.h",
     "src/multiresult.c",
@@ -27,13 +28,16 @@
     "src/oputil.c",
     "src/oputil.h",
     "src/pipeline.c",
+    "src/pycbc_http.c",
+    "src/pycbc_subdocops.c",
+    "src/python_wrappers.h",
     "src/result.c",
     "src/store.c",
     "src/typeutil.c",
     "src/views.c"
   ],
   "comp_options": {
-    "PYCBC_LCB_API": "0x030000"
+    "PYCBC_LCB_API": "0x032000"
   }
 
 }

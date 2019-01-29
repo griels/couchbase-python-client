@@ -55,6 +55,7 @@ def version_to_tuple(version_str, default=None):
 
 
 PYCBC_SERVER_VERSION = version_to_tuple(os.environ.get("PYCBC_SERVER_VERSION"))
+PYCBC_BYPASS_V3_FAILURES = os.environ.get("PYCBC_BYPASS_V3_FAILURES")
 
 
 def sanitize_json(input, ignored_parts):
