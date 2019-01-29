@@ -105,8 +105,10 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
     } else {
         excinstance_refcnt = Py_REFCNT(excinstance);
         Py_INCREF(Py_TYPE(excinstance));
-        PYCBC_DEBUG_PYFORMAT(
-                "About to raise %R, traceback %R", excinstance, traceback);
+        PYCBC_STASH_EXCEPTION(
+            PYCBC_DEBUG_PYFORMAT(
+                    "About to raise %R, traceback %R", pycbc_none_or_value(excinstance),pycbc_none_or_value(traceback))
+        )
         PyErr_Restore((PyObject*)Py_TYPE(excinstance), excinstance, traceback);
         PYCBC_REFCNT_ASSERT(Py_REFCNT(excinstance) == excinstance_refcnt);
     }
