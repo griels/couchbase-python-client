@@ -7,6 +7,15 @@
 #include "../cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/libcouchbase/couchbase++.h"
 
 namespace bp = boost::python;
+#if PY_MAJOR_VERSION >= 3
+PyObject *PyInit__libcouchbase(void);
+#define INITERROR return NULL
+
+#else
+#define INITERROR return
+PyMODINIT_FUNC
+init_libcouchbase(void){};
+#endif
 
 struct Handler_wrapper : Couchbase::Handler, bp::wrapper< Couchbase::Handler > {
 
@@ -2172,3 +2181,4 @@ BOOST_PYTHON_MODULE(couchbase){
         bp::implicitly_convertible< std::string const &, Couchbase::UnlockCommand >();
     }
 }
+
