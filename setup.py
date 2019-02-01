@@ -76,11 +76,12 @@ comp_flags = {"PYCBC_STRICT":boolean_option,
               comp_option_pattern(CLANG_SAN_PREFIX):comp_clang_san_option}
 
 debug_symbols = len(set(os.environ.keys()) & {"PYCBC_DEBUG", "PYCBC_DEBUG_SYMBOLS"}) > 0
+
 comp_arg_additions = (action(actual_flag) for flag, action in comp_flags.items() for actual_flag in os.environ.keys() if
                       re.match(flag, actual_flag))
-extoptions['extra_compile_args'] += comp_arg_additions
+extoptions['extra_compile_args'] += list(comp_arg_additions) + ['-std=c++1y']
 if sys.platform != 'win32':
-    extoptions['libraries'] = ['couchbase']
+    extoptions['libraries'] = ['couchbase','boost_python27']
     if debug_symbols:
         extoptions['extra_compile_args'] += ['-O0', '-g3']
         extoptions['extra_link_args'] += ['-O0', '-g3']
@@ -154,8 +155,12 @@ SOURCEMODS = [
         'ixmgmt'
         ]
 
+SOURCEMODS_CPP = [
+    'bindings'
+]
 if platform.python_implementation() != 'PyPy':
-    extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    #extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:
@@ -227,11 +232,14 @@ else:
 import glob
 
 exec_requires = typing_requires + general_requires
-
+cxx_includes_base='cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/'
 cxx_includes = 'cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/libcouchbase/'
 cxx_includes_inner = os.path.join(cxx_includes, 'couchbase++')
 all_headers = ([os.path.join(cxx_includes, 'couchbase++.h')] +
                glob.glob(os.path.join(cxx_includes_inner, "*.h")))
+
+extoptions['include_dirs']+=[cxx_includes_base]
+
 setup(
     name = 'couchbase',
     version = pkgversion,
