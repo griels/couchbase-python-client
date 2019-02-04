@@ -12,7 +12,7 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
 else()
     set(RELEASE_TYPE Release)
 endif()
-set (CMAKE_CXX_STANDARD 11)
+
 macro(use_cxx11)
 if (CMAKE_VERSION VERSION_LESS "3.1")
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -22,6 +22,8 @@ else ()
 set (CMAKE_CXX_STANDARD 11)
 endif ()
 endmacro(use_cxx11)
+
+use_cxx11()
 
 if ("$PYCBC_USE_CONAN")
     # Download automatically, you can also just copy the conan.cmake file
@@ -40,7 +42,7 @@ include(ExternalProject)
 add_definitions(-DLCB_TRACING=TRUE
         -DPYCBC_TRACING_ENABLE=TRUE
         )
-set(PYCBC_CXX "true")
+#set(PYCBC_CXX "true")
 SET(CPP_DEPS "")
 if ("${PYCBC_CXX}")
     set(CPP_DEPS libcouchbase-cxx)
@@ -74,8 +76,10 @@ function(make_dir path)
     file(MAKE_DIRECTORY ${path})
 endfunction(make_dir)
 
+set(LCB_SRC TRUE)
+if (LCB_SRC)
 if (WIN32)
-    ExternalProject_Add(libcouchbase
+    ExternalProject_Add(libcouchbase_src
             SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.lib")
             SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase_d.lib")
             SET(LIBCOUCHBASE_LIBRARY_FILE "<SOURCE_DIR>/build/lib/Release/${LIBCOUCHBASE_LIBRARY_NAME}")
@@ -134,11 +138,11 @@ else (WIN32)
 
 
     SET(_parallelism 4)
-    ExternalProject_Add(libcouchbase
+    ExternalProject_Add(libcouchbase_src
             #PREFIX thirdparty/libcouchbase
             GIT_REPOSITORY ${LCB_REPO}
             GIT_TAG ${LCB_TAG}
-
+            UPDATE_COMMAND ""
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory <SOURCE_DIR>/build
             make_dir <SOURCE_DIR>/dbgbuild
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/install
@@ -165,7 +169,7 @@ else (WIN32)
 
     # OS X-only: Custom post-build step to set the shared library install name.
     if (APPLE)
-        ExternalProject_Add_Step(libcouchbase install_name
+        ExternalProject_Add_Step(libcouchbase_src install_name
                 COMMAND install_name_tool -id @rpath/libcouchbase.dylib ${LIBCOUCHBASE_LIBRARY_FILE}
                 COMMAND install_name_tool -id @rpath/libcouchbase.dylib ${LIBCOUCHBASE_DBG_LIBRARY_FILE}
                 DEPENDEES build
@@ -173,17 +177,27 @@ else (WIN32)
                 )
     endif (APPLE)
 endif (WIN32)
-
+endif (LCB_SRC)
 #set(LCBCXX_ROOT_PATH ${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
 set(LCBCXX_ROOT_PATH /Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx)
 if("${PYCBC_ADD_INLINE}")
-    add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
+    #add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
     #add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
 endif()
 
 
-ExternalProject_Get_Property(libcouchbase install_dir)
-ExternalProject_Get_Property(libcouchbase source_dir)
+
+set(LCB_INSTALL /Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/install/lib/Debug/libcouchbase.dylib)
+if (LCB_SRC)
+    ExternalProject_Get_Property(libcouchbase_src install_dir)
+    ExternalProject_Get_Property(libcouchbase_src source_dir)
+    set(CPP_DEPS ${CPP_DEPS} libcouchbase_src)
+else (LCB_SRC)
+    find_library(LCB_ROOT_FND libcouchbase)
+endif(LCB_SRC)
+
+
+cmake_policy(SET CMP0015 NEW)
 
 if ("${PYCBC_CPPYY}")
     find_package(Cppyy REQUIRED)
@@ -192,8 +206,9 @@ if ("${PYCBC_CPPYY}")
             LANGUAGE_STANDARD "11"
             H_FILES "couchbase.h")
 endif()
-
+find_package(Boost COMPONENTS python27 REQUIRED)
 include_directories(
+        ${Boost_INCLUDE_DIR}
         /usr/local/include
         ${LCBCXX_ROOT_PATH}/include
         ${CMAKE_BINARY_DIR}/${install_dir}/include
@@ -374,15 +389,16 @@ add_library(couchbase_python_client SHARED
         src/typeutil.c
         src/views.c
         src/bindings.cpp
+        /usr/local/include/boost/python/module.hpp
         )
-add_dependencies(couchbase_python_client libcouchbase ${CPP_DEPS})
 
-cmake_policy(SET CMP0015 NEW)
-find_library(LCB_ROOT_FND libcouchbase)
-link_directories(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE})
+add_dependencies(couchbase_python_client ${CPP_DEPS})
+
+link_directories(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE} /usr/local/lib)
 #link_libraries(/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/build/cmake/install/lib/Debug/libcouchbase.2.dylib)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_DBG_LIBRARY_NAME})
 else()
     link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_LIBRARY_NAME})
 endif()
+target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES})

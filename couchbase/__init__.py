@@ -32,9 +32,9 @@ from typing import Callable, Any, Union, NewType, Mapping, List
 import os.path
 
 JSON = Union[str, int, float, bool, None, Mapping[str, 'JSON'], List['JSON']]
-import cppyy
+#import cppyy
 import logging
-
+CPPYY=os.getenv("PYCBC_CPPYY")
 def dump_declarations(decls,dump, depth=0):
     indent=' '*(depth*4)
     dump.write("{}declarations:[".format(indent))
@@ -91,19 +91,20 @@ try:
     except:
         pass
 
-    cppyy.include("libcouchbase/couchbase++.h")
-    from cppyy.gbl import Couchbase
-    try:
-        os.rmdir("couchbase_genned")
-    except:
-        pass
+    if CPPYY:
+        cppyy.include("libcouchbase/couchbase++.h")
+        from cppyy.gbl import Couchbase
+        try:
+            os.rmdir("couchbase_genned")
+        except:
+            pass
 
-    #os.makedirs("couchbase_genned/cppyy",exist_ok=True)
-    print(dir(Couchbase.Client))
-    print(dir(Couchbase.GetResponse))
-    print(dir(Couchbase.Buffer))
-    print(dir(Couchbase.Response))
-    print(dir(Couchbase))
+        #os.makedirs("couchbase_genned/cppyy",exist_ok=True)
+        print(dir(Couchbase.Client))
+        print(dir(Couchbase.GetResponse))
+        print(dir(Couchbase.Buffer))
+        print(dir(Couchbase.Response))
+        print(dir(Couchbase))
 
     import sys
 
@@ -135,7 +136,6 @@ try:
         print(module)
 
     #my_module_gen()
-    import mypy.stubgen
     import pyplusplus
     import logging
     import pygccxml
@@ -148,10 +148,16 @@ try:
             import pprint
             #pprint.pprint(declarations,dump)
             dump_declarations(declarations,dump)
-        #mypy.stubgen.generate_stub_for_module("cppyy.gbl.Couchbase", "couchbase_genned")
-    builder=pyplusplus.module_builder.boost_python_builder.builder_t(source_files,include_paths=inc_paths,cflags=gccxml_options['cflags'],gccxml_config=gccxml_config)
+        try:
+            import mypy.stubgen
+
+            #mypy.stubgen.generate_stub_for_module("cppyy.gbl.Couchbase", "couchbase_genned")
+        except:
+            pass
+    import pyplusplus.code_creators.algorithm
+    builder=pyplusplus.module_builder.module_builder_t(source_files,include_paths=inc_paths,cflags=gccxml_options['cflags'],gccxml_config=gccxml_config)
     creator=builder.build_code_creator("couchbase")
-    with open('src/bindings.cpp','w+') as bindings:
+    with open('src/bindings_vanilla.cpp','w+') as bindings:
         output=creator.create()
         bindings.write(output)
 except BaseException as e:

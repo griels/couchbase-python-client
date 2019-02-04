@@ -79,7 +79,45 @@ debug_symbols = len(set(os.environ.keys()) & {"PYCBC_DEBUG", "PYCBC_DEBUG_SYMBOL
 
 comp_arg_additions = (action(actual_flag) for flag, action in comp_flags.items() for actual_flag in os.environ.keys() if
                       re.match(flag, actual_flag))
-extoptions['extra_compile_args'] += list(comp_arg_additions) + ['-std=c++1y']
+
+CPP_BUILD=os.getenv("PYCBC_CPP")
+SOURCEMODS = [
+    'exceptions',
+    'ext',
+    'result',
+    'opresult',
+    'callbacks',
+    'cntl',
+    'convert',
+    'bucket',
+    'store',
+    'constants',
+    'multiresult',
+    'miscops',
+    'typeutil',
+    'oputil',
+    'get',
+    'counter',
+    'http',
+    'htresult',
+    'ctranscoder',
+    'crypto',
+    'observe',
+    'iops',
+    'connevents',
+    'pipeline',
+    'views',
+    'n1ql',
+    'fts',
+    'ixmgmt'
+] if not CPP_BUILD else []
+
+SOURCEMODS_CPP = [
+    'bindings'
+] if CPP_BUILD else []
+
+if CPP_BUILD:
+    extoptions['extra_compile_args'] += list(comp_arg_additions) + ['-std=c++1y']
 if sys.platform != 'win32':
     extoptions['libraries'] = ['couchbase','boost_python27']
     if debug_symbols:
@@ -124,43 +162,9 @@ else:
     pkgdata['couchbase'] = ['libcouchbase.dll']
 
 
-SOURCEMODS = [
-        'exceptions',
-        'ext',
-        'result',
-        'opresult',
-        'callbacks',
-        'cntl',
-        'convert',
-        'bucket',
-        'store',
-        'constants',
-        'multiresult',
-        'miscops',
-        'typeutil',
-        'oputil',
-        'get',
-        'counter',
-        'http',
-        'htresult',
-        'ctranscoder',
-        'crypto',
-        'observe',
-        'iops',
-        'connevents',
-        'pipeline',
-        'views',
-        'n1ql',
-        'fts',
-        'ixmgmt'
-        ]
-
-SOURCEMODS_CPP = [
-    'bindings'
-]
 if platform.python_implementation() != 'PyPy':
-    #extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
-    extoptions['sources'] = [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP]
+    extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    extoptions['sources'] += [ os.path.join("src", m + ".cpp") for m in SOURCEMODS_CPP]
     module = Extension('couchbase._libcouchbase', **extoptions)
     setup_kw = {'ext_modules': [module]}
 else:
