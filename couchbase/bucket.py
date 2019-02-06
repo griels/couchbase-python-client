@@ -36,6 +36,9 @@ import couchbase.priv_constants as _P
 import json
 from couchbase.analytics import AnalyticsRequest, AnalyticsQuery
 from couchbase.connstr import ConnectionString
+import cppyy
+import couchbase.result
+from typing import *
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -124,6 +127,24 @@ def _dsop(create_type=None, wrap_missing_path=True):
         return newfn
 
     return real_decorator
+
+
+try:
+
+    from cppyy.gbl import Couchbase
+    #from cppyy.gbl.Couchbase import GetResponse
+    class CPPYYBucket(Couchbase.Client):
+        def __init__(self, *args, **kwargs):
+            connstr = args[0] if args else kwargs.get("connection_string", "")
+            super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
+            super(CPPYYBucket,self).connect()
+
+        def get(self, *args, **kwargs):
+            # type: (...)->Couchbase.GetResponse
+            Couchbase.Client
+            return
+except:
+    pass
 
 
 class Bucket(_Base):
@@ -325,6 +346,10 @@ class Bucket(_Base):
     # We have these wrappers so that IDEs can do param tooltips and the
     # like. we might move this directly into C some day
 
+    class UpsertBuilder:
+        def __new__(self, name, bases, attrs):
+            pass
+
     def upsert(self, key, value, cas=0, ttl=0, format=None,
                persist_to=0, replicate_to=0):
         """Unconditionally store the object in Couchbase.
@@ -441,8 +466,15 @@ class Bucket(_Base):
         return _Base.replace(self, key, value, ttl=ttl, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def append(self, key, value, cas=0, format=None,
-               persist_to=0, replicate_to=0):
+    def append(self,
+               key,  # type: str
+               value,  # type: couchbase.JSON
+               cas=0,  # type: long
+               format=None,  # type: long
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> couchbase.result.Result
         """Append a string to an existing value in Couchbase.
 
         :param string value: The data to append to the existing value.
@@ -474,6 +506,7 @@ class Bucket(_Base):
 
     def prepend(self, key, value, cas=0, format=None,
                 persist_to=0, replicate_to=0):
+        # type: (...)->Result
         """Prepend a string to an existing value in Couchbase.
 
         .. seealso:: :meth:`append`, :meth:`prepend_multi`
@@ -481,7 +514,14 @@ class Bucket(_Base):
         return _Base.prepend(self, key, value, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
+    def get(self,  # type: Bucket
+            key,  # type: str
+            ttl=0,  # type: int
+            quiet=None,  # type: bool
+            replica=False,  # type: bool
+            no_format=False  # type: bool
+            ):
+        # type: (...)->couchbase.result.Result
         """Obtain an object stored in Couchbase by given key.
 
         :param string key: The key to fetch. The type of key is the same
@@ -2512,3 +2552,49 @@ class Bucket(_Base):
             :return:
             """
             return self.decrypt_fields_real(document, fieldspec, prefix)
+
+
+class FluentBucket:
+    def __init__(self, bucket # type: Bucket
+                ):
+        self._bucket=bucket
+
+class ReplicaType:
+    def __init__(self):
+        pass
+import inspect
+import functools
+
+class ActionBuilder:
+    def __init__(self,**kwargs):
+        super(ActionBuilder,self).__init__(**kwargs)
+
+    def assign(self, signature, parameter, value):
+        return signature.bind_partial()
+
+    def __call__(self):
+        return self.verb()
+
+class MetaBuilder(type):
+    def __new__(cls, name, bases, **kwargs):
+        print("cls {}, name: [{}], bases {}, kwargs {}".format(cls, name, bases, kwargs))
+        verb=kwargs.get('verb')
+        x=type(name, bases,  kwargs)
+        setattr(x,"verb",verb)
+        signature = inspect.signature(verb)
+
+        setattr(x,"signature",signature)
+        for key, parameter in signature.parameters.items():
+            y=signature.parameters.values()[0]
+
+            setattr(x, "with_"+key, lambda this, value: this.assign(this,signature, parameter, value))
+        return x
+
+
+
+class FluentBucket1(FluentBucket):
+    def __init__(self, bucket):
+        super(FluentBucket1,self).__init__(bucket)
+    def get(self, key # type: str
+           ):
+        return MetaBuilder("get",(ActionBuilder,),verb=functools.partial(self._bucket.get,key))
