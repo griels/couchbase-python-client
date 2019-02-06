@@ -39,6 +39,13 @@ try:
 except ImportError:
     __version__ = "0.0.0-could-not-find-git"
 
+import os
+cppyy_build=os.getenv("PYCBC_CPPYY")
+if cppyy_build:
+    try:
+        import cppyy
+    except:
+        pass
 
 def set_json_converters(encode, decode):
     """
