@@ -4,8 +4,7 @@ from abc import abstractmethod, ABCMeta, abstractproperty
 from time import sleep
 
 from couchbase import JSON
-from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
-from couchbase.exceptions import (KeyExistsError, ValueFormatError,
+from couchbase.exceptions import (ValueFormatError,
                                   ArgumentError, NotFoundError,
                                   NotStoredError, CouchbaseError)
 from couchbase.tests.base import ConnectionTestCase
@@ -20,6 +19,9 @@ from couchbase import subdocument as SD
 from couchbase.cluster import Cluster as SDK2Cluster
 import couchbase.exceptions
 import couchbase.result
+from couchbase.v3.mutate_in import MutateInSpecItem
+from couchbase.v3.mutate_in import MutateInSpec
+
 SDType = type(SD)
 Document = ValueResult
 class KeyValueException(CouchbaseError):
@@ -314,6 +316,13 @@ def LookupInSpec():
 def MutateSpec():
     # type: ()-> SDType
     return SD
+
+"""
+  MutateInOp.replace('some.path', {xattr: '_sync'}),
+  MutateInOp.insert('some.other.path`, {xattr: '_sync', createParents: true})
+], ...)"""
+
+
 
 
 class LookupOperation(object):
