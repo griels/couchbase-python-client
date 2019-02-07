@@ -71,9 +71,12 @@ class CMakeBuild(build_ext):
         subprocess.check_call(['cmake', '--build', '.'] + build_args,
                               cwd=self.build_temp)
         # Copy *_test file to tests directory
-        test_bin = os.path.join(self.build_temp, 'python_cpp_example_test')
-        self.copy_test_file(test_bin)
+        #test_bin = os.path.join(self.build_temp, 'python_cpp_example_test')
+        #self.copy_test_file(test_bin)
         print()  # Add an empty line for cleaner output
+        #import autobind
+        #x=autobind.AutoBind()
+        #x()
         if module:
             module.build_extension(ext)
 
@@ -95,3 +98,13 @@ class CMakeBuild(build_ext):
         print("copying {} -> {}".format(src_file, dest_file))
         copyfile(src_file, dest_file)
         copymode(src_file, dest_file)
+
+
+class my_build_ext(build_ext):
+    def build_extensions(self):
+
+        for e in self.extensions:
+            e.extra_compile_args = []#'--pedantic']
+            e.extra_link_args = []
+
+        build_ext.build_extensions(self)

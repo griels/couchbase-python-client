@@ -206,9 +206,18 @@ if ("${PYCBC_CPPYY}")
             LANGUAGE_STANDARD "11"
             H_FILES "couchbase.h")
 endif()
-find_package(Boost COMPONENTS python27 REQUIRED)
+if(USE_BOOST)
+    find_package(Boost COMPONENTS python27 REQUIRED)
+    set(BOOST_SOURCES
+            /usr/local/include/boost/python/module.hpp
+            src/bindings.cpp)
+else()
+    set(Boost_LIBRARIES )
+    set(Boost_INCLUDE_DIR )
+    set(BOOST_SOURCES )
+endif(USE_BOOST)
 include_directories(
-        ${Boost_INCLUDE_DIR}
+        #${Boost_INCLUDE_DIR}
         /usr/local/include
         ${LCBCXX_ROOT_PATH}/include
         ${CMAKE_BINARY_DIR}/${install_dir}/include
@@ -388,10 +397,9 @@ add_library(couchbase_python_client SHARED
         src/store.c
         src/typeutil.c
         src/views.c
-        src/bindings.cpp
-        /usr/local/include/boost/python/module.hpp
-        )
+        ${BOOST_SOURCES}
 
+        )
 add_dependencies(couchbase_python_client ${CPP_DEPS})
 
 link_directories(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE} /usr/local/lib)
@@ -401,4 +409,4 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 else()
     link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_LIBRARY_NAME})
 endif()
-target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES})
+target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES} couchbase)

@@ -3,7 +3,6 @@ import platform
 import warnings
 import os.path
 module=None
-setup_kw = {}
 extoptions = {}
 SOURCEMODS = [
     'exceptions',
