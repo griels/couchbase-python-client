@@ -518,7 +518,7 @@ const char *pycbc_cstrn(PyObject *object, Py_ssize_t *length)
     if (PyBytes_Check(object)) {
         PyBytes_AsStringAndSize(object, &buffer, length);
     } else if (PyUnicode_Check(object)) {
-        buffer = PyUnicode_AsUTF8AndSize(object, length);
+        buffer = (char*)PyUnicode_AsUTF8AndSize(object, length);
     }
 FAIL:
     return buffer;
@@ -530,7 +530,7 @@ const char PYCBC_UNKNOWN[] = "Unknown";
 
 pycbc_strn pycbc_invalid_strn;
 
-char *pycbc_strn_buf(const pycbc_strn buf)
+const char * pycbc_strn_buf(const pycbc_strn buf)
 {
     return buf.buffer;
 }
@@ -565,41 +565,38 @@ pycbc_strn_unmanaged pycbc_strn_ensure_psz_unmanaged(pycbc_strn *input)
     pycbc_strn_unmanaged output;
     output.content = pycbc_invalid_strn;
     if (pycbc_strn_valid(*input)) {
-        output.content.buffer = PYCBC_MALLOC_TYPED((*input).length + 1, char);
-        memcpy(output.content.buffer, input->buffer, input->length);
-        output.content.buffer[input->length] = '\0';
+        char* buffer = PYCBC_MALLOC_TYPED((*input).length + 1, char);
+        memcpy((void*)buffer, input->buffer, input->length);
+        buffer[input->length] = '\0';
+        output.content.buffer=buffer;
         output.content.length = input->length;
     }
+
     return output;
 }
 
-#ifdef PYCBC_FORCE_TAG_PSZ
 pycbc_strn_unmanaged pycbc_strn_ensure_psz(pycbc_strn *input)
 {
     return pycbc_strn_ensure_psz_unmanaged(input);
 }
 
-char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf)
+pycbc_strn_unmanaged pycbc_strn_from_managed(PyObject* source)
+{
+    size_t length;
+    const char* buffer = PYCBC_CSTRN(source,&length);
+    pycbc_strn original={.buffer=(char*)buffer,.length=length};
+
+    return pycbc_strn_ensure_psz_unmanaged(&original);
+}
+
+const char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf)
 {
     return buf.content.buffer;
 }
 
-#else
-pycbc_strn pycbc_strn_ensure_psz(pycbc_strn *input)
-{
-    return *input;
-}
-
-char *pycbc_strn_buf_psz(pycbc_strn buf)
-{
-    return buf.buffer;
-}
-
-#endif
-
 void pycbc_strn_free(pycbc_strn_unmanaged buf)
 {
-    free(buf.content.buffer);
+    free((void*)buf.content.buffer);
 }
 
 #define PYCBC_STRN_FREE(BUF)                            \
@@ -1539,7 +1536,6 @@ pycbc_stack_context_handle pycbc_Tracer_start_span_debug(
         lcbtrace_REF_TYPE ref_type,
         const char *component)
 {
-    pycbc_stack_context_handle orig_context = context ? *context : NULL;
     pycbc_stack_context_handle subcontext;
     PYCBC_DEBUG_LOG_WITH_FILE_FUNC_LINE_CONTEXT_NEWLINE(
             FILE,
@@ -1809,7 +1805,7 @@ void pycbc_Tracer_init_constants(void)
                               GENERIC_ABBREV,
                               GENERIC_ABBREV);
 #undef BLANK
-    memset(&pycbc_invalid_strn,0,sizeof(pycbc_strn));
+    memset((void*)&pycbc_invalid_strn,0,sizeof(pycbc_strn));
 }
 
 #define PYCBC_TAG_TEXT(NAME) char *NAME;
@@ -1911,14 +1907,17 @@ PyObject* pycbc_set_finish_args_from_payload(pycbc_tracer_finish_args_t *args) {
 
 pycbc_strn pycbc_get_string_tag_basic(lcbtrace_SPAN *span, const char *tagname)
 {
-    pycbc_strn result =  pycbc_invalid_strn;
+    char* buffer=NULL;
+    size_t length;
     lcb_error_t err = lcbtrace_span_get_tag_str(
-            span, tagname, &result.buffer, &result.length);
+            span, tagname, &buffer, &length);
     if (err) {
-        result.buffer = NULL;
-        result.length = 0;
+        return pycbc_invalid_strn;
     }
-    return result;
+    {
+        pycbc_strn result = {.buffer=buffer, .length=length};
+        return result;
+    }
 }
 
 pycbc_strn pycbc_get_string_tag_basic_debug(const char* FILE, int LINE, lcbtrace_SPAN *span, const char *tagname)
@@ -1930,12 +1929,7 @@ pycbc_strn pycbc_get_string_tag_basic_debug(const char* FILE, int LINE, lcbtrace
 #define PYCBC_GET_STRING_TAG_BASIC(SPAN,TAGNAME)\
     pycbc_get_string_tag_basic_debug(__FILE__,__LINE__,SPAN,TAGNAME)
 
-#ifdef PYCBC_FORCE_TAG_PSZ
-pycbc_strn_unmanaged
-#else
-pycbc_strn
-#endif
-pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *tagname)
+pycbc_strn_unmanaged pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *tagname)
 {
     pycbc_strn tag_contents =
             pycbc_get_string_tag_basic((lcbtrace_SPAN *)span, tagname);
@@ -1949,11 +1943,11 @@ pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *tagname)
     return tag_psz;
 }
 
-char *pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
-                            const char *tagname,
-                            char **target_orig)
+const char * pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
+                                   const char *tagname,
+                                   char **target_orig)
 {
-    char **target = target_orig;
+    const char **target = (const char**)target_orig;
     pycbc_strn_unmanaged tag_psz = pycbc_dupe_strn_tag(span, tagname);
 
     {
@@ -2083,13 +2077,14 @@ pycbc_strn_unmanaged pycbc_print_aggregate_raw(pycbc_strn FIRST,
                                            receiver->content.buffer,
                                            receiver->content.length);
     if (result.content.length > receiver->content.length) {
-        result.content.buffer =
+        char* buffer =
                 PYCBC_MALLOC_TYPED(result.content.length + 2, char);
         pycbc_print_aggregate_raw_real(&FIRST,
                                        &SECOND,
-                                       result.content.buffer,
+                                       buffer,
                                        result.content.length + 1);
-        result.content.buffer[result.content.length] = '\0';
+        buffer[result.content.length] = '\0';
+        result.content.buffer=buffer;
     }
     return result;
 }
@@ -2358,16 +2353,10 @@ void pycbc_span_set_tag_from_strn(lcbtrace_SPAN *dest,
                                   const char *tagname,
                                   pycbc_strn *opcode_buffer)
 {
-#ifdef PYCBC_FORCE_TAG_PSZ
     pycbc_strn_unmanaged psz_buffer = pycbc_strn_ensure_psz(opcode_buffer);
-#else
-    pycbc_strn psz_buffer = *opcode_buffer;
-#endif
     lcbtrace_span_add_tag_str(dest, tagname, pycbc_strn_buf_psz(psz_buffer));
 
-#ifdef PYCBC_FORCE_TAG_PSZ
     PYCBC_STRN_FREE(psz_buffer);
-#endif
 }
 
 void pycbc_propagate_tag_str(lcbtrace_SPAN *span,
@@ -2957,7 +2946,7 @@ static int Tracer__init__(pycbc_Tracer_t *self,
     PyObject *threshold_tracer_capsule = PyTuple_GetItem(args, 1);
     PyObject *parent = pycbc_null_or_value(tracer);
     lcbtrace_TRACER *child_tracer =
-            (lcbtrace_TRACER *)pycbc_null_or_capsule_value(
+            (lcbtrace_TRACER *)pycbc_capsule_value_or_null(
                     threshold_tracer_capsule, "threshold_tracer");
     self->tracer = pycbc_tracer_new(parent, child_tracer);
 
