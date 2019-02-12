@@ -135,7 +135,7 @@ class Scenarios(ConnectionTestCase):
                                              ReplicateTo.TWO, ReplicateTo.TWO, FiniteDuration.time() + 30)
 
     def retryIdempotentRemoveClientSide(self,
-                                        callback,  # type: Callable[[ReplicateTo.Value],None]
+                                        callback,  # type: Callable[[ReplicateTo.Value],Any]
                                         replicate_to,  # type: ReplicateTo.Value
                                         original_replicate_to,  # type: ReplicateTo.Value
                                         until  # type: FiniteDuration

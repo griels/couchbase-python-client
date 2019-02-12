@@ -129,19 +129,22 @@ def _dsop(create_type=None, wrap_missing_path=True):
     return real_decorator
 
 
+try:
 
-from cppyy.gbl import Couchbase
-#from cppyy.gbl.Couchbase import GetResponse
-class CPPYYBucket(Couchbase.Client):
-    def __init__(self, *args, **kwargs):
-        connstr = args[0] if args else kwargs.get("connection_string", "")
-        super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
-        super(CPPYYBucket,self).connect()
+    from cppyy.gbl import Couchbase
+    #from cppyy.gbl.Couchbase import GetResponse
+    class CPPYYBucket(Couchbase.Client):
+        def __init__(self, *args, **kwargs):
+            connstr = args[0] if args else kwargs.get("connection_string", "")
+            super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
+            super(CPPYYBucket,self).connect()
 
-    def get(self, *args, **kwargs):
-        # type: (...)->Couchbase.GetResponse
-        Couchbase.Client
-        return
+        def get(self, *args, **kwargs):
+            # type: (...)->Couchbase.GetResponse
+            Couchbase.Client
+            return
+except:
+    pass
 
 
 class Bucket(_Base):
