@@ -122,7 +122,7 @@ extoptions['include_dirs']=[]
 if CPP_BUILD:
     extoptions['extra_compile_args'] += list(comp_arg_additions) + ['-std=c++1y']
 if sys.platform != 'win32':
-    extoptions['libraries'] = ['couchbase','boost_python27']
+    extoptions['libraries'] = ['couchbase']+(['boost_python27'] if CPP_BUILD else [])
     if debug_symbols:
         extoptions['extra_compile_args'] += ['-O0', '-g3']
         extoptions['extra_link_args'] += ['-O0', '-g3']
@@ -174,7 +174,7 @@ else:
             'You should install the couchbase_ffi module. Installation of this '
             'module will continue but will be unusable without couchbase_ffi')
 
-cmake_build=not os.environ.get("PYCBC_CMAKE_DISABLE_BUILD")
+cmake_build=os.environ.get("PYCBC_CMAKE_BUILD") or True
 
 # Dummy dependency to prevent installation of Python < 3 package on Windows.
 
@@ -182,12 +182,11 @@ pip_not_on_win_python_lt_3 = (
     ["pip>=9.0; (sys_platform != 'win32' and python_version >= '2.7') or (python_version >= '3.0')"]
     if pip.__version__ >= "9.0.0"
     else [])
-
-conan_and_cmake_deps = (['conan', 'cmake>=3.0.2'] if
+conan_build=os.environ.get("PYCBC_CONAN_BUILD")
+conan_deps = ['conan'] if conan_build else []
+conan_and_cmake_deps = ((['cmake>=3.0.2']+conan_deps) if
                         cmake_build and sys.platform.startswith('darwin') else [])
 
-typing_requires = (['typing'] if sys.version_info < (3, 7) else [])
-general_requires = ['pyrsistent']
 
 
 def cppyy_deps(deps):
@@ -219,7 +218,8 @@ class install_headers(install_headers_orig):
             self.outfiles.append(out)
 
 
-deps = cppyy_deps(['cppyy-backend', 'cppyy'])
+deps = {}# cppyy_deps(['cppyy-backend', 'cppyy'])
+typing_requires = (['typing'] if sys.version_info < (3, 7) else [])
 general_requires = ['pyrsistent'] + deps.pop("requires", [])
 dependency_links = deps.pop("dependency_links", [])
 
@@ -227,8 +227,8 @@ if cmake_build:
     print("Cmake build")
     from cmake_build import CMakeExtension, CMakeBuild, my_build_ext
 
-    b_ext = my_build_ext
-    e_mods=[CMakeExtension('couchbase-python-client')]
+    b_ext = CMakeBuild#my_build_ext
+    e_mods=[CMakeExtension('couchbase._libcouchbase')]
     general_requires+=['cmake']
 else:
     print("Legacy build")

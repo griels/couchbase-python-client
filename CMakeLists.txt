@@ -6,7 +6,13 @@ set(LCB_ROOT ${THIRDPARTY_LCB_ROOT}/src/libcouchbase)
 set(PYCBC_CMAKE_CPYTHON_WRAPPER 1)
 include(FindPythonLibs)
 cmake_policy(SET CMP0054 NEW)
-
+if(WIN32)
+    set(PYCBC_C_MOD_NAME "_libcouchbase.${PYTHONLIBS_VERSION_STRING}")
+    set(PYCBC_C_MOD_SUFFIX ".pyd")
+else()
+    set(PYCBC_C_MOD_NAME "_libcouchbase")
+    set(PYCBC_C_MOD_SUFFIX ".so")
+endif()
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
     set(RELEASE_TYPE Debug)
 else()
@@ -39,9 +45,7 @@ if ("$PYCBC_USE_CONAN")
 endif()
 
 include(ExternalProject)
-add_definitions(-DLCB_TRACING=TRUE
-        -DPYCBC_TRACING_ENABLE=TRUE
-        )
+
 #set(PYCBC_CXX "true")
 SET(CPP_DEPS "")
 if ("${PYCBC_CXX}")
@@ -79,6 +83,7 @@ endfunction(make_dir)
 set(LCB_SRC TRUE)
 if (LCB_SRC)
 if (WIN32)
+    set(LCB_CMAKE_ARGS -DLCB_NO_SSL=1 -DLCB_NO_MOCK=1 )
     ExternalProject_Add(libcouchbase_src
             SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.lib")
             SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase_d.lib")
@@ -410,3 +415,13 @@ else()
     link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_LIBRARY_NAME})
 endif()
 target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES} couchbase)
+
+set_target_properties(
+        couchbase_python_client
+        PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME ${PYCBC_C_MOD_NAME}
+        LINKER_LANGUAGE C
+        SUFFIX ${PYCBC_C_MOD_SUFFIX}
+)
+

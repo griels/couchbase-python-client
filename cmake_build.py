@@ -36,8 +36,8 @@ class CMakeBuild(build_ext):
         for ext in self.extensions:
             self.build_extension(ext)
 
-        if module:
-            module.run()
+        #if module:
+        #    module.run()
 
 
     def build_extension(self, ext):
@@ -54,7 +54,7 @@ class CMakeBuild(build_ext):
                 cfg.upper(),
                 extdir)]
             if sys.maxsize > 2**32:
-                cmake_args += ['-A', 'x64']
+                cmake_args += ['-A', 'x64','-DLCB_NO_MOCK=1','-DLCB_NO_SSL=1']
             build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
@@ -77,8 +77,8 @@ class CMakeBuild(build_ext):
         #import autobind
         #x=autobind.AutoBind()
         #x()
-        if module:
-            module.build_extension(ext)
+        #if module:
+        #    module.build_extension(ext)
 
     def copy_test_file(self, src_file):
         '''
