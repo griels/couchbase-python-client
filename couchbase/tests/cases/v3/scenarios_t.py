@@ -18,6 +18,9 @@
 from couchbase.tests.base import ConnectionTestCase
 
 from couchbase.v3.cluster import Cluster
+from couchbase.v3.durability import ReplicateTo, PersistTo, Durability
+from couchbase.v3.readspec import ReadSpec
+from couchbase.v3.result import IMutationResult
 
 try:
     from abc import ABC

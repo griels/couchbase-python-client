@@ -1,6 +1,6 @@
 import couchbase.bucket
 from couchbase.v3 import *
-from couchbase.v3.collection import Collection, CollectionOptions
+from couchbase.v3.collection import Collection, CollectionOptions, forward_args
 
 
 class BucketOptions(OptionBlock):
