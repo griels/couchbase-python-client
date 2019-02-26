@@ -1,10 +1,15 @@
+import copy
+import pyrsistent
 from typing import overload
 
 from couchbase import subdocument as SD
-from couchbase.v3 import OptionBlock, forward_args, GetResult, PersistTo, ReplicateTo, forwarder, mutation_forwarder
+from couchbase.v3 import OptionBlock, SDK2MutationToken
+from couchbase.v3.result import GetResult, MutationResult
+from couchbase.v3.durability import ReplicateTo, PersistTo
 from couchbase.v3.bucket import Bucket
 from typing import *
 import couchbase.bucket
+
 
 class CollectionOptions(OptionBlock):
     pass
@@ -277,3 +282,121 @@ class Collection(object):
                ):
         # type: (...)->    IMutateSubResult
         return self.bucket.mutate_in(id, spec, **forward_args(locals(), options))
+
+
+class ScopedType(object):
+    def __init__(self, name=None):
+        if name:
+            self.name = name
+        self.record = pyrsistent.PRecord()
+
+    def scope(self, name):
+        result = copy.deepcopy(self)
+        result.name = name
+        return result
+
+    def default_scope(self):
+        result = copy.deepcopy(self)
+        return result
+
+    def __deepcopy__(self, memodict={}):
+        result = copy.copy(self)
+        return result
+
+
+class Scope(type):
+    name = None  # type: str
+
+    def __init__(cls, name, bases, dct):
+        super(type, cls).__init__()  # name,bases,dct)
+        import inspect
+        for name, item in inspect.getmembers(cls,
+                                             lambda x: inspect.isdatadescriptor(x) or inspect.isgetsetdescriptor(x)):
+            def proxy_get(self):
+                return self.record.get(name)
+
+            def proxy_set(self, value):
+                return self.record.set(name, value)
+
+            proxy_property = property(fget=copy.deepcopy(proxy_get), fset=copy.deepcopy(proxy_set))
+            setattr(cls, name, proxy_property)
+
+        cls.__init__ = lambda self, name, *args, **kwargs: Scope.__start__(cls, self, name, *args, **kwargs)
+
+    @classmethod
+    def scope(mcs, self, name):
+        # type: (Any, str)->mcs
+        result = copy.deepcopy(self)
+        result.name = name
+        return result
+
+    def name(cls):
+        # type (...)->str
+        """
+
+        :return:    A string value that is the name of the collection.
+        :except     ScopeNotFoundException
+        :except     AuthorizationException
+        """
+        pass
+    def collection(cls,
+                   collection_name,  # type: str
+                   options  # type: CollectionOptions
+                   ):
+        """
+
+        :param collection_name:
+        :param options:
+        :return:
+        """
+        """
+        Gets an ICollection instance given a collection name.
+    
+    Response
+    A ICollection implementation for a collection with a given name.
+    Throws
+    Any exceptions raised by the underlying platform
+    CollectionNotFoundException
+    AuthorizationException
+
+        :param collection_name: string identifier for a given collection.
+        :param options: collection options
+        :return:
+        """
+        pass
+
+
+def forward_args(arg_vars, *options):
+    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
+    end_options = options[0] if options and options[0] else OptionBlock()
+    kwargs=arg_vars.pop('kwargs',{})
+    end_options.update(kwargs)
+    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
+                            arg_vars.items() if k != "self"))
+
+    return end_options
+
+
+def mutation_result(func):
+    def mutated(*args,**kwargs):
+        result=func(*args,**kwargs)
+        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+    return mutated
+
+
+def forwarder(func,  # type: Callable[[M1],Any]
+              arg_vars,  # type: Dict[str,Any]
+              options    # type: Dict[str,Any]
+              ):
+    def forwarded(*args,**kwargs):
+        kwargs.update(forward_args(arg_vars, options))
+        return func(*args, **kwargs)
+    return forwarded
+
+
+def mutation_forwarder(func,  # type: Callable[[M1],Any]
+                       arg_vars,  # type: Dict[str,Any]
+                       options,  # type: Dict[str,Any]
+                       ):
+    # type: (...)->Callable[M1,IMutationResult]
+    return mutation_result(forwarder(func, arg_vars, options))
