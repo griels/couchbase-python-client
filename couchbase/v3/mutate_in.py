@@ -41,3 +41,38 @@ class MutateInSpecItem(enum.Enum):
 
 
 MutateInSpec = Tuple[MutateInSpecItem, ...]
+
+
+class MutationToken:
+    def __init__(self, sequenceNumber,  # type: int
+                 vbucketId,  # type: int
+                 vbucketUUID  # type: int
+                 ):
+        self.sequenceNumber = sequenceNumber
+        self.vbucketId = vbucketId
+        self.vbucketUUID = vbucketUUID
+
+    def partition_id(self):
+        # type: (...)->int
+        pass
+
+    def partition_uuid(self):
+        # type: (...)->int
+        pass
+
+    def sequence_number(self):
+        # type: (...)->int
+        pass
+
+    def bucket_name(self):
+        # type: (...)->str
+        pass
+
+
+class SDK2MutationToken(MutationToken):
+    def __init__(self, token):
+        super(SDK2MutationToken,self).__init__(token[2],token[0],token[1])
+            #LCB_MUTATION_TOKEN_VB(mutinfo),
+            #LCB_MUTATION_TOKEN_ID(mutinfo),
+            #LCB_MUTATION_TOKEN_SEQ(mutinfo),
+            #conn->bucket);

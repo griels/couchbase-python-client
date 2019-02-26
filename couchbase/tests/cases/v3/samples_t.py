@@ -21,6 +21,7 @@ from time import sleep
 from nose.plugins.attrib import attr
 
 import couchbase.v3.cluster
+import couchbase.v3.collection
 from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
 from couchbase.exceptions import (KeyExistsError, ValueFormatError,
                                   ArgumentError, NotFoundError,
@@ -69,14 +70,14 @@ class Samples(ConnectionTestCase):
          # All methods have both a named/default parameters version, and an [X]Options version
         fetched1= self.coll.get("id")
         fetched3 = self.coll.get("id", timeout = couchbase.v3.Seconds(1))
-        fetched5 = self.coll.get("id", couchbase.v3.GetOptions().timeout(couchbase.v3.Seconds(1)))
+        fetched5 = self.coll.get("id", couchbase.v3.collection.GetOptions().timeout(couchbase.v3.Seconds(1)))
         JsonObject = fetched1.content
 
         import collections
         from typing import NamedTuple
 
         MyUserEntity=NamedTuple("MyUserEntity",[('id',str),('firstname',str),('age',int)])
-        fetched1.contentAs[MyUserEntity]("users[0]")
+        fetched1.content_as[MyUserEntity]("users[0]")
 #         getResult.users(0).getAs[User]
 #         getResult.users.getAs[List[User]]
 #
@@ -153,13 +154,13 @@ class Samples(ConnectionTestCase):
 #
          # Queries
          queryResult = self.cluster.query("select * from `beer-sample`")
-
+         self.cluster.query()
+         #self.cluster.query()
          self.cluster.query("select * from `beer-sample` where beer = $name",
-           QueryOptions().namedParameter("name", "Speckled Hen"))
+                                  parameters=couchbase.v3.cluster.QueryParameters(name="Speckled Hen"))
 
-         cluster.query("select * from `beer-sample` where beer = ? and producer = ?",
-           QueryOptions().positionalParameters("Budweiser", "Anheuser-Busch")
-             //        .scanConsistency(AtPlus(consistentWith = List(inserted.mutationToken())))
+         self.cluster.query("select * from `beer-sample` where beer = ? and producer = ?",
+           couchbase.v3.cluster.QueryOptions(parameters=QueryParameters("Budweiser", "Anheuser-Busch")),scan_consistency=couchbase.n1ql.AtPlus(consistentWith = List(inserted.mutationToken())))
              .timeout(5.seconds))
 
          cluster.query("select * from `beer-sample`",
