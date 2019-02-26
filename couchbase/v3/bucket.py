@@ -1,6 +1,6 @@
-import couchbase.bucket
+from couchbase.bucket import Bucket as SDK2Bucket
 from couchbase.v3 import *
-from couchbase.v3.collection import Collection, CollectionOptions
+from couchbase.v3.options import *
 
 
 class BucketOptions(OptionBlock):
@@ -8,13 +8,24 @@ class BucketOptions(OptionBlock):
 
 
 class Bucket(object):
-    _bucket=None  # type: couchbase.bucket.Bucket
+    _bucket=None  # type: SDK2Bucket
+    from couchbase.v3.collection import Scope, Collection, CollectionOptions
+
+    @overload
+    def __init__(self,name,
+                 *options  # type: BucketOptions
+                 ):
+        # type: (...)->None
+        pass
 
     def __init__(self,
-                 options  # type: BucketOptions
+                 name,
+                 *args,
+                 **kwargs
                 ):
         # type: (...)->None
-        self._bucket=couchbase.bucket.Bucket(**forward_args(options))
+        self.name=name
+        self._bucket=SDK2Bucket(name,**forward_args(kwargs,args))
 
     def name(self):
         # type: (...)->str
