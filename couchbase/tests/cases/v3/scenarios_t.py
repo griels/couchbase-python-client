@@ -15,6 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from couchbase.tests.base import ConnectionTestCase
+
+from couchbase.v3.cluster import Cluster
 
 try:
     from abc import ABC
@@ -26,15 +29,17 @@ import logging
 import couchbase.exceptions
 from couchbase.bucket import Bucket
 from couchbase.cluster import Cluster
-from couchbase.exceptions import (KeyExistsError)
 from couchbase.v3 import *
 from couchbase.v3.mutate_in import MutateInSpecItem as MI
+from couchbase.v3.collection import Collection
+from couchbase.v3.bucket import Bucket
+
 
 class Scenarios(ConnectionTestCase):
     # implicit val ec = ExecutionContext.Implicits.global
 
     # private val cluster = CouchbaseCluster.create("localhost")
-    coll = None # type: Collection
+    coll = None  # type: Collection
 
     def setUp(self):
         self.factory = Bucket
