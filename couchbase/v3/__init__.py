@@ -1,24 +1,14 @@
-import abc
 import time
-from abc import abstractmethod, ABCMeta, abstractproperty
-from time import sleep
+from abc import abstractproperty
 
-from couchbase import JSON
-from couchbase.exceptions import (ValueFormatError,
-                                  ArgumentError, NotFoundError,
-                                  NotStoredError, CouchbaseError)
-from couchbase.tests.base import ConnectionTestCase
+from couchbase.exceptions import (CouchbaseError)
 import pyrsistent
-from couchbase.bucket import Bucket as SDK2Bucket
 import copy
-import six
 from typing import *
 from couchbase.result import ValueResult
 from couchbase import JSON
 from couchbase import subdocument as SD
-from couchbase.cluster import Cluster as SDK2Cluster
-import couchbase.exceptions
-import couchbase.result
+from couchbase.v3.bucket import Bucket
 from couchbase.v3.mutate_in import MutateInSpecItem
 from couchbase.v3.mutate_in import MutateInSpec
 
@@ -703,44 +693,32 @@ def forward_args(arg_vars, *options):
 
     return end_options
 
+#
+# class Bucket(six.with_metaclass(Scope)):
+#
+#     def __init__(self, *args, **kwargs):
+#         self.collections = pyrsistent.PRecord()
+#
+#     def clone_bucket_with_coll(self, name):
+#         # type: (Bucket, str) -> Bucket
+#         cloned = copy.copy(self)
+#         fresh_collection = Collection(self, name)
+#         cloned.collections = cloned.collections.set(name, fresh_collection)
+#         return cloned
+#
+#     def open_collection(self, name):
+#         # type: (str) -> Bucket
+#         if name in self.collections.keys():
+#             return self.collections.get(name)
+#         else:
+#             return self.clone_bucket_with_coll(name)
+#
+#     def scope(self, name):
+#         # type: (Bucket, str)->Bucket
+#         return Scope.scope(self, name)
 
-class Bucket(six.with_metaclass(Scope)):
-
-    def __init__(self, *args, **kwargs):
-        self.collections = pyrsistent.PRecord()
-
-    def clone_bucket_with_coll(self, name):
-        # type: (Bucket, str) -> Bucket
-        cloned = copy.copy(self)
-        fresh_collection = Collection(self, name)
-        cloned.collections = cloned.collections.set(name, fresh_collection)
-        return cloned
-
-    def open_collection(self, name):
-        # type: (str) -> Bucket
-        if name in self.collections.keys():
-            return self.collections.get(name)
-        else:
-            return self.clone_bucket_with_coll(name)
-
-    def scope(self, name):
-        # type: (Bucket, str)->Bucket
-        return Scope.scope(self, name)
 
 
-class CollectionBase:
-    def transform(self, key):
-        return self.name + self.separator + key
-
-    def __init__(self, bucket, name, separator=":"):
-        self.bucket = copy.deepcopy(bucket)  # type: SDK2Bucket
-        self.name = name
-        self.separator = separator
-
-    def __new__(cls, *args, **kwargs):
-        import inspect
-        for name, member in inspect.getmembers(cls, inspect.ismethod):
-            setattr(Bucket, name, lambda self, x, *args, **kwargs: member(self, self.transform(x), *args, **kwargs))
 
 
 def mutation_result(func):
@@ -771,447 +749,9 @@ def mutation_forwarder(func,  # type: Callable[[M1],Any]
     return mutation_result(forwarder(func, arg_vars, options))
 
 
-class Collection(CollectionBase):
-
-    def __init__(self, parent, name):
-        self._bucket = parent  # type: SDK2Bucket
-        self.name = name
-
-    def __getattr__(self, item):
-        return getattr(self.bucket, item)
-
-    @property
-    def bucket(self):
-        # type: (...)->SDK2Bucket
-        return self._bucket
-
-    def do_with_bucket(self,
-                       verb  # type: Callable[[Bucket],Any]
-                       ):
-        return verb(self.bucket)
-
-    @overload
-    def get(self,
-            key,  # type:str
-            spec=None,  # type: GetSpec
-            options=None,  # type: GetOptions
-            ):
-        # type: (...) -> GetResult
-        pass
-
-    @overload
-    def get(self,
-            key,  # type:str
-            spec=None,  # type: GetSpec
-            timeout=None,  # type: Seconds
-            quiet=None,  # type: bool
-            replica=False,  # type: bool
-            no_format=False  # type: bool
-            ):
-        # type: (...) -> GetResult
-        pass
-
-    def get(self,
-            key,  # type: str
-            spec=None,  # type: GetSpec
-            **kwargs
-            ):
-        # type: (...) -> GetResult
-        options = forward_args(locals(), kwargs)
-        project=options.pop('project',None)
-        if project:
-            if len(project) < 17:
-                spec = map(SD.get,project)
-        if not spec:
-            x = self.bucket.get(key, **options)
-        else:
-            x = self.bucket.lookup_in(key, *spec, **options)
-        return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout',None), id=x.key)
-
-    def get_and_touch(self,
-                  id,  # type: str
-                  expiration,  # type: int
-                  options=None  # type: GetAndTouchOptions
-                  ):
-        # type: (...)->IGetResult
-        pass
-
-    def get_and_lock(self,
-                     id,  # type: str
-                     expiration,  # type: int
-                     options=None  # type: GetAndLockOptions
-                     ):
-        # type: (...)->IGetResult
-        cb = self.bucket  # type: SDK2Bucket
-        cb.get(id, expiration, False, False, False)
-        cb.lock(id)
-
-    def get_from_replica(self,
-                         id,  # type: str
-                         replicaMode,  # type: ReplicaMode
-                         options=None  # type: GetFromReplicaOptions
-                         ):
-        # type: (...)->IGetResult
-        pass
-
-    def touch(self,
-              id,  # type: str
-              *options  # type: TouchOptions
-              ):
-        # type: (...)->IMutationResult
-        pass
-
-    def unlock(self,
-               id,  # type: str
-               *options  # type: UnlockOptions
-               ):
-        # type: (...)->IMutationResult
-        pass
-
-    def exists(self, id,  # type: str,
-               options = None,  # type: ExistsOptions
-               ):
-        # type: (...)->IExistsResult
-        pass
-
-    def upsert(self,
-               id,  # type: str
-               value,  # type: Any
-               *options  # type: UpsertOptions
-               ):
-        # type: (...)->IMutationResult
-        pass
-
-    def insert(self, id,  # type: str
-               value,  # type: Any
-               *options  # type: InsertOptions
-               ):
-        # type: (...)->IMutationResult
-        pass
-
-    # old school named params
-
-    @overload
-    def replace(self,
-                id,  # type: str
-                value,  # type: Any
-                options=None,  # type: ReplaceOptions
-                cas=0,  # type: int
-                timeout=None,  # type: Seconds
-                format=None,  # type: bool
-                persist_to=0,  # type: int
-                replicate_to=0,  # type: int
-                ):
-        # type: (...)->IMutationResult
-        return self.bucket.replace(id, value, **forward_args(locals(), options))
-
-    @overload
-    def replace(self,
-                id,  # type: str
-                value,  # type: Any
-                options,  # type: ReplaceOptions
-                *args, **kwargs
-                ):
-        # type: (...)->IMutationResult
-        return self.bucket.replace(id, value, **forward_args(locals(), options))
-
-    def replace(self,
-                id,  # type: str
-                value,  # type: Any
-                *args, **kwargs
-                ):
-        # type: (...)->IMutationResult
-        pass
-
-    def remove(self,  # type: Collection
-               id,  # type: str
-               options=None,  # type: RemoveOptions
-               cas=0,  # type: int
-               persist_to=PersistTo.NONE  # type: PersistTo.Value
-               ):
-        # type: (...)->IMutationResult
-        return self.bucket.remove(id, **forward_args(locals(), options))
-
-    def lookup_in(self,
-                 id,  # type: str,
-                 spec,  # type: LookupInSpec
-                 options = None  # type: LookupInOptions
-                ):
-        # type: (...)->ILookupInResult
-        pass
-
-    def mutate_in(self, id,  # type: str,
-                 spec,  # type: MutateInSpec
-                 options = None  # type: MutateInOptions
-                ):
-        # type: (...)->IMutateInResult
-        pass
-
-    def binary(self):
-        # type: (...)->IBinaryCollection
-        pass
-
-    @overload
-    def append(self,
-               id,  # type: str
-               value,  # type: str
-               options=None,  # type: AppendOptions
-               ):
-        # type: (...)->IMutationResult
-        pass
-
-    @overload
-    def append(self,
-               id,  # type: str
-               value,  # type: str
-               cas=0,  # type: int
-               format=None,  # type: long
-               persist_to=PersistTo.NONE,  # type: PersistTo.Value
-               replicate_to=ReplicateTo.NONE  # type: ReplicateTo.Value
-               ):
-        pass
-
-    @forwarder
-    def append(self,
-               id,  # type: str
-               value,  # type: str
-               options=None,  # type: AppendOptions
-               **kwargs
-               ):
-        # type: (...)->IMutationResult
-        forwarder = mutation_forwarder(self.bucket.append, locals(), kwargs)
-        return forwarder(id, None)
-
-    @overload
-    def prepend(self,
-                id,  # type: str
-                value,  # type: Any,
-                cas=0,  # type: int
-                format=None,  # type: int
-                persist_to=PersistTo.NONE,  # type: PersistTo.Value
-                replicate_to=ReplicateTo.NONE  # type: ReplicateTo.Value
-                ):
-        # type: (...)->IMutationResult
-        pass
-
-    @overload
-    def prepend(self,
-                id,  # type: str
-                value,  # type: str
-                *options  # type: PrependOptions
-                ):
-        # type: (...)->IMutationResult
-        pass
-
-    def prepend(self,
-                id,  # type: str
-                value,  # type: str
-                *args,  # type: PrependOptions
-                **kwargs  # type: Any
-                ):
-        # type: (...)->IMutationResult
-        return mutation_forwarder(self.bucket.prepend, locals(), kwargs)(id, None)
-
-    def increment(self,
-                  id,  # type: str
-                  *options  # type: IncrementOptions
-                  ):
-        # type: (...)->IMutationResult
-        pass
-
-    def decrement(self,
-                  id,  # type: str
-                  *options  # type: DecrementOptions
-                  ):
-        # type: (...)->IMutationResult
-        pass
-
-    def mutate(self,  # type: Collection
-               id,  # type: str
-               spec,  # type: MutateSpec
-               options=None  # type: MutateOptions
-               ):
-        # type: (...)->    IMutateSubResult
-        return self.bucket.mutate_in(id, spec, **forward_args(locals(), options))
-
-
-class IBucket(SDK2Bucket):
-    def name(self):
-        # type: (...)->str
-        pass
-
-    def scope(self,
-              scopeName  # type: str
-              ):
-        # type: (...)->Scope
-        pass
-
-    def default_collection(self,
-                           options=None  # type: CollectionOptions
-                           ):
-        # type: (...)->ICollection
-        pass
-
-    def collection(self,
-                   collection_name,  # type: str
-                   options=None  # type: CollectionOptions
-                   ):
-        # type: (...)->ICollection
-        pass
-
-    def view_query(self,
-                   design_doc,  # type: str
-                   view_name,  # type: str
-                   view_options=None):
-        # type: (...)->IViewResult
-        pass
-
-    def spatial_view_query(self,
-                           design_doc,  # type: str
-                           view_name,  # type: str
-                           options=None  # type: ViewOptions
-                           ):
-        # type: (...)->ISpatialViewResult
-        pass
-
-    def views(self):
-        # type: (...)->IViewManager
-        pass
-
-    def ping(self,
-             options=None  # type: PingOptions
-             ):
-        # type: (...)->IPingResult
-        pass
-
-
 
 class QueryOptions(OptionBlock):
     def __init__(self):
         pass
-
-
-class Cluster(SDK2Cluster):
-    def __init__(self,
-                 conn,  # type: str
-                 options  # type: ClusterOptions
-                 ):
-        pass
-    def bucket(self,
-               name,  # type: str,
-               options=None  # type: BucketOptions
-               ):
-        # type: (...)->IBucket
-        pass
-
-    def query(self,
-              statement,  # type: str,
-              options=None  # type: QueryOptions
-              ):
-        # type: (...)->IQueryResult
-        """
-        Executes a N1QL query against the remote cluster returning a IQueryResult with the results of the query.
-        :param statement: N1QL query
-        :param options: the optional parameters that the Query service takes. See The N1QL Query API for details or a SDK 2.0 implementation for detail.
-        :return: An IQueryResult object with the results of the query or error message if the query failed on the server.
-        :except Any exceptions raised by the underlying platform - HTTP_TIMEOUT for example.
-        :except ServiceNotFoundException - service does not exist or cannot be located.
-
-        """
-        pass
-
-    def analytics_query(self,
-                        statement,  # type: str,
-                        options=None  # type: AnalyticsOptions
-                        ):
-        # type: (...)->IAnalyticsResult
-        """
-        Executes an Analytics query against the remote cluster and returns a IAnalyticsResult with the results of the query.
-        :param statement: the analytics statement to execute
-        :param options: the optional parameters that the Analytics service takes based on the Analytics RFC.
-        :return: An IAnalyticsResult object with the results of the query or error message if the query failed on the server.
-        Throws Any exceptions raised by the underlying platform - HTTP_TIMEOUT for example.
-        :except ServiceNotFoundException - service does not exist or cannot be located.
-        """
-        pass
-
-    def search_query(self,
-                     query,  # type: ISearchQuery
-                     options=None  # type: SearchOptions
-                     ):
-        # type: (...)->ISearchResult
-        """
-        Executes a Search or FTS query against the remote cluster and returns a ISearchResult implementation with the results of the query.
-
-        :param query: the fluent search API to construct a query for FTS
-        :param options: the options to pass to the cluster with the query based off the FTS/Search RFC
-        :return: An ISearchResult object with the results of the query or error message if the query failed on the server.
-        Any exceptions raised by the underlying platform - HTTP_TIMEOUT for example.
-        :except    ServiceNotFoundException - service does not exist or cannot be located.
-
-        """
-        pass
-
-    def diagnostics(self,
-                    reportId=None  # type: str
-                    ):
-        # type: (...)->IDiagnosticsResult
-        """
-        Creates a diagnostics report that can be used to determine the healthfulness of the Cluster.
-        :param reportId - an optional string name for the generated report.
-        :return:A IDiagnosticsResult object with the results of the query or error message if the query failed on the server.
-
-        """
-        pass
-
-    def users(self):
-        # type: (...)->IUserManager
-        pass
-
-    def indexes(self):
-        # type: (...)->IIndexManager
-        pass
-
-    def nodes(self):
-        # type: (...)->INodeManager
-        pass
-
-    def buckets(self):
-        # type: (...)->IBucketManager
-        pass
-
-    def disconnect(self,
-                   options=None  # type: DisconnectOptions
-                   ):
-        # type: (...)->None
-        """
-        Closes and cleans up any resources used by the Cluster and any objects it owns. Note the name is platform idiomatic.
-
-        :param options - TBD
-        :return: None
-        :except Any exceptions raised by the underlying platform
-
-        """
-        pass
-
-    def manager(self):
-        # type: (...)->ClusterManager
-        """
-
-        Manager
-        Returns a ClusterManager object for managing resources at the Cluster level.
-
-        Caveats and notes:
-        It is acceptable for a Cluster object to have a static Connect method which takes a Configuration for ease of use.
-        To facilitate testing/mocking, it's acceptable for this structure to derive from an interface at the implementers discretion.
-        The "Get" and "Set" prefixes are considered platform idiomatic and can be adjusted to various platform idioms.
-        The Configuration is passed in via the ctor; overloads for connection strings and various other platform specific configuration are also passed this way.
-        If a language does not support ctor overloading, then an equivalent method can be used on the object.
-
-        :return:
-        """
-        pass
-
-
 
 # Query stuff
