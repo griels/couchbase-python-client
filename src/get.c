@@ -35,7 +35,7 @@ struct getcmd_vars_st {
 };
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
-                handle_single_key, pycbc_oputil_keyhandler_raw_Bucket original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
+                handle_single_key, pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
                 void *arg)
 {
