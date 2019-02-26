@@ -9,12 +9,9 @@ from shutil import copyfile, copymode
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext
 
-from cmodule import module
-
-
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
-        Extension.__init__(self, name, sources=[])
+    def __init__(self, name, sourcedir='', **kw):
+        Extension.__init__(self, name, **kw)
         self.sourcedir = os.path.abspath(sourcedir)
 
 
@@ -43,12 +40,12 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(
             os.path.dirname(self.get_ext_fullpath(ext.name)))
+
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
-
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(
                 cfg.upper(),
@@ -61,8 +58,13 @@ class CMakeBuild(build_ext):
             build_args += ['--', '-j2']
 
         env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
-            env.get('CXXFLAGS', ''),
+
+        env['CXXFLAGS'] = '{} {} -DVERSION_INFO=\\"{}\\"'.format(
+            env.get('CXXFLAGS', ''), ' '.join(ext.extra_compile_args),
+            self.distribution.get_version())
+
+        env['CFLAGS'] = '{} {}'.format(
+            env.get('CFLAGS', ''), ' '.join(ext.extra_compile_args),
             self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)

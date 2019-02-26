@@ -119,9 +119,18 @@ SOURCEMODS_CPP = [
 
 extoptions['include_dirs']=[]
 
+cmake_base=["cmake-build-release"]
+lcb_build_base=cmake_base+['install','lib']
+lcb_dbg_pkg=lcb_build_base+['Debug']
+
+extoptions['extra_compile_args'] += list(comp_arg_additions)
 if CPP_BUILD:
-    extoptions['extra_compile_args'] += list(comp_arg_additions) + ['-std=c++1y']
+    extoptions['extra_compile_args'] += ['-std=c++1y']
 if sys.platform != 'win32':
+    extoptions['extra_compile_args']+=['-Wno-strict-prototypes']
+    entries = ['libcouchbase.2.dylib','libcouchbase.dylib'] if ('darwin' in sys.platform.lower())\
+        else ['libcouchbase.so', 'libcouchbase.so.3', 'libcouchbase.so.3.0.1']
+    lcb_pkgs=map(lambda x: lcb_dbg_pkg+[x],entries)
     extoptions['libraries'] = ['couchbase']+(['boost_python27'] if CPP_BUILD else [])
     if debug_symbols:
         extoptions['extra_compile_args'] += ['-O0', '-g3']
@@ -130,7 +139,8 @@ if sys.platform != 'win32':
         warnings.warn('Adding /usr/local to search path for OS X')
         extoptions['library_dirs'] = ['/usr/local/lib']
         extoptions['include_dirs'] = ['/usr/local/include']
-
+    pkgdata['couchbase']=list(map(lambda x: os.path.join(*x),lcb_pkgs))
+    print(pkgdata)
 else:
     if sys.version_info<(3,0,0):
         if pip.__version__<"9.0.0":
@@ -217,8 +227,8 @@ class install_headers(install_headers_orig):
             (out, _) = self.copy_file(header, dst)
             self.outfiles.append(out)
 
-
-deps = {}# cppyy_deps(['cppyy-backend', 'cppyy'])
+cppyy_build = os.environ.get("PYCBC_CPPYY")
+deps = cppyy_deps(['cppyy-backend', 'cppyy']) if cppyy_build else {}
 typing_requires = (['typing'] if sys.version_info < (3, 7) else [])
 general_requires = ['pyrsistent'] + deps.pop("requires", [])
 dependency_links = deps.pop("dependency_links", [])
@@ -228,7 +238,7 @@ if cmake_build:
     from cmake_build import CMakeExtension, CMakeBuild, my_build_ext
 
     b_ext = CMakeBuild#my_build_ext
-    e_mods=[CMakeExtension('couchbase._libcouchbase')]
+    e_mods=[CMakeExtension('couchbase._libcouchbase','',**extoptions)]
     general_requires+=['cmake']
 else:
     print("Legacy build")
@@ -241,11 +251,12 @@ logging.error(setup_kw)
 import glob
 
 exec_requires = typing_requires + general_requires
+
 cxx_includes_base='cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/'
 cxx_includes = 'cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx/include/libcouchbase/'
 cxx_includes_inner = os.path.join(cxx_includes, 'couchbase++')
 all_headers = ([os.path.join(cxx_includes, 'couchbase++.h')] +
-               glob.glob(os.path.join(cxx_includes_inner, "*.h")))
+               glob.glob(os.path.join(cxx_includes_inner, "*.h"))) if cppyy_build else []
 
 extoptions['include_dirs']+=[cxx_includes_base]
 
@@ -295,7 +306,7 @@ setup(
     dependency_links=dependency_links,
     tests_require=['nose', 'testresources>=0.2.7', 'basictracer==2.2.0'],
     test_suite='couchbase.tests.test_sync',
-    headers=all_headers,
     cmdclass={'install_headers': install_headers, 'build_ext':b_ext},
     **setup_kw
 )
+#headers=all_headers,
