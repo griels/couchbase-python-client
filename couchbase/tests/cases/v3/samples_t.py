@@ -20,6 +20,7 @@ from time import sleep
 
 from nose.plugins.attrib import attr
 
+import couchbase.v3.cluster
 from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
 from couchbase.exceptions import (KeyExistsError, ValueFormatError,
                                   ArgumentError, NotFoundError,
@@ -44,7 +45,7 @@ import couchbase.v3
 class Samples(ConnectionTestCase):
     coll = None  # type: couchbase.v3.Collection
     def setUp(self, **kwargs):
-        self.cluster=couchbase.v3.Cluster("{}://{}/{}".format(self.cluster_info.protocol, self.cluster_info.host, "default"))
+        self.cluster= couchbase.v3.cluster.Cluster("{}://{}/{}".format(self.cluster_info.protocol, self.cluster_info.host, "default"))
         self.bucket=self.cluster.bucket("default")
 
         self.scope=self.bucket.Scope("fred")

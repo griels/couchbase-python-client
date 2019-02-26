@@ -15,42 +15,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import abc
-import time
+from couchbase.tests.base import ConnectionTestCase
+
+from couchbase.v3.cluster import Cluster
+
 try:
     from abc import ABC
 except:
     from abc import ABCMeta
-from time import sleep
 
-from nose.plugins.attrib import attr
-
-from couchbase import JSON
-from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
-from couchbase.exceptions import (KeyExistsError, ValueFormatError,
-                                  ArgumentError, NotFoundError,
-                                  NotStoredError, CouchbaseError)
-from couchbase.tests.base import ConnectionTestCase
-import pyrsistent
-from couchbase.bucket import Bucket as SDK2Bucket
-import copy
-import six
 import logging
-from typing import *
-from couchbase.result import ValueResult
-from couchbase import JSON
-from couchbase import subdocument as SD
-from couchbase.cluster import Cluster
+
 import couchbase.exceptions
-from couchbase.v3 import *
 from couchbase.bucket import Bucket
+from couchbase.cluster import Cluster
+from couchbase.v3 import *
+from couchbase.v3.mutate_in import MutateInSpecItem as MI
+from couchbase.v3.collection import Collection
+from couchbase.v3.bucket import Bucket
 
 
 class Scenarios(ConnectionTestCase):
     # implicit val ec = ExecutionContext.Implicits.global
 
     # private val cluster = CouchbaseCluster.create("localhost")
-    coll = None # type: Collection
+    coll = None  # type: Collection
 
     def setUp(self):
         self.factory = Bucket
@@ -116,6 +105,11 @@ class Scenarios(ConnectionTestCase):
 
         self.assertIsInstance(result, IMutationResult)
 
+    def test_mutatein(self):
+        self.coll.mutate_in('somekey', (
+            MI.replace('some.path', xattr= '_sync'),
+            MI.insert('some.other.path', xattr= '_sync', createParents=True),MutateInSpecItem.replace("fish"),MutateInSpecItem.insert("cheese"))
+        )
     def test_scenario_C_clientSideDurability(self):
         """
         Scenario C:
@@ -342,7 +336,7 @@ class Scenarios(ConnectionTestCase):
         self.coll.mutate(subdoc.id, MutateSpec().upsert("user", changed))
 
 
-from typing import TypeVar, Generic, Union
+from typing import TypeVar, Generic
 
 PlayerTV = TypeVar('PlayerTV', bound='BasePlayer')
 TeamTV = TypeVar('TeamTV', bound='BaseTeam')
