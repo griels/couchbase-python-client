@@ -219,6 +219,7 @@ void pycbc_exception_log(const char *file,
 
 #include <pythread.h>
 #include "mresdict.h"
+#include "../cmake-build-release/libcouchbase_src-prefix/src/libcouchbase_src/include/libcouchbase/couchbase.h"
 
 #define PYCBC_REFCNT_ASSERT pycbc_assert
 
@@ -487,9 +488,16 @@ enum {
     PYCBC_CONN_F_ASYNC_DTOR = 1 << 5
 };
 
+#ifndef PYCBC_V4
+typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
+#else
+typedef lcb_DURABILITY_LEVEL pycbc_DURABILITYLEVEL;
+
+#endif
 typedef struct {
     char persist_to;
     char replicate_to;
+    pycbc_DURABILITY_LEVEL durability_level;
 } pycbc_dur_params;
 
 void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
@@ -502,6 +510,7 @@ struct pycbc_Tracer;
 typedef struct {
     char *buffer;
     size_t length;
+
 } pycbc_strn_base;
 
 typedef struct {

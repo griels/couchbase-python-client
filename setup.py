@@ -174,7 +174,7 @@ else:
             'You should install the couchbase_ffi module. Installation of this '
             'module will continue but will be unusable without couchbase_ffi')
 
-cmake_build=os.environ.get("PYCBC_CMAKE_BUILD") or True
+cmake_build=not os.environ.get("PYCBC_CMAKE_BUILD_DISABLE")
 
 # Dummy dependency to prevent installation of Python < 3 package on Windows.
 
