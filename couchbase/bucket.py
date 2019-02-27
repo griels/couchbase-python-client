@@ -36,7 +36,6 @@ import couchbase.priv_constants as _P
 import json
 from couchbase.analytics import AnalyticsRequest, AnalyticsQuery
 from couchbase.connstr import ConnectionString
-import cppyy
 import couchbase.result
 from typing import *
 
@@ -130,19 +129,20 @@ def _dsop(create_type=None, wrap_missing_path=True):
 
 
 try:
+    if couchbase.cppyy_build:
+        import cppyy
 
-    from cppyy.gbl import Couchbase
-    #from cppyy.gbl.Couchbase import GetResponse
-    class CPPYYBucket(Couchbase.Client):
-        def __init__(self, *args, **kwargs):
-            connstr = args[0] if args else kwargs.get("connection_string", "")
-            super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
-            super(CPPYYBucket,self).connect()
+        from cppyy.gbl import Couchbase
+        #from cppyy.gbl.Couchbase import GetResponse
+        class CPPYYBucket(Couchbase.Client):
+            def __init__(self, *args, **kwargs):
+                connstr = args[0] if args else kwargs.get("connection_string", "")
+                super(CPPYYBucket,self).__init__(connstr, kwargs.get("password", ""), kwargs.get("username", ""))
+                super(CPPYYBucket,self).connect()
 
-        def get(self, *args, **kwargs):
-            # type: (...)->Couchbase.GetResponse
-            Couchbase.Client
-            return
+            def get(self, *args, **kwargs):
+                # type: (...)->Couchbase.GetResponse
+                return
 except:
     pass
 
@@ -350,8 +350,10 @@ class Bucket(_Base):
         def __new__(self, name, bases, attrs):
             pass
 
+    @overload
     def upsert(self, key, value, cas=0, ttl=0, format=None,
-               persist_to=0, replicate_to=0):
+               persist_to=0, replicate_to=0, durability_level=0):
+        # type: (Union[str, bytes], Any, int, int, int, int, int, int) -> Result
         """Unconditionally store the object in Couchbase.
 
         :param key:
@@ -390,6 +392,8 @@ class Bucket(_Base):
         :param int replicate_to: Perform durability checking on this
             many replicas for presence in memory. See :meth:`endure` for
             more information.
+
+        :param int durability_level: Durability level
 
         :raise: :exc:`.ArgumentError` if an argument is supplied that is
             not applicable in this context. For example setting the CAS
@@ -430,9 +434,10 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`upsert_multi`
         """
-        return _Base.upsert(self, key, value, cas=cas, ttl=ttl,
-                            format=format, persist_to=persist_to,
-                            replicate_to=replicate_to)
+        pass
+
+    def upsert(self, key, value, *args, **kwargs):
+        return _Base.upsert(self, key, value, *args, **kwargs)
 
     def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
         """Store an object in Couchbase unless it already exists.

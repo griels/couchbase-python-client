@@ -219,7 +219,6 @@ void pycbc_exception_log(const char *file,
 
 #include <pythread.h>
 #include "mresdict.h"
-#include "../cmake-build-release/libcouchbase_src-prefix/src/libcouchbase_src/include/libcouchbase/couchbase.h"
 
 #define PYCBC_REFCNT_ASSERT pycbc_assert
 

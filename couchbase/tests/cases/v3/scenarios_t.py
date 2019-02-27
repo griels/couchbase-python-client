@@ -338,6 +338,8 @@ class Scenarios(ConnectionTestCase):
         # mergeUpsert will upsert fields user.name & user.age, leaving user.address alone
         self.coll.mutate(subdoc.id, MutateSpec().upsert("user", changed))
 
+    def test_upsert(self):
+        self.coll.upsert().mutation_token()
 
 from typing import TypeVar, Generic
 

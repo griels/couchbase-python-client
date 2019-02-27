@@ -1,5 +1,6 @@
 from abc import abstractproperty
-from typing import TypeVar, Any
+from typing import *
+from couchbase.v3.mutate_in import *
 
 Proxy_T=TypeVar('Proxy_T')
 
