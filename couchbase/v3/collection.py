@@ -131,6 +131,16 @@ class Collection(object):
         # type: (...)->IMutationResult
         pass
 
+    def upsert(self,
+               id,  # type: str
+               value,  # type: Any
+               *args,  # type: Any
+               **kwargs  # type: Any
+               ):
+        # type: (...)->IMutationResult
+
+        pass
+
     def insert(self, id,  # type: str
                value,  # type: Any
                *options  # type: InsertOptions

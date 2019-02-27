@@ -856,8 +856,10 @@ lcb_error_t pycbc_Collection_init_cid(pycbc_Collection* self, PyObject *collecti
 }
 
 lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_coll_res_t *result) {
-    lcb_error_t err;
+#ifndef PYCBC_COLLECTIONS_REAL
     return 0;
+#else
+    lcb_error_t err;
     lcb_sched_enter(collection->bucket->instance);
     lcb_CMDGETCID get_cid_cmd;
     get_cid_cmd.scope=pycbc_strn_buf(collection->collection.scope.content);
@@ -867,6 +869,7 @@ lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_c
     err = lcb_getcid(collection->bucket->instance, result, &get_cid_cmd);
     lcb_sched_leave(collection->bucket->instance);
     return err;
+#endif
 }
 
 pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *collection) {
@@ -883,11 +886,6 @@ PyObject* Collection_get_cid(pycbc_Collection* self)
     Py_RETURN_NONE;
 }
 
-static void Collection_dtor(pycbc_Collection* collection)
-{
-    pycbc_strn_free(collection->collection.scope);
-    pycbc_strn_free(collection->collection.collection);
-}
 
 int pycbc_collection_init_from_fn_args(pycbc_Collection *self, PyObject *args, PyObject *kwargs) {
     int rv;
@@ -919,6 +917,8 @@ int pycbc_collection_init_from_fn_args(pycbc_Collection *self, PyObject *args, P
     return rv;
 }
 
+
+#ifdef PYCBC_NATIVE_COLLECTIONS
 static int
 Collection__init__(pycbc_Collection* self, PyObject *args, PyObject *kwargs)
 {
@@ -932,8 +932,12 @@ Collection__init__(pycbc_Collection* self, PyObject *args, PyObject *kwargs)
     }
     return 0;
 }
+static void Collection_dtor(pycbc_Collection* collection)
+{
+    pycbc_strn_free(collection->collection.scope);
+    pycbc_strn_free(collection->collection.collection);
+}
 
-#ifdef PYCBC_NATIVE_COLLECTIONS
 pycbc_Unit pycbc_Bucket_init_collection(pycbc_Collection* bucket, PyObject* args, PyObject* kwargs){
     return bucket;
 }
@@ -949,6 +953,8 @@ pycbc_Collection* pycbc_Bucket_init_collection(pycbc_Bucket* bucket, PyObject* a
 //    return (pycbc_Collection *) PYCBC_TYPE_CTOR(&pycbc_CollectionType, args, kwargs);
 }
 #endif
+#ifdef PYCBC_NATIVE_COLLECTIONS
+
 static PyMethodDef Collection_TABLE_methods[] = {
         { NULL, NULL, 0, NULL }
 };
@@ -995,6 +1001,7 @@ int pycbc_CollectionType_init(PyObject** ptr)
 
     return PyType_Ready(p);
 }
+#endif
 #endif
 
 static int
