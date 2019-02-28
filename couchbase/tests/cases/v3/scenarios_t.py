@@ -30,8 +30,8 @@ except:
 import logging
 
 import couchbase.exceptions
-from couchbase.bucket import Bucket
-from couchbase.cluster import Cluster
+#from couchbase.bucket import Bucket
+#from couchbase.cluster import Cluster
 from couchbase.v3 import *
 from couchbase.v3.mutate_in import MutateInSpecItem as MI
 from couchbase.v3.collection import Collection
@@ -282,7 +282,7 @@ class Scenarios(ConnectionTestCase):
 
         result = self.coll.get("id", timeout=Seconds(10))
         if result:
-            self.coll.replace(result.id, result.contentAs[User].copy(age=25), result.cas, timeout=Seconds(10))
+            self.coll.replace(result.id, result.content_as[User].copy(age=25), result.cas, timeout=Seconds(10))
         else:
             logging.error("could not get doc")
 
@@ -316,7 +316,7 @@ class Scenarios(ConnectionTestCase):
         doc = self.coll.get("id")
 
         if doc:
-            result=doc.contentAs[User].copy(age=25)
+            result=doc.content_as[User].copy(age=25)
         else:
             logging.error("could not find doc")
 
@@ -331,7 +331,7 @@ class Scenarios(ConnectionTestCase):
 
         subdoc = self.coll.get("id", ReadSpec().get(("user.name", "user.age")))
 
-        user = subdoc.contentAs[UserPartial]
+        user = subdoc.content_as[UserPartial]
         changed = user.copy(age=25)
 
         # Note: I have misgivings over whether this update-with-a-projection should be allowed
@@ -339,50 +339,6 @@ class Scenarios(ConnectionTestCase):
         self.coll.mutate(subdoc.id, MutateSpec().upsert("user", changed))
 
     def test_upsert(self):
-        self.coll.upsert().mutation_token()
 
-from typing import TypeVar, Generic
-
-PlayerTV = TypeVar('PlayerTV', bound='BasePlayer')
-TeamTV = TypeVar('TeamTV', bound='BaseTeam')
-
-
-class BaseTeam(Generic[PlayerTV, TeamTV]):
-    def t(self):
-        # type: (...) -> TeamTV
-        pass
-
-    def p(self):
-        # type: (...) -> PlayerTV
-        pass
-
-
-class BasePlayer(Generic[PlayerTV, TeamTV]):
-    def p(self):
-        # type: (...) -> PlayerTV
-        pass
-
-
-class Player(BasePlayer['Player', 'Team']):
-    real_attr = 1
-
-
-class Team(BaseTeam[Player, 'Team']):
-    real_attr = 1
-
-    def m1(self):
-        # type: (...) -> None
-        a=self.t().real_attr
-        a=self.t().fake_attr
-
-    def m2(self):
-        a=self.p().real_attr
-        a=self.p().fake_attr
-
-
-def f1(t # type: Team
-       ):
-    a=t.t().real_attr
-    a=t.t().fake_attr
-
-
+        self.coll.upsert("fish","banana")
+        self.assertEquals("banana", self.coll.get("fish").content_as[str])

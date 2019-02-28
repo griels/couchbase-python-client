@@ -147,6 +147,12 @@ except:
 
 class Bucket(_Base):
 
+    @overload
+    def __init__(self, connection_string, username = None, password =None, quiet=False, unlock_gil=True, transcoder=None,
+                 lockmode=None, tracer=None):
+        # type: (object, object, object, object, object, object, object, object) -> object
+        pass
+
     def __init__(self, *args, **kwargs):
         """Connect to a bucket.
 

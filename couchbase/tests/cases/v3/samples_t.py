@@ -76,7 +76,7 @@ class Samples(ConnectionTestCase):
         from typing import NamedTuple
 
         MyUserEntity=NamedTuple("MyUserEntity",[('id',str),('firstname',str),('age',int)])
-        fetched1.contentAs[MyUserEntity]("users[0]")
+        fetched1.content_as[MyUserEntity]("users[0]")
 #         getResult.users(0).getAs[User]
 #         getResult.users.getAs[List[User]]
 #

@@ -24,6 +24,7 @@ from couchbase.exceptions import CouchbaseError
 import itertools
 from collections import defaultdict
 import warnings
+from typing import *
 
 
 class MixedAuthError(CouchbaseError):
@@ -408,7 +409,10 @@ class Authenticator(object):
 
 
 class PasswordAuthenticator(Authenticator):
-    def __init__(self, username, password):
+    def __init__(self,
+                 username,  # type: str
+                 password  # type: str
+                 ):
         """
         This class uses a single credential pair of username and password, and
         is designed to be used either with cluster management operations or
@@ -442,10 +446,12 @@ class ClassicAuthenticator(Authenticator):
     def __init__(self, cluster_username=None,
                  cluster_password=None,
                  buckets=None):
+        # type: (str, str, Mapping[str,str]) -> None
         """
         Classic authentication mechanism.
         :param cluster_username:
             Global cluster username. Only required for management operations
+        :type cluster_username: str
         :param cluster_password:
             Global cluster password. Only required for management operations
         :param buckets:
