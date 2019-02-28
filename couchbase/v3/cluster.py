@@ -1,27 +1,109 @@
+from abc import abstractproperty
+
+from uuid import UUID
+
 from typing import *
 
-from couchbase.cluster import Cluster as SDK2Cluster
-from couchbase.v3 import OptionBlock, QueryOptions, Bucket
+from couchbase.v3 import OptionBlock, Bucket, forward_args, OptionBlockDeriv
 from couchbase.v3.bucket import BucketOptions
 from couchbase.cluster import Cluster as SDK2Cluster, Authenticator as SDK2Authenticator
 import couchbase.v3.options
 
 
-class ClusterOptions(OptionBlock):
+T=TypeVar('T')
+
+
+class QueryMetrics(object):
     pass
 
 
+class IQueryResult:
+    def request_id(self):
+        # type: (...) ->UUID
+        pass
+
+    def client_context_id(self):
+        # type: (...)->str
+        pass
+
+    def signature(self):
+        # type: (...)->Any
+        pass
+
+    def rows(self):
+        # type: (...)->List[T]
+        pass
+
+    def warnings(self):
+        # type: (...)->List[Warning]
+        pass
+
+    def metrics(self):
+        # type: (...)->QueryMetrics
+        pass
+
+
+CallableOnOptionBlock = Callable[[OptionBlockDeriv, Any], Any]
+
+
+def options_to_func(orig,  # type: U
+                    verb  # type: CallableOnOptionBlock
+                    ):
+    class invocation:
+        # type: (...)->Callable[[T,Tuple[OptionBlockDeriv,...],Any],Any]
+        def __init__(self,  # type: T
+                       *options,  # type: OptionBlockDeriv
+                       **kwargs  # type: Any
+                       ):
+            # type: (...)->None
+            self.orig=orig
+            self.options=options
+            self.kwargs=kwargs
+
+        def __call__(self, *args, **kwargs):
+            # type: (...)->Callable[[T,Tuple[OptionBlockDeriv,...],Any],Any]
+            def invocator(self, *options, **kwargs):
+                return verb(self, forward_args(kwargs, options))
+            return invocator
+
+    return invocation(orig)
+
+
+class QueryOptions(OptionBlock, IQueryResult):
+    @abstractproperty
+    def is_live(self):
+        return False
+
+    def __init__(self, statement = None, parameters=None, timeout = None):
+
+        """
+        Executes a N1QL query against the remote cluster returning a IQueryResult with the results of the query.
+        :param statement: N1QL query
+        :param options: the optional parameters that the Query service takes. See The N1QL Query API for details or a SDK 2.0 implementation for detail.
+        :return: An IQueryResult object with the results of the query or error message if the query failed on the server.
+        :except Any exceptions raised by the underlying platform - HTTP_TIMEOUT for example.
+        :except ServiceNotFoundException - service does not exist or cannot be located.
+
+        """
+        super(Cluster.QueryOptions, self).__init__(statement=statement, parameters=parameters, timeout=timeout)
+
+
 class Cluster:
+    class ClusterOptions(OptionBlock):
+        pass
+
     def __init__(self,
-                 conn,  # type: str
+                 connection_string=None,  # type: str
                  *options  # type: ClusterOptions
                  ):
-        self._cluster = SDK2Cluster(conn, **couchbase.v3.forward_args({},*options))
+        self._cluster = SDK2Cluster(connection_string, **couchbase.v3.forward_args(None,*options))
+        self.outerself=self  # type: Cluster
 
     def authenticate(self,
                      authenticator=None,  # type: SDK2Authenticator
                      username=None,  # type: str
-                     password=None):  # type: str
+                     password=None  # type: str
+                     ):
         self._cluster.authenticate(authenticator, username, password)
 
     def bucket(self,
@@ -29,7 +111,13 @@ class Cluster:
                options=None  # type: BucketOptions
                ):
         # type: (...)->Bucket
-        pass
+        return Bucket(name,options)
+
+    class QueryParameters(OptionBlock):
+        def __init__(self, *args, **kwargs):
+            super(Cluster.QueryParameters, self).__init__(*args, **kwargs)
+
+
 
     @overload
     def query(self,
@@ -41,26 +129,22 @@ class Cluster:
     @overload
     def query(self,
               statement,  # type: str,
-              *options  # type: QueryOptions
+              *options  # type: Cluster.QueryOptions
               ):
         # type: (...)->IQueryResult
         pass
 
-    def query(self,
+    def query_real(self,
               statement,
               *args, **kwargs):
         # type: (str, Any, Any) -> IQueryResult
+        result=self._cluster.n1ql_query(statement, forward_args(kwargs, args))
+        return result
 
-        """
-        Executes a N1QL query against the remote cluster returning a IQueryResult with the results of the query.
-        :param statement: N1QL query
-        :param options: the optional parameters that the Query service takes. See The N1QL Query API for details or a SDK 2.0 implementation for detail.
-        :return: An IQueryResult object with the results of the query or error message if the query failed on the server.
-        :except Any exceptions raised by the underlying platform - HTTP_TIMEOUT for example.
-        :except ServiceNotFoundException - service does not exist or cannot be located.
+    @options_to_func(QueryOptions,query_real)
+    class query:
+        __doc__ = QueryOptions.__doc__
 
-        """
-        pass
 
     def analytics_query(self,
                         statement,  # type: str,
@@ -153,3 +237,7 @@ class Cluster:
         :return:
         """
         pass
+
+
+QueryParameters = Cluster.QueryParameters
+ClusterOptions = Cluster.ClusterOptions

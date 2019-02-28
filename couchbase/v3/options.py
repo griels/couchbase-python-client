@@ -1,7 +1,4 @@
 import time
-from typing import *
-
-from couchbase.v3.mutate_in import SDK2MutationToken
 from couchbase.v3.result import *
 
 
@@ -46,6 +43,7 @@ class Durations:
         return Seconds(seconds)
 
 
+
 class OptionBlock(dict):
     def __init__(self, *args, **kwargs):
         # type: (*Any, **Any) -> None
@@ -60,75 +58,19 @@ class OptionBlock(dict):
         return self
 
 
-class GetOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(GetOptions, self).__init__(*args, **kwargs)
+class OptionBlockMeta(type):
+    def __new__(cls, *args, **kwargs):
+        pass
 
 
-class IReplaceOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(IReplaceOptions, self).__init__(*args, **kwargs)
-
-
-class ReplaceOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(ReplaceOptions, self).__init__(*args, **kwargs)
-
-
-class AppendOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(AppendOptions, self).__init__(*args, **kwargs)
-
-
-class RemoveOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(RemoveOptions, self).__init__(*args, **kwargs)
-
-
-class MutateInOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(MutateInOptions, self).__init__(*args, **kwargs)
-
-
-class PrependOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(PrependOptions, self).__init__(*args, **kwargs)
-
-
-class UnlockOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(UnlockOptions, self).__init__(*args, **kwargs)
-
-
-class IncrementOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(IncrementOptions, self).__init__(*args, **kwargs)
-
-
-class DecrementOptions(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(DecrementOptions, self).__init__(*args, **kwargs)
-
-
-class QueryParameters(OptionBlock):
-    def __init__(self, *args, **kwargs):
-        super(QueryParameters, self).__init__(*args, **kwargs)
-
-
-class QueryOptions(OptionBlock):
-    def __init__(self, parameters=None,  # type: QueryParameters
-                 *args,
-                 **kwargs):
-        super(QueryOptions, self).__init__(*args, **kwargs)
-
-
-OptionDerivative = Union[
-    GetOptions, IReplaceOptions, ReplaceOptions, AppendOptions, RemoveOptions, MutateInOptions, PrependOptions, UnlockOptions, IncrementOptions, DecrementOptions]
+OptionBlockDeriv=TypeVar('U')
 
 
 def forward_args(arg_vars, *options):
-    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
+    # type: (Optional[Dict[str,Any]],Tuple[OptionBlockDeriv,...])->OptionBlockDeriv[str,Any]
+    arg_vars=arg_vars or {}
     end_options = options[0] if options and options[0] else OptionBlock()
+    print("got arg_vars {} and options {}, produced end_options {}".format(arg_vars,options,end_options))
     kwargs=arg_vars.pop('kwargs',{})
     end_options.update(kwargs)
     end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
@@ -137,10 +79,15 @@ def forward_args(arg_vars, *options):
     return end_options
 
 
+def get_mutation_result(result):
+    return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+
+
 def mutation_result(func):
     def mutated(*args,**kwargs):
         result=func(*args,**kwargs)
-        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+        return get_mutation_result(result)
+
     return mutated
 
 
