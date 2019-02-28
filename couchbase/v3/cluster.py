@@ -1,17 +1,29 @@
+from typing import *
+
 from couchbase.cluster import Cluster as SDK2Cluster
 from couchbase.v3 import OptionBlock, QueryOptions, Bucket
 from couchbase.v3.bucket import BucketOptions
+from couchbase.cluster import Cluster as SDK2Cluster, Authenticator as SDK2Authenticator
+import couchbase.v3.options
 
 
 class ClusterOptions(OptionBlock):
     pass
 
-class Cluster(SDK2Cluster):
+
+class Cluster:
     def __init__(self,
                  conn,  # type: str
-                 options  # type: ClusterOptions
+                 *options  # type: ClusterOptions
                  ):
-        pass
+        self._cluster = SDK2Cluster(conn, **couchbase.v3.forward_args({},*options))
+
+    def authenticate(self,
+                     authenticator=None,  # type: SDK2Authenticator
+                     username=None,  # type: str
+                     password=None):  # type: str
+        self._cluster.authenticate(authenticator, username, password)
+
     def bucket(self,
                name,  # type: str,
                options=None  # type: BucketOptions
@@ -19,11 +31,26 @@ class Cluster(SDK2Cluster):
         # type: (...)->Bucket
         pass
 
+    @overload
+    def query(self,
+              statement,
+              parameters=None,
+              timeout=None):
+        pass
+
+    @overload
     def query(self,
               statement,  # type: str,
-              options=None  # type: QueryOptions
+              *options  # type: QueryOptions
               ):
         # type: (...)->IQueryResult
+        pass
+
+    def query(self,
+              statement,
+              *args, **kwargs):
+        # type: (str, Any, Any) -> IQueryResult
+
         """
         Executes a N1QL query against the remote cluster returning a IQueryResult with the results of the query.
         :param statement: N1QL query
