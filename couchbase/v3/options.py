@@ -1,6 +1,9 @@
 import time
 from typing import *
 
+from couchbase.v3.mutate_in import SDK2MutationToken
+from couchbase.v3.result import *
+
 
 class FiniteDuration(float):
     @staticmethod
@@ -23,11 +26,24 @@ class Seconds(FiniteDuration):
         super(Seconds, self).__init__(seconds)
 
 
-class Minutes(FiniteDuration):
-    def __init__(self,
-                 minutes  # type: float
-                 ):
+class Durations:
+    def __init__(self):
         pass
+
+    @staticmethod
+    def minutes(minutes  # type: int
+                ):
+        return Seconds(minutes*60)
+
+
+    @staticmethod
+    def days(days  # type: int
+            ):
+        return Durations.minutes(days*24*60)
+
+    @staticmethod
+    def seconds(seconds):
+        return Seconds(seconds)
 
 
 class OptionBlock(dict):
@@ -94,10 +110,53 @@ class DecrementOptions(OptionBlock):
         super(DecrementOptions, self).__init__(*args, **kwargs)
 
 
-class QueryOptions(OptionBlock):
+class QueryParameters(OptionBlock):
     def __init__(self, *args, **kwargs):
+        super(QueryParameters, self).__init__(*args, **kwargs)
+
+
+class QueryOptions(OptionBlock):
+    def __init__(self, parameters=None,  # type: QueryParameters
+                 *args,
+                 **kwargs):
         super(QueryOptions, self).__init__(*args, **kwargs)
 
 
 OptionDerivative = Union[
     GetOptions, IReplaceOptions, ReplaceOptions, AppendOptions, RemoveOptions, MutateInOptions, PrependOptions, UnlockOptions, IncrementOptions, DecrementOptions]
+
+
+def forward_args(arg_vars, *options):
+    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
+    end_options = options[0] if options and options[0] else OptionBlock()
+    kwargs=arg_vars.pop('kwargs',{})
+    end_options.update(kwargs)
+    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
+                            arg_vars.items() if k != "self"))
+
+    return end_options
+
+
+def mutation_result(func):
+    def mutated(*args,**kwargs):
+        result=func(*args,**kwargs)
+        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+    return mutated
+
+
+def forwarder(func,  # type: Callable[[M1],Any]
+              arg_vars,  # type: Dict[str,Any]
+              options    # type: Dict[str,Any]
+              ):
+    def forwarded(*args,**kwargs):
+        kwargs.update(forward_args(arg_vars, options))
+        return func(*args, **kwargs)
+    return forwarded
+
+
+def mutation_forwarder(func,  # type: Callable[[M1],Any]
+                       arg_vars,  # type: Dict[str,Any]
+                       options,  # type: Dict[str,Any]
+                       ):
+    # type: (...)->Callable[M1,IMutationResult]
+    return mutation_result(forwarder(func, arg_vars, options))
