@@ -1,5 +1,6 @@
 """Cluster Creation and Resource Allocation"""
 import couchbase.v3.cluster
+import couchbase.v3.collection
 from couchbase.v3 import Durations, QueryOptions, QueryParameters
 from couchbase.v3.collection import UpsertOptions
 from couchbase.v3.durability import Durability
@@ -80,7 +81,7 @@ Basic K/V Projections
 """
 id = "p01"
 
-result = collection.get(id, couchbase.v3.GetOptions.project("name", "age", "attributes.hair"))
+result = collection.get(id, couchbase.v3.collection.GetOptions.project("name", "age", "attributes.hair"))
 
 person = result.content_as[Person]
 print("Age={age}, Name={name}, Hair{attributes.hair}".format(**person))

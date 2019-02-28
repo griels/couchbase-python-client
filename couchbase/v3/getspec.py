@@ -3,16 +3,16 @@ import copy
 from couchbase.v3 import GetFullDocumentOperation, GetOperation, GetStringOperation, GetIntOperation, ExistsOperation
 
 
-class ReadSpec(list):
+class GetSpec(list):
     def get_full_document(self):
-        # type: ()->ReadSpec
+        # type: ()->GetSpec
         result = copy.deepcopy(self)
         result.append(GetFullDocumentOperation())
         return result
 
     def get(self, *path  # type: Tuple[str,...]
             ):
-        # type: (...) -> ReadSpec
+        # type: (...) -> GetSpec
         if not hasattr(path, "__iter__"):
             return self.get_single(path)
         result = copy.deepcopy(self)

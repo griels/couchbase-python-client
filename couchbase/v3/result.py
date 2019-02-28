@@ -1,35 +1,22 @@
 from abc import abstractproperty
 from typing import *
+
+from couchbase.v3.JSONdocument import JSONDocument
 from couchbase.v3.mutate_in import *
 
-Proxy_T=TypeVar('Proxy_T')
-
-
-class ContentProxyBase(object):
-    def __init__(self,content):
-        self.content=content
-
-    def __call__(self, jsonpath):
-        return self.content
-
-
-class ContentProxyMeta(type):
-    def __new__(cls, name, bases, dct,
-                *args,  # type: Tuple[Any...,Proxy_T]
-                **kwargs):
-        # type: (...)->Type[ContentProxyBase[Proxy_T]]
-        return type.__new__(cls, name, bases, dct, *args, **kwargs)
+Proxy_T = TypeVar('Proxy_T')
 
 
 class ContentProxy:
-    def __init__(self,content):
-        self.content=content
+    def __init__(self, content):
+        self.content = content
 
     def __getitem__(self,
                     item  # type: Type[Proxy_T]
                     ):
-        # type: (...)->ContentProxyMeta[Proxy_T]
-        return ContentProxyMeta(Proxy_T)()
+        # type: (...)->Proxy_T
+        return self.content
+
 
 class IResult:
     def __init__(self,
@@ -57,7 +44,7 @@ class IMutationResult(IResult):
                  cas,  # type: int
                  mutation_token=None  # type: MutationToken
                  ):
-        super(IMutationResult,self).__init__(cas)
+        super(IMutationResult, self).__init__(cas)
         self.mutationToken = mutation_token
 
     def mutation_token(self):
@@ -99,6 +86,7 @@ class GetResult(IGetResult):
 
     def __getitem__(self, t):
         return
+
     @property
     def id(self):
         # type: () -> str
@@ -122,6 +110,7 @@ class GetResult(IGetResult):
 
 def get_result(self, options, x):
     return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout', None), id=x.key)
+
 
 class MutationResult(IMutationResult):
     pass
