@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 #
 # Copyright 2018, Couchbase, Inc.
 # All Rights Reserved
@@ -19,8 +19,6 @@ from couchbase.tests.base import ConnectionTestCase
 
 from couchbase.v3.cluster import Cluster
 from couchbase.v3.durability import ReplicateTo, PersistTo, Durability
-from couchbase.v3.readspec import ReadSpec
-from couchbase.v3.result import IMutationResult
 
 try:
     from abc import ABC
@@ -30,8 +28,6 @@ except:
 import logging
 
 import couchbase.exceptions
-#from couchbase.bucket import Bucket
-#from couchbase.cluster import Cluster
 from couchbase.v3 import *
 from couchbase.v3.mutate_in import MutateInSpecItem as MI
 from couchbase.v3.collection import Collection
@@ -52,13 +48,13 @@ class Scenarios(ConnectionTestCase):
         # 1) Connect to a Cluster
         self.cluster = Cluster()
         self.bucket = self.cb
-        self.scope = self.bucket.scope("scope")  # type: Bucket
+        self.scope = self.bucket.scope("scope")
         # 2) Open a Collection
         self.coll = self.scope.open_collection("people")  # type: Collection
 
     def test_scenario_A(self):
         # 1) fetch a full document that is a json document
-        doc = self.coll.get("id", GetOptions().timeout(Seconds(10)))
+        doc = self.coll.get("id", options=GetOptions().timeout(Seconds(10)))
         # 2) Make a modification to the content
         content = doc.content.put("field", "value")
         # 3) replace the document on the server
@@ -74,9 +70,10 @@ class Scenarios(ConnectionTestCase):
         # I include type annotations and getOrError above to make things clearer,
         # but it'd be more idiomatic to write this:
         try:
-            self.coll.get("cheese",spec=None, options=GetOptions(replica=True))
-            self.coll.get("cheese",spec=None,replica=True)
-            self.coll.get("cheese",spec=None, options= GetOptions(replica=True),replica=True)
+            self.coll.get("cheese", spec=None, options=GetOptions(replica=True))
+            self.coll.get("cheese", spec=None, replica=True)
+            # invalid syntax:
+            self.coll.get("cheese", spec=None, options=GetOptions(replica=True), replica=True)
 
             result = self.coll.get("id", options=GetOptions().timeout(Seconds(10)), spec=GetSpec())
             self.coll.replace(result.id,
@@ -110,9 +107,11 @@ class Scenarios(ConnectionTestCase):
 
     def test_mutatein(self):
         self.coll.mutate_in('somekey', (
-            MI.replace('some.path', xattr= '_sync'),
-            MI.insert('some.other.path', xattr= '_sync', createParents=True),MutateInSpecItem.replace("fish"),MutateInSpecItem.insert("cheese"))
-        )
+            MI.replace('some.path', xattr='_sync'),
+            MI.insert('some.other.path', xattr='_sync', createParents=True), MutateInSpecItem.replace("fish"),
+            MutateInSpecItem.insert("cheese"))
+                            )
+
     def test_scenario_C_clientSideDurability(self):
         """
         Scenario C:
@@ -123,20 +122,20 @@ class Scenarios(ConnectionTestCase):
         # Use a helper wrapper to retry our operation in the face of durability failures
         # remove is idempotent iff the app guarantees that the doc's id won't be reused (e.g. if it's a UUID).  This seems
         # a reasonable restriction.
-        self.retryIdempotentRemoveClientSide(lambda replicateTo:
+        self.retry_idempotent_remove_client_side(lambda replicateTo:
                                              self.coll.remove("id",
                                                               RemoveOptions().durabilityClient(replicateTo,
                                                                                                PersistTo.ONE(
                                                                                                    analytics=True)),
                                                               persist_to=PersistTo.ONE(query=True), cas=0),
-                                             ReplicateTo.TWO, ReplicateTo.TWO, FiniteDuration.time() + 30)
+                                                 ReplicateTo.TWO, ReplicateTo.TWO, FiniteDuration.time() + 30)
 
-    def retryIdempotentRemoveClientSide(self,
-                                        callback,  # type: Callable[[ReplicateTo.Value],Any]
-                                        replicate_to,  # type: ReplicateTo.Value
-                                        original_replicate_to,  # type: ReplicateTo.Value
-                                        until  # type: FiniteDuration
-                                        ):
+    def retry_idempotent_remove_client_side(self,
+                                            callback,  # type: Callable[[ReplicateTo.Value],Any]
+                                            replicate_to,  # type: ReplicateTo.Value
+                                            original_replicate_to,  # type: ReplicateTo.Value
+                                            until  # type: FiniteDuration
+                                            ):
         # type: (...)->None
         """
           * Automatically retries an idempotent operation in the face of durability failures
@@ -146,7 +145,7 @@ class Scenarios(ConnectionTestCase):
           * @param original_replicate_to the originally requested ReplicateTo setting
           * @param until prevent the operation looping indefinitely
           """
-        success=False
+        success = False
         while not success:
             if time.time() >= until:
                 # Depending on the durability requirements, may want to also log this to an external system for human review
@@ -165,14 +164,14 @@ class Scenarios(ConnectionTestCase):
 
             except DocumentConcurrentlyModifiedException:
                 # Just retry
-                #self.retryIdempotentRemoveClientSide(callback, replicate_to, original_replicate_to, until)
+                # self.retryIdempotentRemoveClientSide(callback, replicate_to, original_replicate_to, until)
                 continue
 
             except DocumentMutationLostException:
                 # Mutation lost during a hard failover.  I *think* we just retry with the original replicate_to.  If enough replicas
                 # still aren't available, it will presumably raise ReplicaNotAvailableException and retry with lower.
-                #self.retryIdempotentRemoveClientSide(callback, original_replicate_to, original_replicate_to, until)
-                replicate_to=original_replicate_to
+                # self.retryIdempotentRemoveClientSide(callback, original_replicate_to, original_replicate_to, until)
+                replicate_to = original_replicate_to
                 continue
 
             except ReplicaNotAvailableException:
@@ -180,7 +179,7 @@ class Scenarios(ConnectionTestCase):
                                   ReplicateTo.TWO: ReplicateTo.ONE,
                                   ReplicateTo.THREE: ReplicateTo.TWO}.get(replicate_to, ReplicateTo.NONE)
                 print("Temporary replica failure, retrying with lower durability {}".format(newReplicateTo))
-                replicate_to=newReplicateTo
+                replicate_to = newReplicateTo
 
     def scenarioC_serverSideDurability(self):
         # Use a helper wrapper to retry our operation in the face of durability failures
@@ -189,7 +188,7 @@ class Scenarios(ConnectionTestCase):
         self.retryIdempotentRemoveServerSide(
             lambda: self.coll.remove("id", RemoveOptions().durabilityServer(Durability.MajorityAndPersistActive),
                                      cas=0))
-        
+
     def retryIdempotentRemoveServerSide(self,
                                         callback,  # type: Callable[None],
                                         until  # type: FiniteDuration
@@ -230,20 +229,20 @@ class Scenarios(ConnectionTestCase):
         def respond():
             result = self.coll.get("id", timeout=Seconds(10))
             if result:
-                 self.coll.replace(result.id,
-                                   result.content
-                                   .put("field", "value")
-                                   .put("foo", "bar"),
-                                   result.cas,
-                                   timeout=Seconds(10))
+                self.coll.replace(result.id,
+                                  result.content
+                                  .put("field", "value")
+                                  .put("foo", "bar"),
+                                  cas=result.cas,
+                                  timeout=Seconds(10))
             else:
                 logging.error("could not get doc")
 
         self.retryOperationOnCASMismatch(respond, guard=50)
 
     def retryOperationOnCASMismatch(self,
-                                    callback, # type: Callable[[],None]
-                                    guard # type: int
+                                    callback,  # type: Callable[[],None]
+                                    guard  # type: int
                                     ):
         # type: (...) -> Nones
         if guard <= 0:
@@ -254,6 +253,31 @@ class Scenarios(ConnectionTestCase):
         except CASMismatchException:
             self.retryOperationOnCASMismatch(callback, guard - 1)
 
+    class UserPartial:
+        def __init__(self,
+                     name,  # type: str
+                     age  # type: int
+                     ):
+            self.name = name
+            self.age = age
+
+        def with_attr(self, **kwargs):
+            result = copy.deepcopy(self)
+            for k, v in kwargs:
+                setattr(result, k, v)
+            return result
+
+    class User(UserPartial):
+        def __init__(self,
+                     name,  # type: str
+                     age,  # type: int
+                     address,  # type: str
+                     phoneNumber  # type: str
+                     ):
+            super(Scenarios.User,self).__init__(name,age)
+            self.address = address
+            self.phoneNumber = phoneNumber
+
     def test_scenario_E(self):
         """
               Scenario E (if applicable):
@@ -263,26 +287,9 @@ class Scenarios(ConnectionTestCase):
         3) store it back on the server with a replace
         """
 
-        class User:
-            def __init__(self,
-                         name,  # type: str
-                         age,  # type: int
-                         address,  # type: str
-                         phoneNumber  # type: str
-                         ):
-                self.name = name
-                self.age = age
-                self.address = address
-                self.phoneNumber = phoneNumber
-            def __copy__(self, **kwargs):
-                result=copy.deepcopy(self)
-                for k,v in kwargs:
-                    setattr(result, k,v)
-                return result
-
         result = self.coll.get("id", timeout=Seconds(10))
         if result:
-            self.coll.replace(result.id, result.content_as[User].copy(age=25), result.cas, timeout=Seconds(10))
+            self.coll.replace(result.id, result.content_as[Scenarios.User].with_attr(age=25), cas=result.cas, timeout=Seconds(10))
         else:
             logging.error("could not get doc")
 
@@ -316,23 +323,16 @@ class Scenarios(ConnectionTestCase):
         doc = self.coll.get("id")
 
         if doc:
-            result=doc.content_as[User].copy(age=25)
+            result = doc.content_as[Scenarios.User].with_attr(age=25)
         else:
             logging.error("could not find doc")
 
     def test_scenarioF_subdoc(self):
-        class UserPartial:
-            def __init__(self,
-                         name,  # type: str
-                         age  # type: int
-                         ):
-                self.name = name
-                self.age = age
 
-        subdoc = self.coll.get("id", ReadSpec().get(("user.name", "user.age")))
+        subdoc = self.coll.get("id", GetSpec().get(("user.name", "user.age")))
 
-        user = subdoc.content_as[UserPartial]
-        changed = user.copy(age=25)
+        user = subdoc.content_as[Scenarios.UserPartial]
+        changed = user.with_attr(age=25)
 
         # Note: I have misgivings over whether this update-with-a-projection should be allowed
         # mergeUpsert will upsert fields user.name & user.age, leaving user.address alone
@@ -340,5 +340,5 @@ class Scenarios(ConnectionTestCase):
 
     def test_upsert(self):
 
-        self.coll.upsert("fish","banana")
+        self.coll.upsert("fish", "banana")
         self.assertEquals("banana", self.coll.get("fish").content_as[str])
