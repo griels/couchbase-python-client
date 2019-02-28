@@ -1,8 +1,8 @@
 import copy
 import pyrsistent
-from typing import *
 
 from couchbase import subdocument as SD
+from couchbase.v3 import forward_args, mutation_result
 from couchbase.v3.options import OptionBlock
 from couchbase.v3.durability import ReplicateTo, PersistTo
 from couchbase.v3.bucket import Bucket
@@ -11,45 +11,14 @@ from couchbase.v3.result import *
 from couchbase.v3.mutate_in import *
 
 
-def forward_args(arg_vars, *options):
-    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
-    end_options = options[0] if options and options[0] else OptionBlock()
-    kwargs=arg_vars.pop('kwargs',{})
-    end_options.update(kwargs)
-    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
-                            arg_vars.items() if k != "self"))
-
-    return end_options
-
-
-def mutation_result(func):
-    def mutated(*args,**kwargs):
-        result=func(*args,**kwargs)
-        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
-    return mutated
-
-
-def forwarder(func,  # type: Callable[[M1],Any]
-              arg_vars,  # type: Dict[str,Any]
-              options    # type: Dict[str,Any]
-              ):
-    def forwarded(*args,**kwargs):
-        kwargs.update(forward_args(arg_vars, options))
-        return func(*args, **kwargs)
-    return forwarded
-
-
-def mutation_forwarder(func,  # type: Callable[[M1],Any]
-                       arg_vars,  # type: Dict[str,Any]
-                       options,  # type: Dict[str,Any]
-                       ):
-    # type: (...)->Callable[M1,IMutationResult]
-    return mutation_result(forwarder(func, arg_vars, options))
-
-
 class CollectionOptions(OptionBlock):
-    pass
+    def __init__(self, *args, **kwargs):
+        super(CollectionOptions, self).__init__(*args, **kwargs)
 
+
+class UpsertOptions(OptionBlock):
+    def __init__(self, *args, **kwargs):
+        super(UpsertOptions,self).__init(*args,**kwargs)
 
 class Collection(object):
     def __init__(self,
@@ -111,7 +80,7 @@ class Collection(object):
             x = bc.get(key, **options)
         else:
             x = bc.lookup_in(key, *spec, **options)
-        return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout',None), id=x.key)
+        return get_result(options, x)
 
     def get_and_touch(self,
                   id,  # type: str
@@ -157,6 +126,11 @@ class Collection(object):
                options = None,  # type: ExistsOptions
                ):
         # type: (...)->IExistsResult
+        pass
+
+    @overload
+    def upsert(self, key, value, options  # type: UpsertOptions
+               ):
         pass
 
     @overload
@@ -335,7 +309,7 @@ class Collection(object):
         """
 
         cb=self.bucket._bucket # type: couchbase.bucket.Bucket
-        return cb.upsert(id,value, **forward_args(*args,**kwargs))
+        return cb.upsert(id, value, **forward_args(*args, **kwargs))
 
     def insert(self, id,  # type: str
                value,  # type: Any

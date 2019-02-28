@@ -11,11 +11,19 @@ class BucketOptions(OptionBlock):
 class Bucket(object):
     _bucket=None  # type: couchbase.bucket.Bucket
 
+    @overload
     def __init__(self,
-                 options  # type: BucketOptions
+                 *options  # type: BucketOptions
+                 ):
+        # type: (...)->None
+        pass
+
+    def __init__(self,
+                 *args,
+                 **kwargs
                 ):
         # type: (...)->None
-        self._bucket=couchbase.bucket.Bucket(**forward_args(options))
+        self._bucket=couchbase.bucket.Bucket(**forward_args(args,kwargs))
 
     def name(self):
         # type: (...)->str

@@ -93,7 +93,7 @@ class GetResult(IGetResult):
         return list(self.content)
 
     @property
-    def contentAs(self):
+    def content_as(self):
         # type: (...)->ContentProxy
         return ContentProxy(self._content)
 
@@ -119,6 +119,9 @@ class GetResult(IGetResult):
         # type: () -> JSONDocument
         return self._content
 
+
+def get_result(self, options, x):
+    return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout', None), id=x.key)
 
 class MutationResult(IMutationResult):
     pass

@@ -29,7 +29,7 @@ set (CMAKE_CXX_STANDARD 11)
 endif ()
 endmacro(use_cxx11)
 
-use_cxx11()
+#use_cxx11()
 
 if ("$PYCBC_USE_CONAN")
     # Download automatically, you can also just copy the conan.cmake file
