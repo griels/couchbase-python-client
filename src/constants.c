@@ -75,7 +75,6 @@
     X(HTTP_METHOD_DELETE)
 
 
-
 #define XSTORAGE(X) \
     X(ADD) \
     X(REPLACE) \
@@ -114,10 +113,12 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
     XHTTP(X);
+#ifdef PYCBC_V4
 #undef X
-#define X(b) handler(module, #b, LCB_STORE_##b);
+#define X(b) handler(module, "LCB_" #b, LCB_STORE_##b);
+#endif
     XSTORAGE(X);
-    #undef X
+#undef X
 
     ADD_MACRO(LCB_MAX_ERROR);
     ADD_MACRO(PYCBC_CMD_GET);
@@ -232,11 +233,10 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
     /* Encryption options */
-#if LCB_VERSION<0x030000
+#ifndef PYCBC_V4
     ADD_MACRO(LCBCRYPTO_KEY_ENCRYPT);
     ADD_MACRO(LCBCRYPTO_KEY_DECRYPT);
 #endif
-
     LCB_CONSTANT(VERSION);
     ADD_MACRO(PYCBC_CRYPTO_VERSION);
 #ifdef PYCBC_TRACING

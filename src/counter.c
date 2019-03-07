@@ -31,8 +31,7 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
 {
     int rv = 0;
     lcb_error_t err;
-    lcb_CMDCOUNTER* cmd;
-    lcb_cmdcounter_create(&cmd);
+    lcb_CMDCOUNTER cmd;
     struct arithmetic_common_vars my_params;
     static char *kwlist[] = { "delta", "initial", "ttl", NULL };
     pycbc_pybuffer keybuf = { 0 };
@@ -77,7 +76,8 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             return -1;
         }
     }
-    lcb_cmdcounter_key(cmd, keybuf.buffer, keybuf.length);
+
+    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
     cmd.delta = my_params.delta;
     cmd.create = my_params.create;
     cmd.initial = my_params.initial;
