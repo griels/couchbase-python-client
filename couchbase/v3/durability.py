@@ -1,5 +1,12 @@
-from couchbase.v3 import OptionBlock
+from couchbase.v3.options import OptionBlock
 
+
+class Value(int):
+    pass
+    # def __init__(self,
+    #             value  # type: Union[str,bytes,SupportsInt]
+    #             ):
+    #    super(Value, self).__init__(value)
 
 class Cardinal(OptionBlock):
     Value = Value
@@ -25,9 +32,3 @@ class Durability(object):
     MajorityAndPersistActive = None
 
 
-class Value(int):
-    pass
-    # def __init__(self,
-    #             value  # type: Union[str,bytes,SupportsInt]
-    #             ):
-    #    super(Value, self).__init__(value)
