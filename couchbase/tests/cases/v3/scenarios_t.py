@@ -54,7 +54,7 @@ class Scenarios(ConnectionTestCase):
 
     def test_scenario_A(self):
         # 1) fetch a full document that is a json document
-        doc = self.coll.get("id", options=GetOptions().timeout(Seconds(10)))
+        doc = self.coll.get("id", GetOptions().timeout(Seconds(10)))
         # 2) Make a modification to the content
         content = doc.content.put("field", "value")
         # 3) replace the document on the server
@@ -107,11 +107,9 @@ class Scenarios(ConnectionTestCase):
 
     def test_mutatein(self):
         self.coll.mutate_in('somekey', (
-            MI.replace('some.path', xattr='_sync'),
-            MI.insert('some.other.path', xattr='_sync', createParents=True), MutateInSpecItem.replace("fish"),
-            MutateInSpecItem.insert("cheese"))
-                            )
-
+            MI.replace('some.path', xattr= '_sync'),
+            MI.insert('some.other.path', xattr= '_sync', createParents=True),MutateInSpecItem.replace("fish"),MutateInSpecItem.insert("cheese"))
+        )
     def test_scenario_C_clientSideDurability(self):
         """
         Scenario C:
@@ -130,6 +128,7 @@ class Scenarios(ConnectionTestCase):
                                                               persist_to=PersistTo.ONE(query=True), cas=0),
                                                  ReplicateTo.TWO, ReplicateTo.TWO, FiniteDuration.time() + 30)
 
+    @staticmethod
     def retry_idempotent_remove_client_side(self,
                                             callback,  # type: Callable[[ReplicateTo.Value],Any]
                                             replicate_to,  # type: ReplicateTo.Value
@@ -181,18 +180,18 @@ class Scenarios(ConnectionTestCase):
                 print("Temporary replica failure, retrying with lower durability {}".format(newReplicateTo))
                 replicate_to = newReplicateTo
 
-    def scenarioC_serverSideDurability(self):
+    def scenario_c_server_side_durability(self):
         # Use a helper wrapper to retry our operation in the face of durability failures
         # remove is idempotent iff the app guarantees that the doc's id won't be reused (e.g. if it's a UUID).  This seems
         # a reasonable restriction.
-        self.retryIdempotentRemoveServerSide(
+        self.retry_idempotent_remove_server_side(
             lambda: self.coll.remove("id", RemoveOptions().durabilityServer(Durability.MajorityAndPersistActive),
                                      cas=0))
-
-    def retryIdempotentRemoveServerSide(self,
-                                        callback,  # type: Callable[None],
-                                        until  # type: FiniteDuration
-                                        ):
+        
+    def retry_idempotent_remove_server_side(self,
+                                            callback,  # type: Callable[None],
+                                            until  # type: FiniteDuration
+                                           ):
         """
           * Automatically retries an idempotent operation in the face of durability failures
           * TODO Should this be folded into the client as a per-operation retry strategy?
@@ -238,20 +237,20 @@ class Scenarios(ConnectionTestCase):
             else:
                 logging.error("could not get doc")
 
-        self.retryOperationOnCASMismatch(respond, guard=50)
+        self.retry_operation_on_cas_mismatch(respond, guard=50)
 
-    def retryOperationOnCASMismatch(self,
-                                    callback,  # type: Callable[[],None]
-                                    guard  # type: int
-                                    ):
-        # type: (...) -> Nones
+    def retry_operation_on_cas_mismatch(self,
+                                        callback,  # type: Callable[[],None]
+                                        guard  # type: int
+                                        ):
+        # type: (...) -> None
         if guard <= 0:
             raise RuntimeError("Failed to perform exception")
 
         try:
             callback()
         except CASMismatchException:
-            self.retryOperationOnCASMismatch(callback, guard - 1)
+            self.retry_operation_on_cas_mismatch(callback, guard - 1)
 
     class UserPartial:
         def __init__(self,

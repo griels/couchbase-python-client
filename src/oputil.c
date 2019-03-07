@@ -404,7 +404,7 @@ pycbc_oputil_iter_multi_Bucket(pycbc_Bucket *self,
     return pycbc_oputil_iter_multi_Collection(coll, seqtype, collection, cv, optype, wrapper, arg, context);
 }
 int
-pycbc_oputil_iter_multi_Collection(pycbc_Collection *self,
+pycbc_oputil_iter_multi_Collection(pycbc_Collection *collectionself,
                         pycbc_seqtype_t seqtype,
                         PyObject *collection,
                         struct pycbc_common_vars *cv,
@@ -446,7 +446,7 @@ pycbc_oputil_iter_multi_Collection(pycbc_Collection *self,
         }
 
 
-        assert(self);
+        assert(collectionself);
         assert(handler.cb);
         rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED(&context,
                                              (handler).cb,
@@ -455,9 +455,9 @@ pycbc_oputil_iter_multi_Collection(pycbc_Collection *self,
                                              NULL,
                                              1,
                                              cv,
-                                             self->bucket,
+                                             collectionself->bucket,
                                              handler.original,
-                                             self,
+                                             collectionself,
                                              cv,
                                              optype,
                                              arg_k,
@@ -775,7 +775,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
-        PYCBC_TRACECMD_PURE((*cmd), context);
+        PYCBC_TRACECMD_PURE(subdoc,(*cmd), context);
 #ifdef PYCBC_TRACING
         newitm->tracing_context = context;
         newitm->is_tracing_stub = 0;
