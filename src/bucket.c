@@ -132,8 +132,10 @@ Bucket_register_crypto_provider(pycbc_Bucket *self, PyObject *args) {
         PYCBC_XDECREF(ctor_args);
         if (named_provider_proxy && !PyErr_Occurred()) {
             PYCBC_INCREF(named_provider_proxy);
+#if PYCBC_LCB_VERSION>=0x030000
             lcbcrypto_register(
                     self->instance, name, named_provider_proxy->lcb_provider);
+#endif
         } else {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             PYCBC_XDECREF(named_provider_proxy);
@@ -151,7 +153,9 @@ Bucket_unregister_crypto_provider(pycbc_Bucket *self, PyObject *args)
         PYCBC_EXCTHROW_ARGS();
         return NULL;
     }
+#if PYCBC_LCB_VERSION>=0x030000
     lcbcrypto_unregister(self->instance, name);
+#endif
     return Py_None;
 }
 
@@ -216,7 +220,8 @@ Bucket_encrypt_fields(pycbc_Bucket *self, PyObject *args)
         cmd.nfields = pycbc_populate_fieldspec(&cmd.fields, fieldspec);
     }
     if (!PyErr_Occurred()) {
-#if PYCBC_CRYPTO_VERSION > 0
+#if PYCBC_CRYPTO_VERSION>1
+#elif PYCBC_CRYPTO_VERSION > 0
         res = lcbcrypto_encrypt_fields(self->instance, &cmd);
 #else
         res = lcbcrypto_encrypt_document(self->instance, &cmd);
@@ -261,7 +266,8 @@ Bucket_decrypt_fields(pycbc_Bucket *self, PyObject *args)
     }
 
     if (!PyErr_Occurred()) {
-#if PYCBC_CRYPTO_VERSION > 0
+#if PYCBC_CRYPTO_VERSION>1
+#elif PYCBC_CRYPTO_VERSION > 0
         cmd.nfields = pycbc_populate_fieldspec(&cmd.fields, fieldspec);
         res = lcbcrypto_decrypt_fields(self->instance, &cmd);
 #else
@@ -529,8 +535,8 @@ Bucket__mutinfo(pycbc_Bucket *self)
         if (mt == NULL) {
             continue;
         }
-        cur = Py_BuildValue("HKK", LCB_MUTATION_TOKEN_VB(mt),
-            LCB_MUTATION_TOKEN_ID(mt), LCB_MUTATION_TOKEN_SEQ(mt));
+        cur = Py_BuildValue("HKK", lcb_mutation_token_vbid(mt),
+            lcb_mutation_token_uuid(mt), lcb_mutation_token_seqno(mt));
         PyList_Append(ll, cur);
         Py_DECREF(cur);
     }
