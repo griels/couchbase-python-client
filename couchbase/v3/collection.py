@@ -1,14 +1,50 @@
 import copy
 import pyrsistent
-from typing import overload
+from typing import *
 
 from couchbase import subdocument as SD
-from couchbase.v3 import OptionBlock, SDK2MutationToken
-from couchbase.v3.result import GetResult, MutationResult
+from couchbase.v3.options import OptionBlock
 from couchbase.v3.durability import ReplicateTo, PersistTo
 from couchbase.v3.bucket import Bucket
-from typing import *
 import couchbase.bucket
+from couchbase.v3.result import *
+from couchbase.v3.mutate_in import *
+
+
+def forward_args(arg_vars, *options):
+    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
+    end_options = options[0] if options and options[0] else OptionBlock()
+    kwargs=arg_vars.pop('kwargs',{})
+    end_options.update(kwargs)
+    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
+                            arg_vars.items() if k != "self"))
+
+    return end_options
+
+
+def mutation_result(func):
+    def mutated(*args,**kwargs):
+        result=func(*args,**kwargs)
+        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+    return mutated
+
+
+def forwarder(func,  # type: Callable[[M1],Any]
+              arg_vars,  # type: Dict[str,Any]
+              options    # type: Dict[str,Any]
+              ):
+    def forwarded(*args,**kwargs):
+        kwargs.update(forward_args(arg_vars, options))
+        return func(*args, **kwargs)
+    return forwarded
+
+
+def mutation_forwarder(func,  # type: Callable[[M1],Any]
+                       arg_vars,  # type: Dict[str,Any]
+                       options,  # type: Dict[str,Any]
+                       ):
+    # type: (...)->Callable[M1,IMutationResult]
+    return mutation_result(forwarder(func, arg_vars, options))
 
 
 class CollectionOptions(OptionBlock):
@@ -123,14 +159,93 @@ class Collection(object):
         # type: (...)->IExistsResult
         pass
 
-    def upsert(self,
-               id,  # type: str
-               value,  # type: Any
-               *options  # type: UpsertOptions
-               ):
-        # type: (...)->IMutationResult
+    @overload
+    def upsert(self, key, value, cas=0, ttl=0, format=None,
+               persist_to=0, replicate_to=0, durability_level=0):
+        # type: (Union[str, bytes], Any, int, int, int, int, int, int) -> IMutationResult
+        """Unconditionally store the object in Couchbase.
+
+        :param key:
+            The key to set the value with. By default, the key must be
+            either a :class:`bytes` or :class:`str` object encodable as
+            UTF-8. If a custom `transcoder` class is used (see
+            :meth:`~__init__`), then the key object is passed directly
+            to the transcoder, which may serialize it how it wishes.
+        :type key: string or bytes
+
+        :param value: The value to set for the key.
+            This should be a native Python value which will be transparently
+            serialized to JSON by the library. Do not pass already-serialized
+            JSON as the value or it will be serialized again.
+
+            If you are using a different `format` setting (see `format`
+            parameter), and/or a custom transcoder then value for this
+            argument may need to conform to different criteria.
+
+        :param int cas: The _CAS_ value to use. If supplied, the value
+            will only be stored if it already exists with the supplied
+            CAS
+
+        :param int ttl: If specified, the key will expire after this
+            many seconds
+
+        :param int format: If specified, indicates the `format` to use
+            when encoding the value. If none is specified, it will use
+            the `default_format` For more info see
+            :attr:`~.default_format`
+
+        :param int persist_to:
+            Perform durability checking on this many nodes nodes for
+            persistence to disk. See :meth:`endure` for more information
+
+        :param int replicate_to: Perform durability checking on this
+            many replicas for presence in memory. See :meth:`endure` for
+            more information.
+
+        :param int durability_level: Durability level
+
+        :raise: :exc:`.ArgumentError` if an argument is supplied that is
+            not applicable in this context. For example setting the CAS
+            as a string.
+        :raise: :exc`.CouchbaseNetworkError`
+        :raise: :exc:`.KeyExistsError` if the key already exists on the
+            server with a different CAS value.
+        :raise: :exc:`.ValueFormatError` if the value cannot be
+            serialized with chosen encoder, e.g. if you try to store a
+            dictionary in plain mode.
+        :return: :class:`~.Result`.
+
+        Simple set::
+
+            cb.upsert('key', 'value')
+
+        Force JSON document format for value::
+
+            cb.upsert('foo', {'bar': 'baz'}, format=couchbase.FMT_JSON)
+
+        Insert JSON from a string::
+
+            JSONstr = '{"key1": "value1", "key2": 123}'
+            JSONobj = json.loads(JSONstr)
+            cb.upsert("documentID", JSONobj, format=couchbase.FMT_JSON)
+
+        Force UTF8 document format for value::
+
+            cb.upsert('foo', "<xml></xml>", format=couchbase.FMT_UTF8)
+
+        Perform optimistic locking by specifying last known CAS version::
+
+            cb.upsert('foo', 'bar', cas=8835713818674332672)
+
+        Several sets at the same time (mutli-set)::
+
+            cb.upsert_multi({'foo': 'bar', 'baz': 'value'})
+
+        .. seealso:: :meth:`upsert_multi`
+        """
         pass
 
+    @mutation_result
     def upsert(self,
                id,  # type: str
                value,  # type: Any
@@ -138,8 +253,89 @@ class Collection(object):
                **kwargs  # type: Any
                ):
         # type: (...)->IMutationResult
+        """Unconditionally store the object in Couchbase.
 
-        pass
+        :param key:
+            The key to set the value with. By default, the key must be
+            either a :class:`bytes` or :class:`str` object encodable as
+            UTF-8. If a custom `transcoder` class is used (see
+            :meth:`~__init__`), then the key object is passed directly
+            to the transcoder, which may serialize it how it wishes.
+        :type key: string or bytes
+
+        :param value: The value to set for the key.
+            This should be a native Python value which will be transparently
+            serialized to JSON by the library. Do not pass already-serialized
+            JSON as the value or it will be serialized again.
+
+            If you are using a different `format` setting (see `format`
+            parameter), and/or a custom transcoder then value for this
+            argument may need to conform to different criteria.
+
+        :param int cas: The _CAS_ value to use. If supplied, the value
+            will only be stored if it already exists with the supplied
+            CAS
+
+        :param int ttl: If specified, the key will expire after this
+            many seconds
+
+        :param int format: If specified, indicates the `format` to use
+            when encoding the value. If none is specified, it will use
+            the `default_format` For more info see
+            :attr:`~.default_format`
+
+        :param int persist_to:
+            Perform durability checking on this many nodes nodes for
+            persistence to disk. See :meth:`endure` for more information
+
+        :param int replicate_to: Perform durability checking on this
+            many replicas for presence in memory. See :meth:`endure` for
+            more information.
+
+        :param int durability_level: Durability level
+
+        :raise: :exc:`.ArgumentError` if an argument is supplied that is
+            not applicable in this context. For example setting the CAS
+            as a string.
+        :raise: :exc`.CouchbaseNetworkError`
+        :raise: :exc:`.KeyExistsError` if the key already exists on the
+            server with a different CAS value.
+        :raise: :exc:`.ValueFormatError` if the value cannot be
+            serialized with chosen encoder, e.g. if you try to store a
+            dictionary in plain mode.
+        :return: :class:`~.Result`.
+
+        Simple set::
+
+            cb.upsert('key', 'value')
+
+        Force JSON document format for value::
+
+            cb.upsert('foo', {'bar': 'baz'}, format=couchbase.FMT_JSON)
+
+        Insert JSON from a string::
+
+            JSONstr = '{"key1": "value1", "key2": 123}'
+            JSONobj = json.loads(JSONstr)
+            cb.upsert("documentID", JSONobj, format=couchbase.FMT_JSON)
+
+        Force UTF8 document format for value::
+
+            cb.upsert('foo', "<xml></xml>", format=couchbase.FMT_UTF8)
+
+        Perform optimistic locking by specifying last known CAS version::
+
+            cb.upsert('foo', 'bar', cas=8835713818674332672)
+
+        Several sets at the same time (mutli-set)::
+
+            cb.upsert_multi({'foo': 'bar', 'baz': 'value'})
+
+        .. seealso:: :meth:`upsert_multi`
+        """
+
+        cb=self.bucket._bucket # type: couchbase.bucket.Bucket
+        return cb.upsert(id,value, **forward_args(*args,**kwargs))
 
     def insert(self, id,  # type: str
                value,  # type: Any
@@ -230,7 +426,6 @@ class Collection(object):
                ):
         pass
 
-    @forwarder
     def append(self,
                id,  # type: str
                value,  # type: str
@@ -238,8 +433,9 @@ class Collection(object):
                **kwargs
                ):
         # type: (...)->IMutationResult
-        forwarder = mutation_forwarder(self.bucket.append, locals(), kwargs)
-        return forwarder(id, None)
+        #forwarder = mutation_forwarder(self.bucket.append, locals(), kwargs)
+        pass
+        #return forwarder(id, None)
 
     @overload
     def prepend(self,
@@ -269,7 +465,8 @@ class Collection(object):
                 **kwargs  # type: Any
                 ):
         # type: (...)->IMutationResult
-        return mutation_forwarder(self.bucket.prepend, locals(), kwargs)(id, None)
+        pass
+        #return mutation_forwarder(self.bucket.prepend, locals(), kwargs)(id, None)
 
     def increment(self,
                   id,  # type: str
@@ -374,39 +571,3 @@ class Scope(type):
         :return:
         """
         pass
-
-
-def forward_args(arg_vars, *options):
-    # type: (Dict[str,Any],Tuple[OptionBlock,...])->OptionDerivative[str,Any]
-    end_options = options[0] if options and options[0] else OptionBlock()
-    kwargs=arg_vars.pop('kwargs',{})
-    end_options.update(kwargs)
-    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
-                            arg_vars.items() if k != "self"))
-
-    return end_options
-
-
-def mutation_result(func):
-    def mutated(*args,**kwargs):
-        result=func(*args,**kwargs)
-        return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
-    return mutated
-
-
-def forwarder(func,  # type: Callable[[M1],Any]
-              arg_vars,  # type: Dict[str,Any]
-              options    # type: Dict[str,Any]
-              ):
-    def forwarded(*args,**kwargs):
-        kwargs.update(forward_args(arg_vars, options))
-        return func(*args, **kwargs)
-    return forwarded
-
-
-def mutation_forwarder(func,  # type: Callable[[M1],Any]
-                       arg_vars,  # type: Dict[str,Any]
-                       options,  # type: Dict[str,Any]
-                       ):
-    # type: (...)->Callable[M1,IMutationResult]
-    return mutation_result(forwarder(func, arg_vars, options))
