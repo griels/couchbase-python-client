@@ -62,8 +62,8 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     if (rv == -1) {
         return -1;
     }
-
-    PYCBC_CMD_SET_COORDS(&u_cmd.base, keybuf.buffer, keybuf.length);
+    PYCBC_CMD_SET_KEY_SCOPE(base,u_cmd.base,keybuf);
+//    PYCBC_CMD_SET_COORDS(&u_cmd.base, keybuf.buffer, keybuf.length);
 
     if (curval && gv->allow_dval && options == NULL) {
         options = curval;
