@@ -195,7 +195,7 @@ void pycbc_exception_log(const char *file,
 #include <libcouchbase/api3.h>
 #include <libcouchbase/views.h>
 #include <libcouchbase/n1ql.h>
-#include <libcouchbase/cbft.h>
+//#include <libcouchbase/cbft.h>
 #include <libcouchbase/ixmgmt.h>
 
 // TODO: fix in libcouchbase
@@ -217,6 +217,11 @@ void pycbc_exception_log(const char *file,
 #if LCB_VERSION < LCB_MIN_VERSION
 #pragma message "Couchbase Python SDK requires libcouchbase " LCB_MIN_VERSION_TEXT " or greater"
 #error "Please upgrade libcouchbase accordingly"
+#endif
+
+#if LCB_VERSION < 0x030000
+#undef LCB_VERSION
+#define LCB_VERSION 0x030000
 #endif
 
 #include <pythread.h>
@@ -491,7 +496,7 @@ enum {
 };
 
 #ifndef PYCBC_V4
-typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
+typedef lcb_DURABILITY_LEVEL pycbc_DURABILITY_LEVEL;
 #else
 typedef lcb_DURABILITY_LEVEL pycbc_DURABILITYLEVEL;
 
@@ -561,7 +566,7 @@ void pycbc_strn_free(pycbc_strn_unmanaged buf);
 #define PYCBC_COLLECTIONS
 #endif
 
-
+typedef lcb_INSTANCE* lcb_t;
 //#endif
 typedef struct {
     PyObject_HEAD
@@ -652,6 +657,8 @@ typedef struct pycbc_coll_res_success{
     lcb_U64 manifest_id;
     lcb_U32 collection_id;
 } pycbc_coll_res_success_t;
+
+typedef lcb_STATUS lcb_error_t;
 
 typedef struct pycbc_coll_res{
     pycbc_coll_res_success_t value;
@@ -1216,6 +1223,8 @@ enum {
     PYCBC_HTTP_HNONE
 };
 
+typedef lcb_HTTP_HANDLE* lcb_http_request_t;
+typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
 typedef struct {
     pycbc_Result_HEAD
     PyObject *http_data;
@@ -2031,7 +2040,9 @@ typedef enum {
 PyObject *pycbc_gen_crypto_exception_map(void);
 
 #ifndef PYCBC_CRYPTO_VERSION
-#if LCB_VERSION > 0x020807
+#if LCB_VERSION >= 0x030000
+#define PYCBC_CRYPTO_VERSION 2
+#elif LCB_VERSION > 0x020807
 #define PYCBC_CRYPTO_VERSION 1
 #else
 #define PYCBC_CRYPTO_VERSION 0
