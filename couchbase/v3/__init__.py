@@ -1,11 +1,10 @@
 import pyrsistent
 from couchbase import JSON
-from couchbase.v3 import IResult
 from couchbase.v3.bucket import Bucket
 from couchbase.v3.mutate_in import *
 from couchbase.v3.exceptions import *
 from couchbase.v3.options import *
-from couchbase.v3.result import IResult
+from couchbase.v3.result import *
 from couchbase.v3.subdoc import *
 from couchbase.v3.result import *
 from couchbase.v3.readspec import *
