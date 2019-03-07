@@ -164,7 +164,6 @@ pip_not_on_win_python_lt_3 = (
     if pip.__version__ >= "9.0.0"
     else [])
 
-
 def cppyy_deps(deps):
     return {"dependency_links": list(map(
         lambda dep: u'https://bitbucket.org/wlav/{}/get/master.tar.bz2'.format(str.lower(dep)), deps))} if "linux" in platform.system().lower() else {
