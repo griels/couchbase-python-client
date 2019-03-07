@@ -1,6 +1,9 @@
 #include "pycbc.h"
 #include "oputil.h"
 #include "structmember.h"
+#if PYCBC_LCB_API >= 0x030100
+#include "libcouchbase/api4.h"
+#endif
 
 static int
 should_call_async(const pycbc_ViewResult *vres, int flush_always)
@@ -120,13 +123,18 @@ parse_row_json(pycbc_Bucket *bucket, pycbc_ViewResult *vres,
 
         docres->key = docid;
         Py_INCREF(docid);
-        docres->rc = rg->rc;
+        docres->rc = lcb_respget_status(rg);
 
-        if (rg->rc == LCB_SUCCESS) {
-            docres->cas = rg->cas;
-            docres->flags = rg->itmflags;
-            rv = pycbc_tc_decode_value(
-                    bucket, rg->value, rg->nvalue, rg->itmflags, &docres->value);
+        if (docres->rc == LCB_SUCCESS) {
+            rv = lcb_respget_cas(rg,&docres->cas);
+            rv = lcb_respget_flags(rg,&docres->flags);
+            {
+                const char* val=NULL;
+                size_t val_len;
+                lcb_respget_value(rg,&val,&val_len);
+                rv = pycbc_tc_decode_value(
+                        bucket, val, val_len, docres->flags, &docres->value);
+            }
             if (rv != 0) {
                 pycbc_multiresult_adderr(mres);
             }
@@ -151,8 +159,8 @@ row_callback(lcb_t instance, int cbtype, const lcb_RESPVIEWQUERY *resp)
     pycbc_ViewResult *vres;
 
     if (resp->htresp != NULL) {
-        hdrs = resp->htresp->headers;
-        htcode = resp->htresp->htstatus;
+        lcb_resphttp_headers(resp->htresp,&hdrs);
+        htcode = lcb_resphttp_status(resp->htresp);
     }
 
     PYCBC_CONN_THR_END(bucket);
@@ -276,6 +284,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 
     vres->rows = PyList_New(0);
     vres->base.format = PYCBC_FMT_JSON;
+#ifndef PYCBC_V4
     PYCBC_TRACECMD_SCOPED(rc,
                           view,
                           query,
@@ -284,6 +293,16 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
                           context,
                           mres,
                           &vcmd);
+#else
+    PYCBC_TRACECMD_SCOPED(rc,
+                          view,
+                          query,
+                          self->instance,
+                          *vcmd.handle,
+                          context,
+                          mres,
+                          &vcmd);
+#endif
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule view");
         goto GT_DONE;

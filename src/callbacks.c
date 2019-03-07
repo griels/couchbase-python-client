@@ -356,6 +356,14 @@ invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
     Py_XDECREF(argtuple);
 }
 
+#ifdef PYCBC_V4
+#define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
+#define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
+#define LCB_MUTATION_TOKEN_ID(p) lcb_mutation_token_uuid(p)
+#define LCB_MUTATION_TOKEN_SEQ(p) lcb_mutation_token_seqno(p)
+#else
+#endif
+
 static void
 dur_chain2(pycbc_Bucket *conn,
     pycbc_MultiResult *mres,
@@ -373,14 +381,15 @@ dur_chain2(pycbc_Bucket *conn,
         const lcb_MUTATION_TOKEN *mutinfo = lcb_resp_get_mutation_token(cbtype, resp);
         Py_XDECREF(res->mutinfo);
 
-        if (mutinfo && lcb_mutation_token_is_valid(mutinfo)) {
+        if (mutinfo && LCB_MUTATION_TOKEN_ISVALID(mutinfo)) {
             /* Create the mutation token tuple: (vb,uuid,seqno) */
             res->mutinfo = Py_BuildValue("HKKO",
-                lcb_mutation_token_vbid(mutinfo),
-                                         lcb_mutation_token_uuid(mutinfo),
-                                         lcb_mutation_token_seqno(mutinfo),
+                LCB_MUTATION_TOKEN_VB(mutinfo),
+                LCB_MUTATION_TOKEN_ID(mutinfo),
+                LCB_MUTATION_TOKEN_SEQ(mutinfo),
                 conn->bucket);
         } else {
+            Py_INCREF(Py_None);
             res->mutinfo = Py_None;
         }
         res->cas = resp->cas;
@@ -500,12 +509,11 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     if (cbtype == LCB_CALLBACK_GET || cbtype == LCB_CALLBACK_GETREPLICA) {
         const lcb_RESPGET *gresp = (const lcb_RESPGET *)resp;
         lcb_U32 eflags;
-
-        lcb_respget_flags(gresp, &res->flags );
+        lcb_respget_flags(gresp,&res->flags);
         if (mres->mropts & PYCBC_MRES_F_FORCEBYTES) {
             eflags = PYCBC_FMT_BYTES;
         } else {
-            eflags = res->flags;
+            lcb_respget_flags(gresp,&eflags);
         }
 
         if (res->value) {
@@ -513,10 +521,10 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
             res->value = NULL;
         }
         {
-            const char* value;
-            size_t value_len;
-            lcb_respget_value(gresp,&value,&value_len);
-            rv = pycbc_tc_decode_value(mres->parent, value, value_len,
+            const char *value = NULL;
+            size_t nvalue = 0;
+            lcb_respget_value(gresp, &value, &nvalue);
+            rv = pycbc_tc_decode_value(mres->parent, value, nvalue,
                                        eflags, &res->value);
         }
         if (rv < 0) {
@@ -524,7 +532,7 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         }
     } else if (cbtype == LCB_CALLBACK_COUNTER) {
         const lcb_RESPCOUNTER *cresp = (const lcb_RESPCOUNTER *)resp;
-        uint64_t value;
+        unsigned  long long value = 0;
         lcb_respcounter_value(cresp, &value);
         res->value = pycbc_IntFromULL(value);
     }
@@ -977,8 +985,8 @@ void pycbc_generic_cb(lcb_t instance,
             res ? res->tracing_context : NULL, "%s callback continues", NAME)
 
     if (rv == 0) {
-        res->rc = lcb_respcounter_status(resp);
-        maybe_push_operr(mres, (pycbc_Result *)res, res->rc, 0);
+        res->rc = resp->rc;
+        maybe_push_operr(mres, (pycbc_Result *)res, resp->rc, 0);
     }
 
     operation_completed_with_err_info(conn,

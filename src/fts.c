@@ -1,31 +1,30 @@
 #include "pycbc.h"
 #include "oputil.h"
 #include "structmember.h"
-#if LCB_VERSION<0x030000
+#ifndef PYCBC_FTS_DISABLED
 #include <libcouchbase/cbft.h>
-#endif
+#define FTS_GETTERS(X)\
+X(fts,lcb_RESPFTS*,cookie,void*)
+
+FTS_GETTERS(PYCBC_SCOPE_GET)
 
 static void
 fts_row_callback(lcb_t instance, int ign, const lcb_RESPFTS *resp)
 {
-    pycbc_MultiResult *mres;
-    lcb_respfts_cookie(resp, (const void **) &mres);
+    pycbc_MultiResult *mres=pycbc_fts_cookie(resp);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
     short htcode = 0;
-    const lcb_RESPHTTP* htresp=NULL;
 
     PYCBC_CONN_THR_END(bucket);
     vres = (pycbc_ViewResult *)PyDict_GetItem((PyObject*)mres, Py_None);
-
-    lcb_respfts_http_response(resp,&htresp);
-    if (htresp) {
-        lcb_resphttp_headers(htresp,&hdrs);
-        htcode = (short) lcb_resphttp_status(htresp);
+    if (resp->htresp) {
+        hdrs = resp->htresp->headers;
+        htcode = resp->htresp->htstatus;
     }
 
-    if (lcb_respfts_is_final(resp)){
+    if (resp->rflags & LCB_RESP_F_FINAL) {
         pycbc_httpresult_add_data(mres, &vres->base, resp->row, resp->nrow);
     } else {
         /* Like views, try to decode the row and invoke the callback; if we can */
@@ -85,7 +84,6 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     cmd.query = buf.buffer;
     cmd.nquery = buf.length;
     cmd.handle = &vres->base.u.fts;
-
     PYCBC_TRACECMD_SCOPED(
             rc, fts, query, self->instance, *cmd.handle, context, mres, &cmd);
     PYCBC_PYBUF_RELEASE(&buf);
@@ -103,3 +101,4 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     pycbc_oputil_conn_unlock(self);
     return ret;
 }
+#endif

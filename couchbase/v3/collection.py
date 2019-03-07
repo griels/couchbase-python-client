@@ -167,7 +167,7 @@ class Collection(object):
                          options=None  # type: GetFromReplicaOptions
                          ):
         # type: (...)->IGetResult
-        pass
+        self.bucket.get()
 
     def touch(self,
               id,  # type: str
