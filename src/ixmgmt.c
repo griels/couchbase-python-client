@@ -26,8 +26,11 @@ mgmt_callback(lcb_t instance, int ign, const lcb_RESPN1XMGMT *resp)
     if (resp->inner) {
         pycbc_httpresult_add_data(mres, &vres->base, resp->inner->row, resp->inner->nrow);
         if (resp->inner->htresp) {
-            hdrs = resp->inner->htresp->headers;
-            htcode = resp->inner->htresp->htstatus;
+
+            lcb_resphttp_headers(resp->inner->htresp,&hdrs);
+            //hdrs = resp->inner->htresp->headers;
+            htcode = lcb_resphttp_status(resp->inner->htresp);
+
         }
     }
     pycbc_httpresult_complete(&vres->base, mres, resp->rc, htcode, NULL);
