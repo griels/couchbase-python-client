@@ -19,7 +19,7 @@
  * This file contains the base header for the Python Couchbase Client
  * @author Mark Nunberg
  */
-#define PYCBC_VERSION 0x030000
+#define PYCBC_LCB_API 0x030000
 #define PYCBC_TRACE_FINISH_SPANS
 #define PYCBC_GLOBAL_SCHED
 #define PYCBC_POSTINCREMENT
@@ -52,6 +52,8 @@ typedef struct pycbc_stack_context_decl *pycbc_stack_context_handle;
 #ifndef  PYCBC_DEBUG
 #ifdef PYCBC_DEBUG_ENABLE
 #define PYCBC_DEBUG
+#else
+//#define PYCBC_DEBUG
 #endif
 #endif
 
@@ -192,10 +194,19 @@ void pycbc_exception_log(const char *file,
 
 #include <Python.h>
 #include <libcouchbase/couchbase.h>
+#define PYCBC_COLLECTIONS
+#if PYCBC_LCB_API>0x030000
+//#define PYCBC_V4
+#endif
+
+#if PYCBC_LCB_API<0x030100
 #include <libcouchbase/api3.h>
+#else
+#include <libcouchbase/api4.h>
+#endif
 #include <libcouchbase/views.h>
 #include <libcouchbase/n1ql.h>
-//#include <libcouchbase/cbft.h>
+#include <libcouchbase/cbft.h>
 #include <libcouchbase/ixmgmt.h>
 
 // TODO: fix in libcouchbase
@@ -219,12 +230,8 @@ void pycbc_exception_log(const char *file,
 #error "Please upgrade libcouchbase accordingly"
 #endif
 
-#if LCB_VERSION < 0x030000
-#undef LCB_VERSION
-#define LCB_VERSION 0x030000
-#endif
-
 #include <pythread.h>
+//#include <libcouchbase/cbft.h>
 #include "mresdict.h"
 
 #define PYCBC_REFCNT_ASSERT pycbc_assert
@@ -495,7 +502,7 @@ enum {
 };
 
 #ifndef PYCBC_V4
-typedef lcb_DURABILITY_LEVEL pycbc_DURABILITY_LEVEL;
+typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
 #else
 typedef lcb_DURABILITY_LEVEL pycbc_DURABILITYLEVEL;
 
@@ -533,11 +540,11 @@ extern pycbc_strn pycbc_invalid_strn;
 extern const char PYCBC_UNKNOWN[];
 #define sizeof_array(X) sizeof(X) / sizeof(X[0])
 
-const char * pycbc_strn_buf(const pycbc_strn buf);
-int pycbc_strn_valid(const pycbc_strn buf);
+const char * pycbc_strn_buf(pycbc_strn buf);
+int pycbc_strn_valid(pycbc_strn buf);
 
-size_t pycbc_strn_len(const pycbc_strn buf);
-int pycbc_strn_repr_len(const pycbc_strn buf);
+size_t pycbc_strn_len(pycbc_strn buf);
+int pycbc_strn_repr_len(pycbc_strn buf);
 
 const char *pycbc_strn_repr_buf(const pycbc_strn buf);
 
@@ -547,7 +554,7 @@ pycbc_strn_unmanaged pycbc_strn_ensure_psz(pycbc_strn *input);
 
 pycbc_strn_unmanaged pycbc_strn_from_managed(PyObject* source);
 
-const char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf);
+char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf);
 
 void pycbc_strn_free(pycbc_strn_unmanaged buf);
 
@@ -560,11 +567,149 @@ void pycbc_strn_free(pycbc_strn_unmanaged buf);
 
 
 
-#if PYCBC_VERSION>=0x030000
-#define PYCBC_COLLECTIONS
-#endif
 
-typedef lcb_INSTANCE* lcb_t;
+#ifdef PYCBC_V4
+#define PYCBC_FTS_DISABLED
+#undef LCB_MUTATION_TOKEN_ISVALID
+    #define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
+#undef LCB_MUTATION_TOKEN_VB
+    #define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
+#undef LCB_MUTATION_TOKEN_ID
+    #define LCB_MUTATION_TOKEN_ID(p) lcb_mutation_token_uuid(p)
+#undef LCB_MUTATION_TOKEN_SEQ
+    #define LCB_MUTATION_TOKEN_SEQ(p) lcb_mutation_token_seqno(p)
+
+    typedef lcb_INSTANCE* lcb_t;
+    typedef lcb_STATUS lcb_error_t;
+    typedef lcb_HTTP_HANDLE* lcb_http_request_t;
+    typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
+#define lcb_get3(INSTANCE,COOKIE,CMD) lcb_get((INSTANCE),(COOKIE),*(CMD))
+#define lcb_touch3(INSTANCE,COOKIE,CMD) lcb_touch((INSTANCE),(COOKIE),*(CMD))
+#define lcb_rget3(INSTANCE,COOKIE,CMD) lcb_getreplica((INSTANCE),(COOKIE),*(CMD))
+#define lcb_counter3(INSTANCE,COOKIE,CMD) lcb_counter((INSTANCE),(COOKIE),*(CMD))
+#define lcb_unlock3(INSTANCE,COOKIE,CMD) lcb_unlock((INSTANCE),(COOKIE),*(CMD))
+#define lcb_remove3(INSTANCE,COOKIE,CMD) lcb_remove((INSTANCE),(COOKIE),*(CMD))
+#define PYCBC_CMD_SET_KEY(TYPE, CMD, BUF, LEN)\
+    lcb_cmd##TYPE##_key((CMD),((const char*)BUF),(LEN))
+#define PYCBC_CMD_SET_VALUE(TYPE, CMD, BUF, LEN)\
+    lcb_cmd##TYPE##_value((CMD),((const char*)BUF),(LEN))
+enum replica_legacy{
+    LCB_REPLICA_FIRST,
+    LCB_REPLICA_SELECT,
+    LCB_REPLICA_ALL
+};
+
+#define lcb_cmdgetreplica_expiration(...)
+#define lcb_cmdendure_cas(...)
+#define lcb_cmdendure_key(cmd, buf, len) LCB_CMD_SET_KEY(((&cmd)),buf, len)
+#define PYCBC_get_ATTR(CMD,attrib,...) lcb_cmdget_##attrib((CMD),__VA_ARGS__);
+#define PYCBC_touch_ATTR(CMD,attrib,...) lcb_cmdtouch_##attrib((CMD),__VA_ARGS__);
+#define PYCBC_getreplica_ATTR(CMD,attrib,...) lcb_cmdgetreplica_##attrib((CMD),__VA_ARGS__);
+#define PYCBC_unlock_ATTR(CMD, attrib,...) lcb_cmdunlock_##attrib(CMD,__VA_ARGS__);
+#define PYCBC_remove_ATTR(CMD, attrib,...) lcb_cmdremove_##attrib(CMD,__VA_ARGS__);
+#define PYCBC_endure_ATTR(CMD, attrib,...) lcb_cmdendure_##attrib(CMD,__VA_ARGS__);
+
+#define CMDSCOPE(UC,LC,...) { lcb_CMD##UC* cmd;\
+    int cmd_fail=0;\
+    cb_cmd##LC##_create(&cmd);\
+    __VA_ARGS__;\
+    GT_##UC##_DONE:
+    lcb_cmd##LC##_destroy(cmd);\
+    if (cmd_done) goto GT_DONE;}
+#define PYCBC_SCOPE_GET(SCOPE,CTXTYPE,ATTRIB,TYPE)\
+TYPE pycbc_##SCOPE##_##ATTRIB(CTXTYPE ctx){\
+    TYPE##_DEFINE(TYPE);\
+    lcb_resp##SCOPE##_##ATTRIB(ctx, TYPE##_USE(TYPE));\
+    return temp;\
+}
+#else
+typedef lcb_error_t lcb_STATUS;
+#define PYCBC_get_ATTR(CMD,attrib,...) CMD->attrib=__VA_ARGS__;
+#define PYCBC_touch_ATTR(CMD,attrib,...) CMD->attrib=__VA_ARGS__;
+#define PYCBC_getreplica_ATTR(CMD,attrib,...) CMD->attrib=__VA_ARGS__;
+#define PYCBC_unlock_ATTR(CMD, attrib,...) CMD->attrib=__VA_ARGS__;
+#define PYCBC_remove_ATTR(CMD, attrib,...) CMD->attrib=__VA_ARGS__;
+#define PYCBC_endure_ATTR(CMD, attrib,...) CMD->attrib=__VA_ARGS__;
+#define CMDSCOPE(UC,LC,...) { lcb_CMD##UC cmd_real={0}; lcb_CMD##UC* cmd=&cmd_real; __VA_ARGS__;}
+#define CMDSCOPE_FAIL(UC) { goto GT_DONE;};
+#define lcb_respget_flags(gresp,dest) *(dest)=(gresp->itmflags)
+#define lcb_respget_value(gresp,buf,len) *buf=gresp->value;*len=gresp->nvalue;
+#define lcb_respcounter_value(cresp, dest) *(dest)=cresp->value;
+#define lcb_respcounter_status(resp) (resp)->rc
+#define lcb_cmdget_expiration(cmd,time) cmd->exptime=time;
+#define lcb_cmdtouch_expiration(cmd,time) cmd->exptime=time;
+#define lcb_cmdrget_expiration(cmd,time) cmd->exptime=time;
+#define lcb_cmdcounter_delta(cmd, x) (cmd)->delta=x;
+#define lcb_cmdcounter_initial(cmd, x) (cmd)->initial=x;
+#define lcb_cmdcounter_expiration(cmd, x) (cmd)->exptime=x
+#define lcb_cmdstore_flags(CMD, VAL) cmd->flags=VAL;
+
+#define lcb_resphttp_headers(htresp,dest) *(dest)= htresp->headers
+#define lcb_resphttp_status(htresp) htresp->rc
+#define lcb_cmdgetreplica_create_all(ptr) (*(ptr))->strategy=LCB_REPLICA_ALL
+#define lcb_cmdgetreplica_create_select(ptr, INDEX) (*(ptr))->strategy=LCB_REPLICA_SELECT; (*(ptr))->index=INDEX;
+#define lcb_cmdgetreplica_create_first(ptr) (*(ptr))->strategy=LCB_REPLICA_FIRST
+#define lcb_http_cancel(instance, req) lcb_cancel_http_request(instance,req)
+#define pycbc_resphttp_cookie(resp,type,target) (*((type*)(target)))=resp->cookie;
+#define lcb_resphttp_http_status(resp, statusptr) *(statusptr)=resp->rc
+#define lcb_resphttp_body(resp, bodybuffer, bodylength) *(bodybuffer)=resp->body; (*bodylength)=resp->nbody;
+#define lcb_cmdhttp_host(CMD, HOST, NHOST) htcmd->host=HOST; DUMMY(htcmd->nhost=NHOST);
+#define lcb_cmdhttp_body(HTCMD, BODY, NBODY) HTCMD->body=BODY; HTCMD->nbody=NBODY;
+#define lcb_cmdhttp_content_type(HTCMD, CTYPE, CTYPELEN) htcmd->content_type=CTYPE; DUMMY(htcmd->ncontent_type=CTYPELEN;)
+#define lcb_cmdhttp_method(HTCMD, METHOD) HTCMD->method=METHOD;
+#define lcb_cmdhttp_handle(HTCMD, HANDLE) HTCMD->reqhandle=HANDLE;
+#define pycbc_http(...) lcb_http3(__VA_ARGS__)
+#define lcb_respget_status(RG) RG->rc
+#define lcb_respget_cas(RG,DEST) *(DEST)=RG->cas
+
+enum {
+#define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X=LCB_##X
+#define ALL_ENUMS(X) X(APPEND),X(PREPEND),X(SET),X(ADD),X(REPLACE)
+    ALL_ENUMS(PYCBC_BACKPORT_STORE)
+};
+
+#define PYCBC_CMD_SET_KEY_SCOPE(SCOPE,CMD,KEY)\
+        PYCBC_DEBUG_LOG("Setting key %.*s",(KEY).length, (KEY).buffer)\
+        LCB_CMD_SET_KEY(&CMD,(KEY).buffer, (KEY).length)
+
+#define PYCBC_CMD_SET_VALUE_SCOPE(SCOPE,CMD,KEY)\
+        PYCBC_DEBUG_LOG("Setting value %.*s",(KEY).length, (KEY).buffer)\
+        LCB_CMD_SET_VALUE(&CMD,(KEY).buffer, (KEY).length)
+
+#define PYCBC_SCOPE_GET(SCOPE,CTXTYPE,ATTRIB,TYPE)\
+TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx){\
+    return ctx->ATTRIB;\
+}
+
+#define PYCBC_SCOPE_SET(SCOPE,CTXTYPE,ATTRIB,MEMBER,TYPE) \
+lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value){\
+    ctx->MEMBER=value;\
+    return LCB_SUCCESS;\
+    }
+
+
+#endif
+//typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
+
+#ifdef PYCBC_V4_BACKPORT
+#define ACCESSORS(X)\
+    X(respget,itmflags,flags)
+
+#define PYCBC_STRUCT_ACC(prefix.structname,accname,...)\
+lcb_error_t lcb_##prefix##_accname(__VA_ARGS__){}
+#define lcb_respget_flags(gresp) (gresp->itmflags)
+lcb_respget_value
+
+#endif
+typedef lcb_CMDBASE* pycbc_CMDBASE;
+typedef lcb_CMDGET* pycbc_CMDGET;
+typedef lcb_CMDTOUCH* pycbc_CMDTOUCH;
+typedef lcb_CMDGETREPLICA* pycbc_CMDGETREPLICA;
+typedef lcb_CMDREMOVE* pycbc_CMDREMOVE;
+typedef lcb_CMDUNLOCK* pycbc_CMDUNLOCK;
+typedef lcb_CMDENDURE* pycbc_CMDENDURE;
+typedef lcb_CMDHTTP* pycbc_CMDHTTP;
+typedef lcb_CMDSTORE* pycbc_CMDSTORE;
 //#endif
 typedef struct {
     PyObject_HEAD
@@ -656,16 +801,14 @@ typedef struct pycbc_coll_res_success{
     lcb_U32 collection_id;
 } pycbc_coll_res_success_t;
 
-typedef lcb_STATUS lcb_error_t;
-
 typedef struct pycbc_coll_res{
     pycbc_coll_res_success_t value;
     lcb_error_t err;
 } pycbc_coll_res_t;
-
+/*
 lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_coll_res_t *result);
 pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *collection);
-
+*/
 #ifdef PYCBC_NATIVE_COLLECTIONS
 pycbc_Unit pycbc_Bucket_init_collection(pycbc_Collection* bucket, PyObject* args, PyObject* kwargs){
     return bucket;
@@ -676,15 +819,6 @@ pycbc_Collection* pycbc_Bucket_init_collection(pycbc_Bucket* bucket, PyObject* a
 #define PYCBC_COLLECTION_XARGS(X)\
     X("collection",&collection,"O")
 #endif
-
-#define PYCBC_CMD_SET_COORDS(cmd, keybuf, keylen) \
-        LCB_CMD_SET_KEY(cmd, keybuf, keylen);\
-        {\
-            pycbc_coll_res_t result=pycbc_Collection_get_cid(collection);\
-            if (!result.err){\
-                (cmd)->cid=result.value.collection_id;\
-            }\
-        }
 
 #ifdef PYCBC_TRACING
 void *pycbc_capsule_value_or_null(PyObject *capsule, const char *capsule_name);
@@ -921,29 +1055,62 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
     PYCBC_TRACER_START_SPAN(                                                   \
             TRACER, KWARGS, CATEGORY, 0, NULL, LCBTRACE_REF_NONE, NAME)
 
-#define PYCBC_TRACECMD_PURE(CMD, CONTEXT)                          \
+#ifndef PYCBC_V4
+#define PYCBC_CMD_SET_TRACESPAN(TYPE,CMD,SPAN)\
+LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
+
+#else
+#define lcb_cmdsubdoc_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
+#define lcb_cmdobserve_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
+#define lcb_cmdview_parent_span(CMD, ...)
+    //lcb_view_set_parent_span(CMD, __VA_ARGS__);
+#define lcb_cmdn1ql_parent_span(CMD, ...)
+//    lcb_n1ql_set_parent_span(CMD, __VA_ARGS__);
+#define lcb_cmdendure_parent_span(CMD, ...) LCB_CMD_SET_TRACESPAN(&(CMD), __VA_ARGS__);
+#define lcb_cmdstats_create(CMD) (*(CMD))=lcb_cmdstats_alloc();
+#define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
+#define PYCBC_CMD_SET_TRACESPAN(TYPE,CMD,SPAN)\
+    lcb_cmd##TYPE##_parent_span((CMD),(SPAN));
+#endif
+
+
+#ifndef PYCBC_V4
+#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
+    lcb_##SCOPE##_set_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#else
+#if PYCBC_LCB_API<0x030000
+#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT)
+#else
+#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
+    lcb_cmd##SCOPE##_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#endif
+#endif
+
+#ifndef PYCBC_V4
+#define PYCBC_LOG_KEY(CMD,key)\
+PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
+                            (int)(CMD).key.contig.nbytes,          \
+                            (const char *)(CMD).key.contig.bytes);
+#else
+#define PYCBC_LOG_KEY(key)
+#endif
+
+#define PYCBC_TRACECMD_PURE(TYPE,CMD, CONTEXT)                          \
     {                                                              \
         if (PYCBC_CHECK_CONTEXT(CONTEXT)) {                        \
-            PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
-                            (int)(CMD).key.contig.nbytes,          \
-                            (const char *)(CMD).key.contig.bytes); \
-            LCB_CMD_SET_TRACESPAN(&(CMD), (CONTEXT)->span);        \
+            PYCBC_LOG_KEY(CMD,key)\
+            PYCBC_CMD_SET_TRACESPAN(TYPE,(CMD), (CONTEXT)->span);        \
         } else {                                                   \
             PYCBC_EXCEPTION_LOG_NOCLEAR;                           \
         }                                                          \
     }
-
-#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
-    lcb_##SCOPE##_set_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
 
 #define PYCBC_TRACECMD_SCOPED_GENERIC(                               \
         RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, OPERAND, ...) \
     if (PYCBC_CHECK_CONTEXT(CONTEXT)) {                              \
         OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT);                   \
     }                                                                \
-    RV = lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);             \
-    if (RV) {                                                        \
-    }
+    RV = lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
 
 #define PYCBC_TRACECMD_SCOPED(                              \
         RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...) \
@@ -956,9 +1123,17 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
                                   GENERIC_OPERAND,          \
                                   __VA_ARGS__)
 
-#define PYCBC_TRACECMD(CMD, CONTEXT, MRES, CURKEY, BUCKET) \
-    PYCBC_TRACECMD_PURE(CMD, CONTEXT);                     \
+//#ifndef PYCBC_V4
+#define PYCBC_TRACECMD_TYPED(TYPE,CMD, CONTEXT, MRES, CURKEY, BUCKET) \
+    PYCBC_TRACECMD_PURE(TYPE,CMD, CONTEXT);                     \
     pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
+#define PYCBC_TRACECMD(CMD, CONTEXT, MRES, CURKEY, BUCKET) \
+    PYCBC_TRACECMD_PURE(,CMD, CONTEXT);                     \
+    pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
+
+    //#else
+//#define PYCBC_TRACECMD(CMD, CONTEXT, MRES, CURKEY, BUCKET)
+//#endif
 
 #define PYCBC_TRACE_POP_CONTEXT(CONTEXT) PYCBC_CONTEXT_DEREF((CONTEXT), 1);
 
@@ -1221,8 +1396,6 @@ enum {
     PYCBC_HTTP_HNONE
 };
 
-typedef lcb_HTTP_HANDLE* lcb_http_request_t;
-typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
 typedef struct {
     pycbc_Result_HEAD
     PyObject *http_data;
@@ -1683,6 +1856,16 @@ pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
                           const void *bytes, size_t nbytes);
 
 /**
+ * Append data to the HTTP result
+ * @param mres The multi result
+ * @param htres The HTTP result
+ * @param strn the data as a pycbc_strn_unmanaged
+ *
+ */
+void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
+                                    pycbc_strn_unmanaged strn);
+
+/**
  * Signal completion of an HTTP result.
  *
  * @param htres The HTTP result (Python)
@@ -2038,9 +2221,7 @@ typedef enum {
 PyObject *pycbc_gen_crypto_exception_map(void);
 
 #ifndef PYCBC_CRYPTO_VERSION
-#if LCB_VERSION >= 0x030000
-#define PYCBC_CRYPTO_VERSION 2
-#elif LCB_VERSION > 0x020807
+#if LCB_VERSION > 0x020807
 #define PYCBC_CRYPTO_VERSION 1
 #else
 #define PYCBC_CRYPTO_VERSION 0
