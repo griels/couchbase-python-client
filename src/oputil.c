@@ -775,7 +775,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
-        PYCBC_TRACECMD_PURE((*cmd), context);
+        PYCBC_TRACECMD_PURE(subdoc,(*cmd), context);
 #ifdef PYCBC_TRACING
         newitm->tracing_context = context;
         newitm->is_tracing_stub = 0;

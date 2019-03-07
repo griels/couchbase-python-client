@@ -2,7 +2,9 @@
 #include "oputil.h"
 #include "structmember.h"
 #include <libcouchbase/n1ql.h>
-
+#if PYCBC_LCB_API>=0x030100
+#include "libcouchbase/api4.h"
+#endif
 static void
 n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
 {
@@ -16,8 +18,8 @@ n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
     vres = (pycbc_ViewResult *)PyDict_GetItem((PyObject*)mres, Py_None);
 
     if (resp->htresp) {
-        hdrs = resp->htresp->headers;
-        htcode = resp->htresp->htstatus;
+        lcb_resphttp_headers(resp->htresp, &hdrs);
+        htcode=lcb_resphttp_status(resp->htresp);
     }
 
     if (resp->rflags & LCB_RESP_F_FINAL) {

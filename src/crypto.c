@@ -157,12 +157,6 @@ PyObject *pycbc_convert_lcbcrypto_SIGV(const lcbcrypto_SIGV *sigv) {
     const pycbc_crypto_buf buf = {sigv->data, sigv->len};
     return pycbc_convert_uint8_t(buf);
 }
-#if PYCBC_CRYPTO_VERSION<2
-PyObject* pycbc_convert_lcbcrypto_KEYTYPE(const lcbcrypto_KEYTYPE type)
-{
-    return PyLong_FromLong(type);
-}
-#endif
 
 PyObject* pycbc_convert_char_p(const char* string)
 {
@@ -224,6 +218,12 @@ pycbc_crypto_buf pycbc_gen_buf(const uint8_t *data, size_t len)
     PARAM_PASSTHRU(uint8_t**, subject) PARAM_PASSTHRU(size_t*, subject_len)
 #define PYCBC_VER_SIGN_TYPES(PARAM, PARAM_P, PARAM_L, PARAM_CSTRN, PARAM_CSTRN_TRIM_NEWLINE, PARAM_PASSTHRU) PARAM_L(lcbcrypto_SIGV,inputs)\
     PARAM_CSTRN(uint8_t, subject)
+#define PYCBC_V0_ENCRYPT_TYPES(PARAM, PARAM_P, PARAM_L, PARAM_CSTRN, PARAM_CSTRN_TRIM_NEWLINE, PARAM_PASSTHRU)\
+    PARAM_CSTRN_TRIM_NEWLINE(const uint8_t,input) PARAM_CSTRN(const uint8_t, key) PARAM_CSTRN(const uint8_t,iv)\
+    PARAM_PASSTHRU(uint8_t**, subject) PARAM_PASSTHRU(size_t*, subject_len)
+#define PYCBC_V0_DECRYPT_TYPES(PARAM, PARAM_P, PARAM_L, PARAM_CSTRN, PARAM_CSTRN_TRIM_NEWLINE, PARAM_PASSTHRU)\
+    PARAM_CSTRN(const uint8_t,input) PARAM_CSTRN(const uint8_t, key) PARAM_CSTRN(const uint8_t,iv)\
+    PARAM_PASSTHRU(uint8_t**, subject) PARAM_PASSTHRU(size_t*, subject_len)
 
 #define PYCBC_V1_ENCRYPT_TYPES(PARAM, PARAM_P, PARAM_L, PARAM_CSTRN, PARAM_CSTRN_TRIM_NEWLINE, PARAM_PASSTHRU)\
     PARAM_CSTRN_TRIM_NEWLINE(const uint8_t,input) PARAM_CSTRN(const uint8_t,iv)\
@@ -272,7 +272,28 @@ lcb_error_t lcb_error_t_ERRVALUE = LCB_GENERIC_TMPERR;
       PYCBC_VER_SIGN_TYPES,                      \
       EXC(PYCBC_CRYPTO_ERROR))
 
+#define PYCBC_X_V0_ONLY_CRYPTO_METHODS(X) \
+    X(lcb_error_t,                        \
+      v0,                                 \
+      load_key,                           \
+      PYCBC_CSTRNDUP_WRAPPER,             \
+      PYCBC_LOAD_KEY_TYPES,               \
+      EXC(PYCBC_CRYPTO_ERROR))            \
+    X(lcb_error_t,                        \
+      v0,                                 \
+      encrypt,                            \
+      PYCBC_CSTRNDUP_WRAPPER,             \
+      PYCBC_V0_ENCRYPT_TYPES)             \
+    X(lcb_error_t,                        \
+      v0,                                 \
+      decrypt,                            \
+      PYCBC_CSTRNDUP_WRAPPER,             \
+      PYCBC_V0_DECRYPT_TYPES,             \
+      EXC(PYCBC_CRYPTO_ERROR))
 
+#define PYCBC_X_V0_CRYPTO_METHODS(X)\
+PYCBC_X_V0_ONLY_CRYPTO_METHODS(X)\
+PYCBC_X_COMMON_CRYPTO_METHODS(X)
 
 #define PYCBC_X_V1_ONLY_CRYPTO_METHODS(X)        \
     X(lcb_error_t,                               \
@@ -297,8 +318,6 @@ lcb_error_t lcb_error_t_ERRVALUE = LCB_GENERIC_TMPERR;
 #define PYCBC_X_V1_CRYPTO_METHODS(X)\
 PYCBC_X_V1_ONLY_CRYPTO_METHODS(X)\
 PYCBC_X_COMMON_CRYPTO_METHODS(X)
-
-#define PYCBC_X_V2_CRYPTO_METHODS(X)
 
 #define PYCBC_X_ALL_CRYPTO_FUNCTIONS(X) \
     PYCBC_X_COMMON_CRYPTO_METHODS(X)    \
@@ -381,8 +400,8 @@ void pycbc_exc_wrap_obj(pycbc_NamedCryptoProvider *named_crypto_provider,
 #define PYCBC_CRYPTO_VVERSION v1
 #define PYCBC_CRYPTO_METHODS(X) PYCBC_X_V1_CRYPTO_METHODS(X)
 #else
-#define PYCBC_CRYPTO_VVERSION v2
-#define PYCBC_CRYPTO_METHODS(X) PYCBC_X_V2_CRYPTO_METHODS(X)
+#define PYCBC_CRYPTO_VVERSION v0
+#define PYCBC_CRYPTO_METHODS(X) PYCBC_X_V0_CRYPTO_METHODS(X)
 #endif
 
 #define PYCBC_WRAP_CRYPTO_EXCEPTION(provider, code, ...) \

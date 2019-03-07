@@ -40,16 +40,15 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     lcb_uint64_t cas = 0;
     lcb_error_t err;
 
-    union {
-        lcb_CMDBASE base;
-        lcb_CMDREMOVE rm;
-        lcb_CMDUNLOCK unl;
-        lcb_CMDENDURE endure;
-    } ucmd;
+/*    union {
+//        pycbc_CMDBASE base;
+        pycbc_CMDREMOVE rm;
+        pycbc_CMDUNLOCK unl;
+        pycbc_CMDENDURE endure;
+    } u_cmd;*/
 
     (void)options; (void)arg;
 
-    memset(&ucmd, 0, sizeof ucmd);
 
     if ( (optype == PYCBC_CMD_UNLOCK || optype == PYCBC_CMD_ENDURE)
             && PYCBC_OPRES_CHECK(curkey)) {
@@ -88,9 +87,12 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             goto GT_DONE;
         }
     }
+#define COMMON_OPTS(CMD,X,NAME,CMDNAME)\
+    X((CMD),cas,cas)\
+    PYCBC_CMD_SET_KEY_SCOPE(UNLOCK,(*CMD),keybuf)\
+    PYCBC_TRACECMD(CMDNAME,*(CMD), context, cv->mres, curkey, self);
 
-    LCB_CMD_SET_KEY(&ucmd.base, keybuf.buffer, keybuf.length);
-    ucmd.base.cas = cas;
+//    u_cmd.base.cas = cas;
 
     if (optype == PYCBC_CMD_UNLOCK) {
         if (!cas) {
@@ -98,14 +100,35 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             rv = -1;
             goto GT_DONE;
         }
-        PYCBC_TRACECMD(ucmd.unl, context, cv->mres, curkey, self);
-        err = lcb_unlock3(self->instance, cv->mres, &ucmd.unl);
+        {
+#ifdef PYCBC_V4
+            lcb_CMDUNLOCK* cmd=NULL;
+            lcb_cmdunlock_create(&cmd);
+#else
+            lcb_CMDUNLOCK cmd_real={0};
+            lcb_CMDUNLOCK *cmd = &cmd_real;
+#endif
 
+            COMMON_OPTS(cmd, PYCBC_unlock_ATTR, unl, unlock);
+            err = lcb_unlock3(self->instance, cv->mres, cmd);
+#ifdef PYCBC_V4
+      lcb_cmdunlock_destory(cmd);
+#endif
+        }
     } else if (optype == PYCBC_CMD_ENDURE) {
-        err = cv->mctx->addcmd(cv->mctx, &ucmd.base);
+        lcb_CMDBASE cmd_real = {0};
+        lcb_CMDBASE* cmd=&cmd_real;
+        //COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
+        COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
+        LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
+
+        err = cv->mctx->addcmd(cv->mctx, cmd);
     } else {
-        PYCBC_TRACECMD(ucmd.rm,context, cv->mres, curkey, self);
-        err = lcb_remove3(self->instance, cv->mres, &ucmd.rm);
+
+        CMDSCOPE(REMOVE,remove,
+            COMMON_OPTS(cmd,PYCBC_remove_ATTR, rm, remove);
+            err = lcb_remove3(self->instance, cv->mres, cmd);
+        )
     }
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -117,6 +140,7 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     GT_DONE:
         PYCBC_PYBUF_RELEASE(&keybuf);
         return rv;
+#undef COMMON_OPTS
 }
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
@@ -324,7 +348,6 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     PyObject *keys = NULL, *is_keystats = NULL;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     static char *kwlist[] = {  "keys", "keystats", NULL };
-    lcb_CMDSTATS cmd = { 0 };
 
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, "|OO", kwlist,
         &keys, &is_keystats);
@@ -350,32 +373,32 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     if (rv < 0) {
         return NULL;
     }
+    CMDSCOPE(STATS,stats,
+        if (keys) {
+            for (ii =0; ii < ncmds; ii++) {
+                char *key;
+                Py_ssize_t nkey;
+                PyObject *newkey = NULL;
 
-    if (keys) {
-        for (ii =0; ii < ncmds; ii++) {
-            char *key;
-            Py_ssize_t nkey;
-            PyObject *newkey = NULL;
+                PyObject *curkey = PySequence_GetItem(keys, ii);
+                rv = pycbc_BufFromString(curkey, &key, &nkey, &newkey);
+                if (rv < 0) {
+                    PYCBC_EXC_WRAP_KEY(PYCBC_EXC_ARGUMENTS, 0, "bad key type in stats", curkey);
+                    goto GT_DONE;
+                }
 
-            PyObject *curkey = PySequence_GetItem(keys, ii);
-            rv = pycbc_BufFromString(curkey, &key, &nkey, &newkey);
-            if (rv < 0) {
-                PYCBC_EXC_WRAP_KEY(PYCBC_EXC_ARGUMENTS, 0, "bad key type in stats", curkey);
-                goto GT_DONE;
+                LCB_CMD_SET_KEY(cmd, key, nkey);
+                if (is_keystats && PyObject_IsTrue(is_keystats)) {
+                    cmd->cmdflags |= LCB_CMDSTATS_F_KV;
+                }
+                err = lcb_stats3(self->instance, cv.mres, cmd);
+                Py_XDECREF(newkey);
             }
 
-            LCB_CMD_SET_KEY(&cmd, key, nkey);
-            if (is_keystats && PyObject_IsTrue(is_keystats)) {
-                cmd.cmdflags |= LCB_CMDSTATS_F_KV;
-            }
-            err = lcb_stats3(self->instance, cv.mres, &cmd);
-            Py_XDECREF(newkey);
+        } else {
+            err = lcb_stats3(self->instance, cv.mres, cmd);
         }
-
-    } else {
-        err = lcb_stats3(self->instance, cv.mres, &cmd);
-    }
-
+    )
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
