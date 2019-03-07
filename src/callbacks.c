@@ -15,7 +15,6 @@
  **/
 
 #include <libcouchbase/api3.h>
-#include <libcouchbase/couchbase.h>
 #include "pycbc.h"
 
 #define CB_THREADS

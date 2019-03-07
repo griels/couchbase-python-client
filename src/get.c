@@ -34,19 +34,6 @@ struct getcmd_vars_st {
     } u;
 };
 
-
-#define GET_ATTRIBS(X) \
-X(get, lcb_CMDGET*, locktime, exptime, int)\
-
-lcb_STATUS lcb_cmdget_key(lcb_CMDBASE* ctx, pycbc_pybuffer* buf) {
-    LCB_CMD_SET_KEY(ctx,buf->buffer, buf->length);
-    return LCB_SUCCESS;
-}
-
-#define DUMMY(X...)
-
-GET_ATTRIBS(DUMMY)
-GET_ATTRIBS(PYCBC_SCOPE_SET)
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
                 handle_single_key, pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
@@ -60,15 +47,23 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
     lcb_error_t err = LCB_SUCCESS;
     pycbc_pybuffer keybuf = { NULL };
 
+    union {
+        lcb_CMDBASE base;
+        lcb_CMDGET get;
+        lcb_CMDTOUCH touch;
+        lcb_CMDGETREPLICA rget;
+    } u_cmd;
+
     PYCBC_DEBUG_LOG_CONTEXT(context,"Started processing")
+    memset(&u_cmd, 0, sizeof u_cmd);
     (void)itm;
 
-    PYCBC_DEBUG_LOG_CONTEXT(context,"Encoding")
     rv = pycbc_tc_encode_key(self, curkey, &keybuf);
-    PYCBC_DEBUG_LOG_CONTEXT(context,"Encoded")
     if (rv == -1) {
         return -1;
     }
+    PYCBC_CMD_SET_KEY_SCOPE(base,u_cmd.base,keybuf);
+//    PYCBC_CMD_SET_COORDS(&u_cmd.base, keybuf.buffer, keybuf.length);
 
     if (curval && gv->allow_dval && options == NULL) {
         options = curval;
@@ -108,11 +103,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
             goto GT_DONE;
         }
     }
-#define COMMON_OPTS(X,NAME,CMDNAME)\
-    lcb_cmd##NAME##_expiration(cmd,ttl);\
-    PYCBC_CMD_SET_KEY_SCOPE(NAME,*cmd,keybuf)\
-    PYCBC_TRACECMD(CMDNAME,*cmd, context, cv->mres, curkey, self);
-
+    u_cmd.base.exptime = ttl;
     switch (optype) {
         case PYCBC_CMD_GAT:
             if (!ttl) {
@@ -133,60 +124,25 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
         case PYCBC_CMD_GET:
         GT_GET:
-        {
-#ifndef PYCBC_V4
-            lcb_CMDGET cmd_real={0};
-            lcb_CMDGET* cmd=&cmd_real;
-#else
-            lcb_CMDGET* cmd=NULL;
-            lcb_cmdget_create(&cmd);
-#endif
-            lcb_cmdget_locktime(cmd, lock);
-            COMMON_OPTS(PYCBC_get_ATTR, get, get);
-            err = lcb_get3(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
-             lcb_cmdget_destroy(cmd);
-#endif
-        }
-        break;
+            u_cmd.get.lock = lock;
+
+            PYCBC_TRACECMD(u_cmd.get, context, cv->mres, curkey, self);
+            err = lcb_get3(self->instance, cv->mres, &u_cmd.get);
+            break;
 
         case PYCBC_CMD_TOUCH:
-            CMDSCOPE(TOUCH,touch,
-                    COMMON_OPTS(PYCBC_touch_ATTR,touch,touch);
-                    err = lcb_touch3(self->instance, cv->mres, cmd);
-            )
+            u_cmd.touch.exptime = ttl;
+            PYCBC_TRACECMD(u_cmd.touch, context, cv->mres, curkey, self);
+            err = lcb_touch3(self->instance, cv->mres, &u_cmd.touch);
             break;
 
         case PYCBC_CMD_GETREPLICA:
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL:
-        {
-#ifdef PYCBC_V4
-            lcb_CMDGETREPLICA* cmd=NULL;
-#else
-            lcb_CMDGETREPLICA cmd_real={0};
-            lcb_CMDGETREPLICA* cmd=&cmd_real;
-#endif
-            switch(gv->u.replica.strategy)
-            {
-                case LCB_REPLICA_ALL:
-                    lcb_cmdgetreplica_create_all(&cmd);
-                    break;
-                case LCB_REPLICA_FIRST:
-                    lcb_cmdgetreplica_create_first(&cmd);
-                    break;
-                case LCB_REPLICA_SELECT:
-                    lcb_cmdgetreplica_create_select(&cmd, gv->u.replica.index);
-                    break;
-                default:
-                    break;
-            }
-            COMMON_OPTS(PYCBC_getreplica_ATTR,rget,getreplica);
-            err = lcb_rget3(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
-            lcb_cmdgetreplica_destroy(cmd);
-#endif
-        }
+            u_cmd.rget.strategy = gv->u.replica.strategy;
+            u_cmd.rget.index = gv->u.replica.index;
+            PYCBC_TRACECMD(u_cmd.rget, context, cv->mres, curkey, self);
+            err = lcb_rget3(self->instance, cv->mres, &u_cmd.rget);
             break;
         default:
             err = LCB_ERROR;
@@ -210,7 +166,6 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 
     return rv;
 }
-
 
 static int
 handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica_O)
@@ -278,7 +233,6 @@ get_common(pycbc_Bucket *self, PyObject *args, PyObject *kwargs, int optype,
         &kobj, &ttl_O, &is_quiet, &replica_O, &nofmt_O);
 #undef PYCBC_TARGET
 #undef X
-
     pycbc_Collection* unit=pycbc_Bucket_init_collection(self, args, kwargs);
 
     if (!rv) {
@@ -422,12 +376,7 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     void *arg)
 {
     pycbc_pybuffer keybuf = { NULL };
-#ifdef PYCBC_V4
-    lcb_CMDSUBDOC* cmd = lcb_cmdsubdoc_alloc();
-#else
-    lcb_CMDSUBDOC cmd_real ={0};
-    lcb_CMDSUBDOC* cmd = &cmd_real;
-#endif
+    lcb_CMDSUBDOC cmd = { 0 };
     int rv = 0;
 
     if (itm) {
@@ -438,13 +387,9 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
         return -1;
     }
 
-    LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
-    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, cmd);
+    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
+    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, &cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
-#ifdef PYCBC_V4
-    lcb_cmdsubdoc_dispose(cmd);
-#endif
-
     return rv;
 }
 

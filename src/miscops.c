@@ -90,7 +90,7 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 #define COMMON_OPTS(CMD,X,NAME,CMDNAME)\
     X((CMD),cas,cas)\
     PYCBC_CMD_SET_KEY_SCOPE(UNLOCK,(*CMD),keybuf)\
-    PYCBC_TRACECMD(CMDNAME,*(CMD), context, cv->mres, curkey, self);
+    PYCBC_TRACECMD_TYPED(CMDNAME,*(CMD), context, cv->mres, curkey, self);
 
 //    u_cmd.base.cas = cas;
 

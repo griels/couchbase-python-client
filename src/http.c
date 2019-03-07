@@ -16,7 +16,6 @@
 
 #include "pycbc.h"
 #include "oputil.h"
-//#include "../cmake-build-release/libcouchbase_src-prefix/src/libcouchbase_src/src/oldstructs.h"
 
 static void
 get_headers(pycbc_HttpResult *htres, const char * const *headers)
@@ -39,19 +38,12 @@ void
 pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
                           const void *bytes, size_t nbytes)
 {
-    pycbc_httpresult_add_data_strn(mres, htres,
-                                   (pycbc_strn_unmanaged) {.content={.buffer=(char*)bytes, .length=nbytes}});
-
-}
-
-void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
-                                    const pycbc_strn_unmanaged strn)
-{
     PyObject *newbuf;
-    if (!pycbc_strn_len(strn.content)) {
+    if (!nbytes) {
         return;
     }
-    newbuf = PyBytes_FromStringAndSize(strn.content.buffer, strn.content.length);
+
+    newbuf = PyBytes_FromStringAndSize(bytes, nbytes);
     if (htres->http_data) {
         PyObject *old_s = htres->http_data;
         PyBytes_ConcatAndDel(&htres->http_data, newbuf);
@@ -65,7 +57,8 @@ void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *h
     }
 }
 
-static void decode_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres)
+static void
+decode_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres)
 {
     int rv;
     lcb_U32 format = htres->format;
@@ -178,25 +171,15 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     pycbc_HttpResult *htres;
     const lcb_RESPHTTP *resp = (const lcb_RESPHTTP *)rb;
 
-    pycbc_resphttp_cookie(resp,pycbc_MultiResult*,(void*)&mres);
+    mres = (pycbc_MultiResult *)resp->cookie;
     bucket = mres->parent;
     PYCBC_CONN_THR_END(bucket);
 
     htres = (pycbc_HttpResult*)PyDict_GetItem((PyObject*)mres, Py_None);
     PYCBC_DEBUG_LOG_CONTEXT(htres ? htres->tracing_context : NULL,
                             "HTTP callback")
-    {
-        pycbc_strn_unmanaged body;
-        uint16_t http_status;
-        const char * const *headers;
-        lcb_resphttp_http_status(resp, &http_status);
-        lcb_resphttp_headers(resp,&headers);
-        lcb_resphttp_body(resp,(const char**)&body.content.buffer,&body.content.length);
-
-        pycbc_httpresult_add_data_strn(mres, htres, body);
-
-        pycbc_httpresult_complete(htres, mres, lcb_resphttp_status(resp), http_status, headers );
-    }
+    pycbc_httpresult_add_data(mres, htres, resp->body, resp->nbody);
+    pycbc_httpresult_complete(htres, mres, resp->rc, resp->htstatus, resp->headers);
 
     /* CONN_THR_BEGIN called by httpresult_complete() */
     (void)instance; (void)cbtype;
@@ -216,6 +199,9 @@ pycbc_http_callbacks_init(lcb_t instance)
     pycbc_views_callbacks_init(instance);
 }
 
+size_t pycbc_strlen_safe(const char* x){
+    return x?strlen(x):0;
+}
 PyObject *
 pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
@@ -287,21 +273,22 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         htcmd->type=reqtype;
 #endif
         PYCBC_DEBUG_LOG("Encoding host [%s]",host?host:"")
-        if (host && strlen(host)) {
-            lcb_cmdhttp_host(htcmd, host, strlen(host));
+#define PYCBC_BYPASS_SAFETY 1
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(host)) {
+            lcb_cmdhttp_host(htcmd, host, pycbc_strlen_safe(host));
         }
         PYCBC_DEBUG_LOG("Encoding path [%s]",path?path:"")
-        if (path && strlen(path)) {
-            lcb_cmdhttp_path(htcmd, path, strlen(path));
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(path)) {
+            lcb_cmdhttp_path(htcmd, path, pycbc_strlen_safe(path));
         }
-        if (body && nbody){
+        if (PYCBC_BYPASS_SAFETY || (body && nbody)){
             PYCBC_DEBUG_LOG("Encoding body [%.*s]",nbody,body?body:"")
 
             lcb_cmdhttp_body(htcmd, body, (size_t) nbody);
         }
-        if (content_type && strlen(content_type)){
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(content_type)){
             PYCBC_DEBUG_LOG("Encoding content_type [%.*s]",content_type,content_type?content_type:"")
-            lcb_cmdhttp_content_type(htcmd, content_type, strlen(content_type));
+            lcb_cmdhttp_content_type(htcmd, content_type, pycbc_strlen_safe(content_type));
         }
         lcb_cmdhttp_method(htcmd, method);
         lcb_cmdhttp_handle(htcmd, &htres->u.htreq);

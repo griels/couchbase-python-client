@@ -18,10 +18,8 @@
 #include "oputil.h"
 #include "pycbc.h"
 
-typedef lcb_storage_t lcb_STORE_OPERATION;
 struct storecmd_vars {
-
-    lcb_STORE_OPERATION operation;
+    int operation;
     int argopts;
     unsigned int sd_doc_flags;
     unsigned long ttl;
@@ -78,13 +76,13 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
         }
 
         if (frag_O == NULL) {
-            if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
+            if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
                 PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "append/prepend must provide options with 'fragment' specifier");
                 return -1;
             }
 
         } else {
-            if (scv->operation != LCB_STORE_APPEND && scv->operation != LCB_STORE_PREPEND) {
+            if (scv->operation != LCB_APPEND && scv->operation != LCB_PREPEND) {
                 PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "'fragment' only valid for append/prepend");
                 return -1;
             }
@@ -93,7 +91,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
         }
 
     } else {
-        if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
+        if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "append/prepend must provide options with 'fragment' specifier");
             return -1;
         }
@@ -153,7 +151,8 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     struct single_key_context skc = {NULL};
     pycbc_pybuffer keybuf = {NULL}, valbuf = {NULL};
     lcb_error_t err;
-    lcb_U32 flags;
+    lcb_CMDSTORE cmd = {0};
+
     if (scv->argopts & PYCBC_ARGOPT_SDMULTI) {
         return PYCBC_TRACE_WRAP(handle_multi_mutate, NULL, self, cv, optype, curkey, curvalue, options, itm, arg);
     }
@@ -177,53 +176,28 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     }
 
     rv = pycbc_tc_encode_value(self, skc.value, skc.flagsobj,
-                               &valbuf, &flags);
+                               &valbuf, &cmd.flags);
     if (rv < 0) {
         rv = -1;
         goto GT_DONE;
     }
-    {
-#ifdef PYCBC_V4
-        lcb_CMDSTORE* cmd;
-        lcb_cmdstore_create(&cmd, scv->operation);
 
-#else
-        lcb_CMDSTORE cmd_real = {0};
-        lcb_CMDSTORE *cmd = &cmd_real;
-#endif
-        if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
-            /* The server ignores these flags and libcouchbase will throw an error
-             * if the flags are present. We check elsewhere here to ensure that
-             * only UTF8/BYTES are accepted for append/prepend anyway */
-            lcb_cmdstore_flags(cmd,0);
-        }
-
-#ifdef PYCBC_V4
-PYCBC_CMD_SET_KEY(store, cmd, keybuf.buffer, keybuf.length);
-        PYCBC_CMD_SET_VALUE(store, cmd, valbuf.buffer, valbuf.length);
-lcb_cmdstore_flags(cmd,flags);
-                lcb_cmdstore_cas(cmd,skc.cas);
-        lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
-                lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
-
-#else
-        PYCBC_CMD_SET_KEY_SCOPE(store,*cmd, keybuf);
-        PYCBC_CMD_SET_VALUE_SCOPE(store,*cmd, valbuf);
-#define PYCBC_ASSIGN(LHS,RHS) PYCBC_DEBUG_LOG_CONTEXT(context, "Assigning %s (%d) to %s", #RHS, RHS, #LHS); LHS=RHS;
-        PYCBC_ASSIGN(cmd->flags,flags);
-        PYCBC_ASSIGN(cmd->cas,skc.cas);
-        PYCBC_ASSIGN(cmd->operation,(lcb_storage_t) scv->operation);
-        PYCBC_ASSIGN(cmd->exptime, (lcb_U32) skc.ttl);
-#endif
-
-
-        PYCBC_TRACECMD(store, *cmd, context, cv->mres, curkey, self);
-
-        err = lcb_store3(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
-        lcb_cmdstore_destroy(cmd);
-#endif
+    if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
+        /* The server ignores these flags and libcouchbase will throw an error
+         * if the flags are present. We check elsewhere here to ensure that
+         * only UTF8/BYTES are accepted for append/prepend anyway */
+        cmd.flags = 0;
     }
+
+    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
+    LCB_CMD_SET_VALUE(&cmd, valbuf.buffer, valbuf.length);
+    cmd.cas = skc.cas;
+    cmd.operation = (lcb_storage_t) scv->operation;
+    cmd.exptime = skc.ttl;
+    PYCBC_TRACECMD(cmd, context, cv->mres, curkey, self);
+
+    err = lcb_store3(self->instance, cv->mres, &cmd);
+
     PYCBC_DEBUG_LOG_CONTEXT(context, "got result %d", err)
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -339,7 +313,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         ncmds = 1;
     }
 
-    if (operation == LCB_STORE_APPEND || operation == LCB_STORE_PREPEND) {
+    if (operation == LCB_APPEND || operation == LCB_PREPEND) {
         rv = handle_append_flags(self, &scv.flagsobj);
         if (rv < 0) {
             return NULL;
@@ -416,18 +390,18 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         return result;\
 }
 
-DECLFUNC(upsert_multi, LCB_STORE_SET, PYCBC_ARGOPT_MULTI)
-DECLFUNC(insert_multi, LCB_STORE_ADD, PYCBC_ARGOPT_MULTI)
-DECLFUNC(replace_multi, LCB_STORE_REPLACE, PYCBC_ARGOPT_MULTI)
+DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)
+DECLFUNC(insert_multi, LCB_ADD, PYCBC_ARGOPT_MULTI)
+DECLFUNC(replace_multi, LCB_REPLACE, PYCBC_ARGOPT_MULTI)
 
-DECLFUNC(append_multi, LCB_STORE_APPEND, PYCBC_ARGOPT_MULTI)
-DECLFUNC(prepend_multi, LCB_STORE_PREPEND, PYCBC_ARGOPT_MULTI)
+DECLFUNC(append_multi, LCB_APPEND, PYCBC_ARGOPT_MULTI)
+DECLFUNC(prepend_multi, LCB_PREPEND, PYCBC_ARGOPT_MULTI)
 
-DECLFUNC(upsert, LCB_STORE_SET, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(insert, LCB_STORE_ADD, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(replace, LCB_STORE_REPLACE, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(upsert, LCB_SET, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(insert, LCB_ADD, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(replace, LCB_REPLACE, PYCBC_ARGOPT_SINGLE)
 
-DECLFUNC(append, LCB_STORE_APPEND, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(prepend, LCB_STORE_PREPEND, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(append, LCB_APPEND, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)

@@ -583,7 +583,7 @@ pycbc_strn_unmanaged pycbc_strn_ensure_psz(pycbc_strn *input)
 pycbc_strn_unmanaged pycbc_strn_from_managed(PyObject* source)
 {
     size_t length = 0;
-    const char* buffer = source?(PYCBC_CSTRN(source,&length)):NULL;
+    const char* buffer = (source && PyObject_IsTrue(source))?(PYCBC_CSTRN(source,&length)):NULL;
     pycbc_strn original={.buffer=(char*)buffer,.length=length};
 
     return pycbc_strn_ensure_psz_unmanaged(&original);

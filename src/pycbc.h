@@ -53,7 +53,7 @@ typedef struct pycbc_stack_context_decl *pycbc_stack_context_handle;
 #ifdef PYCBC_DEBUG_ENABLE
 #define PYCBC_DEBUG
 #else
-#define PYCBC_DEBUG
+//#define PYCBC_DEBUG
 #endif
 #endif
 
@@ -194,8 +194,8 @@ void pycbc_exception_log(const char *file,
 
 #include <Python.h>
 #include <libcouchbase/couchbase.h>
-#if PYCBC_LCB_API>0x030000
 #define PYCBC_COLLECTIONS
+#if PYCBC_LCB_API>0x030000
 //#define PYCBC_V4
 #endif
 
@@ -806,10 +806,10 @@ typedef struct pycbc_coll_res{
     pycbc_coll_res_success_t value;
     lcb_error_t err;
 } pycbc_coll_res_t;
-
+/*
 lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_coll_res_t *result);
 pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *collection);
-
+*/
 #ifdef PYCBC_NATIVE_COLLECTIONS
 pycbc_Unit pycbc_Bucket_init_collection(pycbc_Collection* bucket, PyObject* args, PyObject* kwargs){
     return bucket;
@@ -1125,10 +1125,14 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
                                   __VA_ARGS__)
 
 //#ifndef PYCBC_V4
-#define PYCBC_TRACECMD(TYPE,CMD, CONTEXT, MRES, CURKEY, BUCKET) \
+#define PYCBC_TRACECMD_TYPED(TYPE,CMD, CONTEXT, MRES, CURKEY, BUCKET) \
     PYCBC_TRACECMD_PURE(TYPE,CMD, CONTEXT);                     \
     pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
-//#else
+#define PYCBC_TRACECMD(CMD, CONTEXT, MRES, CURKEY, BUCKET) \
+    PYCBC_TRACECMD_PURE(,CMD, CONTEXT);                     \
+    pycbc_MultiResult_init_context(MRES, CURKEY, CONTEXT, BUCKET);
+
+    //#else
 //#define PYCBC_TRACECMD(CMD, CONTEXT, MRES, CURKEY, BUCKET)
 //#endif
 
