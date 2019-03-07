@@ -47,6 +47,7 @@ if cppyy_build:
     except:
         pass
 
+
 def set_json_converters(encode, decode):
     """
     Modify the default JSON conversion functions. This affects all
