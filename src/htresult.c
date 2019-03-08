@@ -16,6 +16,7 @@
 
 #include "pycbc.h"
 #include "structmember.h"
+#include "pycbc_http.h"
 
 int
 pycbc_httpresult_ok(pycbc_HttpResult *self)
