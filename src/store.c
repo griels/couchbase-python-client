@@ -200,16 +200,13 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
             lcb_cmdstore_flags(cmd,0);
         }
 
+        PYCBC_CMD_SET_KEY_SCOPE(store,cmd, keybuf);
+        PYCBC_CMD_SET_VALUE_SCOPE(store,cmd, valbuf);
 #ifdef PYCBC_V4
-        lcb_cmdstore_key(cmd,keybuf.buffer, keybuf.length);
-        lcb_cmdstore_value(cmd, valbuf.buffer, valbuf.length);
         lcb_cmdstore_flags(cmd,flags);
         lcb_cmdstore_cas(cmd,skc.cas);
         lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
-        lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
 #else
-        PYCBC_CMD_SET_KEY_SCOPE(store,*cmd, keybuf);
-        PYCBC_CMD_SET_VALUE_SCOPE(store,*cmd, valbuf);
 #define PYCBC_ASSIGN(LHS,RHS) PYCBC_DEBUG_LOG_CONTEXT(context, "Assigning %s (%d) to %s", #RHS, RHS, #LHS); LHS=RHS;
         PYCBC_ASSIGN(cmd->cas,skc.cas);
         PYCBC_ASSIGN(cmd->operation,(lcb_storage_t) scv->operation);
@@ -217,9 +214,8 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
 #endif
 
 
-        PYCBC_TRACECMD_TYPED(store, *cmd, context, cv->mres, curkey, self);
-
-        err = lcb_store3(self->instance, cv->mres, cmd);
+        PYCBC_TRACECMD_TYPED(store, cmd, context, cv->mres, curkey, self);
+        err = pycbc_store(self->instance, cv->mres, cmd);
 #ifdef PYCBC_V4
         lcb_cmdstore_destroy(cmd);
 #endif
