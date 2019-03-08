@@ -16,6 +16,7 @@
 
 #include "pycbc.h"
 #include "oputil.h"
+#include "pycbc_http.h"
 
 static void
 get_headers(pycbc_HttpResult *htres, const char * const *headers)
@@ -33,24 +34,14 @@ get_headers(pycbc_HttpResult *htres, const char * const *headers)
         Py_DECREF(hval);
     }
 }
-
-void
-pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
-                          const void *bytes, size_t nbytes)
-{
-    pycbc_httpresult_add_data_strn(mres, htres,
-                                   (pycbc_strn_unmanaged) {.content={.buffer=(char*)bytes, .length=nbytes}});
-
-}
-
 void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
-                                    const pycbc_strn_unmanaged strn)
+                                    pycbc_strn_base_const strn)
 {
     PyObject *newbuf;
-    if (!pycbc_strn_len(strn.content)) {
+    if (!pycbc_strn_len(strn)) {
         return;
     }
-    newbuf = PyBytes_FromStringAndSize(strn.content.buffer, strn.content.length);
+    newbuf = PyBytes_FromStringAndSize(strn.buffer, strn.length);
     if (htres->http_data) {
         PyObject *old_s = htres->http_data;
         PyBytes_ConcatAndDel(&htres->http_data, newbuf);
@@ -63,6 +54,16 @@ void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *h
         htres->http_data = newbuf;
     }
 }
+
+void
+pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
+                          const void *bytes, size_t nbytes)
+{
+    pycbc_httpresult_add_data_strn(mres, htres,
+                                   (pycbc_strn_base_const) {.buffer=(char*)bytes, .length=nbytes});
+
+}
+
 
 static void decode_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres)
 {
@@ -185,14 +186,16 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     PYCBC_DEBUG_LOG_CONTEXT(htres ? htres->tracing_context : NULL,
                             "HTTP callback")
     {
-        pycbc_strn_unmanaged body={.content={0}};
+        pycbc_strn_base_const body={0};
+        uint16_t http_status=LCB_SUCCESS;
         const char * const *headers=NULL;
+        lcb_resphttp_http_status(resp, &http_status);
         lcb_resphttp_headers(resp,&headers);
-        lcb_resphttp_body(resp,(const char**)&body.content.buffer,&body.content.length);
+        lcb_resphttp_body(resp,&body.buffer,&body.length);
 
         pycbc_httpresult_add_data_strn(mres, htres, body);
 
-        pycbc_httpresult_complete(htres, mres, lcb_resphttp_status(resp),lcb_resphttp_http_status(resp), headers );
+        pycbc_httpresult_complete(htres, mres, lcb_resphttp_status(resp), http_status, headers );
     }
 
     /* CONN_THR_BEGIN called by httpresult_complete() */
@@ -261,8 +264,6 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 
     if (self->pipeline_queue) {
         PYCBC_EXC_WRAP(PYCBC_EXC_PIPELINE, 0,
-
-
                        "HTTP/View Requests cannot be executed in "
                        "pipeline context");
         goto GT_DONE;
