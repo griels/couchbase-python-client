@@ -140,7 +140,6 @@ parse_row_json(pycbc_Bucket *bucket, pycbc_ViewResult *vres,
 
     const char *doc_id = NULL;
     size_t doc_id_len;
-#define lcb_respview_doc_id(RESP,DOCID,NDOCID) *(DOCID)=(RESP)->docid; *(NDOCID)=(RESP)->ndocid;
     lcb_respview_doc_id(resp, &doc_id, &doc_id_len);
     if (doc_id_len) {
         rv = pycbc_tc_decode_key(bucket, doc_id, doc_id_len, &docid);
@@ -352,6 +351,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
         PYCBC_TRACECMD_SCOPED_NULL(rc,
                                    view,
                                    self->instance,
+                                   vcmd,
                                    *vcmd.handle,
                                    context,
                                    mres,
