@@ -540,9 +540,14 @@ int pycbc_strn_valid(const pycbc_strn buf)
     return buf.buffer ? 1 : 0;
 }
 
-size_t pycbc_strn_len(const pycbc_strn buf)
+size_t pycbc_strn_len(pycbc_strn_base_const buf)
 {
     return buf.length;
+}
+
+pycbc_strn_base_const pycbc_strn_const(pycbc_strn buf)
+{
+    return (pycbc_strn_base_const){buf.buffer,buf.length};
 }
 
 int pycbc_strn_repr_len(const pycbc_strn buf)
@@ -599,6 +604,10 @@ void pycbc_strn_free(pycbc_strn_unmanaged buf)
     free((void*)buf.content.buffer);
 }
 
+pycbc_generic_array pycbc_strn_base_const_array(pycbc_strn_base_const orig)
+{
+    return (pycbc_generic_array){orig.buffer,orig.length};
+}
 #define PYCBC_STRN_FREE(BUF)                            \
     PYCBC_DEBUG_LOG("Freeing string buffer %.*s at %p", \
                     (int)(BUF).content.length,               \
@@ -796,6 +805,13 @@ void pycbc_exception_log(const char *file,
     }
 }
 #endif
+
+int pycbc_debug_info_is_valid(pycbc_debug_info* info)
+{
+    return info && info->FILE && info->FUNC && info->LINE;
+}
+
+
 void pycbc_print_pyformat(const char *format, ...)
 {
     va_list v1;
@@ -1268,13 +1284,13 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
         const char *COMPONENTNAME,
         const char *CATEGORY,
         PyObject *KWARGS,
-        pycbc_Bucket *self)
+        pycbc_Tracer_t *tracer)
 {
     return pycbc_logging_monad(FILE,
                                LINE,
                                FUNCTION,
                                COMPONENTNAME,
-                               PYCBC_TRACER_START_SPAN(self->tracer,
+                               PYCBC_TRACER_START_SPAN(tracer,
                                                        KWARGS,
                                                        CATEGORY,
                                                        0,
@@ -1716,6 +1732,13 @@ void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_uint64_t parenti_id)
     PyDict_SetItem(dict, keystr, pULL);
     PYCBC_DECREF(pULL);
 }
+
+void pycbc_set_kv_ull_str(PyObject *dict, const char *keystr, lcb_uint64_t parenti_id) {
+    PyObject *keyobj = pycbc_SimpleStringZ(keystr);
+    pycbc_set_kv_ull(dict, keyobj, parenti_id);
+    PYCBC_DECREF(keyobj);
+}
+
 #define PYCBC_TYPE_DEF(NAME, DOC, ...) \
     PyTypeObject pycbc_##NAME##Type = {PYCBC_POBJ_HEAD_INIT(NULL) 0};
 
@@ -1938,7 +1961,7 @@ pycbc_strn_unmanaged pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *
     PYCBC_DEBUG_LOG("Looking for tagname %s from %p, got something: [%.*s]",
                     tagname,
                     span,
-                    (int)pycbc_strn_len(tag_contents),
+                    (int)pycbc_strn_len(pycbc_strn_const(tag_contents)),
                     pycbc_strn_buf(tag_contents));
     return tag_psz;
 }
