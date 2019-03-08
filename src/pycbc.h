@@ -645,15 +645,15 @@ typedef lcb_error_t lcb_STATUS;
 #define lcb_cmdcounter_expiration(cmd, x) (cmd)->exptime=x
 #define lcb_cmdstore_flags(CMD, VAL) cmd->flags=VAL;
 
-#define lcb_resphttp_headers(htresp,dest) *(dest)= htresp->headers
-#define lcb_resphttp_status(htresp) htresp->rc
 #define lcb_cmdgetreplica_create_all(ptr) (*(ptr))->strategy=LCB_REPLICA_ALL
 #define lcb_cmdgetreplica_create_select(ptr, INDEX) (*(ptr))->strategy=LCB_REPLICA_SELECT; (*(ptr))->index=INDEX;
 #define lcb_cmdgetreplica_create_first(ptr) (*(ptr))->strategy=LCB_REPLICA_FIRST
+#define lcb_resphttp_headers(htresp,dest) *(dest)= htresp->headers
+#define lcb_resphttp_status(htresp) htresp->rc
+#define lcb_resphttp_http_status(resp) resp->htstatus
+#define lcb_resphttp_body(resp, bodybuffer, bodylength) *(bodybuffer)=resp->body; (*bodylength)=resp->nbody;
 #define lcb_http_cancel(instance, req) lcb_cancel_http_request(instance,req)
 #define pycbc_resphttp_cookie(resp,type,target) (*((type*)(target)))=resp->cookie;
-#define lcb_resphttp_http_status(resp, statusptr) *(statusptr)=resp->rc
-#define lcb_resphttp_body(resp, bodybuffer, bodylength) *(bodybuffer)=resp->body; (*bodylength)=resp->nbody;
 #define lcb_cmdhttp_host(CMD, HOST, NHOST) htcmd->host=HOST; DUMMY(htcmd->nhost=NHOST);
 #define lcb_cmdhttp_body(HTCMD, BODY, NBODY) HTCMD->body=BODY; HTCMD->nbody=NBODY;
 #define lcb_cmdhttp_content_type(HTCMD, CTYPE, CTYPELEN) htcmd->content_type=CTYPE; DUMMY(htcmd->ncontent_type=CTYPELEN;)
