@@ -19,7 +19,7 @@
  * This file contains the base header for the Python Couchbase Client
  * @author Mark Nunberg
  */
-#define PYCBC_LCB_API 0x030000
+#define PYCBC_LCB_API 0x030100
 #define PYCBC_TRACE_FINISH_SPANS
 #define PYCBC_GLOBAL_SCHED
 #define PYCBC_POSTINCREMENT
@@ -206,11 +206,12 @@ void pycbc_exception_log(const char *file,
 #endif
 #endif
 
+#ifndef PYCBC_V4
 #include <libcouchbase/views.h>
 #include <libcouchbase/n1ql.h>
 //#include <libcouchbase/cbft.h>
 #include <libcouchbase/ixmgmt.h>
-
+#endif
 // TODO: fix in libcouchbase
 #ifdef _WIN32
 //#if _MSC_VER >= 1600
@@ -505,7 +506,7 @@ enum {
 #ifndef PYCBC_V4
 typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
 #else
-typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
+typedef lcb_DURABILITY_LEVEL pycbc_DURABILITY_LEVEL;
 
 #endif
 typedef struct {
@@ -609,12 +610,13 @@ typedef const lcb_RESPGET* pycbc_RESPGET;
     typedef lcb_STATUS lcb_error_t;
     typedef lcb_HTTP_HANDLE* lcb_http_request_t;
     typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
-#define lcb_get3(INSTANCE,COOKIE,CMD) lcb_get((INSTANCE),(COOKIE),*(CMD))
-#define lcb_touch3(INSTANCE,COOKIE,CMD) lcb_touch((INSTANCE),(COOKIE),*(CMD))
-#define lcb_rget3(INSTANCE,COOKIE,CMD) lcb_getreplica((INSTANCE),(COOKIE),*(CMD))
-#define lcb_counter3(INSTANCE,COOKIE,CMD) lcb_counter((INSTANCE),(COOKIE),*(CMD))
-#define lcb_unlock3(INSTANCE,COOKIE,CMD) lcb_unlock((INSTANCE),(COOKIE),*(CMD))
-#define lcb_remove3(INSTANCE,COOKIE,CMD) lcb_remove((INSTANCE),(COOKIE),*(CMD))
+#define pycbc_get(INSTANCE,COOKIE,CMD) lcb_get((INSTANCE),(COOKIE),(CMD))
+#define pycbc_touch(INSTANCE,COOKIE,CMD) lcb_touch((INSTANCE),(COOKIE),(CMD))
+#define pycbc_rget(INSTANCE,COOKIE,CMD) lcb_getreplica((INSTANCE),(COOKIE),(CMD))
+#define pycbc_counter(INSTANCE,COOKIE,CMD) lcb_counter((INSTANCE),(COOKIE),(CMD))
+#define pycbc_unlock(INSTANCE,COOKIE,CMD) lcb_unlock((INSTANCE),(COOKIE),(CMD))
+#define pycbc_remove(INSTANCE,COOKIE,CMD) lcb_remove((INSTANCE),(COOKIE),(CMD))
+#define pycbc_store lcb_store
 #define PYCBC_CMD_SET_KEY(TYPE, CMD, BUF, LEN)\
     lcb_cmd##TYPE##_key((CMD),((const char*)BUF),(LEN))
 #define PYCBC_CMD_SET_VALUE(TYPE, CMD, BUF, LEN)\
@@ -625,21 +627,23 @@ enum replica_legacy{
     LCB_REPLICA_ALL
 };
 
-#define lcb_cmdgetreplica_expiration(...)
-#define lcb_cmdendure_cas(...)
-#define lcb_cmdendure_key(cmd, buf, len) LCB_CMD_SET_KEY(((&cmd)),buf, len)
+#define lcb_cmdgetreplica_expiration(CMD, TTL)
+#define lcb_cmdendure_cas(CMD, CAS) (CMD)->cas=CAS
+#define lcb_cmdendure_key(cmd, buf, len) LCB_CMD_SET_KEY(((cmd)),buf, len)
 #define PYCBC_get_ATTR(CMD,attrib,...) lcb_cmdget_##attrib((CMD),__VA_ARGS__);
 #define PYCBC_touch_ATTR(CMD,attrib,...) lcb_cmdtouch_##attrib((CMD),__VA_ARGS__);
 #define PYCBC_getreplica_ATTR(CMD,attrib,...) lcb_cmdgetreplica_##attrib((CMD),__VA_ARGS__);
 #define PYCBC_unlock_ATTR(CMD, attrib,...) lcb_cmdunlock_##attrib(CMD,__VA_ARGS__);
 #define PYCBC_remove_ATTR(CMD, attrib,...) lcb_cmdremove_##attrib(CMD,__VA_ARGS__);
 #define PYCBC_endure_ATTR(CMD, attrib,...) lcb_cmdendure_##attrib(CMD,__VA_ARGS__);
+#define CMDSCOPE_FAIL(UC) cmd_done=1; goto GT_##UC##_DONE;
+#define pycbc_http(INSTANCE, MRES, HTCMD) lcb_http(INSTANCE,MRES, HTCMD)
 
-#define CMDSCOPE(UC,LC,...) { lcb_CMD##UC* cmd;\
-    int cmd_fail=0;\
-    cb_cmd##LC##_create(&cmd);\
-    __VA_ARGS__;\
-    GT_##UC##_DONE:
+#define CMDSCOPE(UC,LC,...) { lcb_CMD##UC* cmd=NULL;\
+    int cmd_done=0;\
+    lcb_cmd##LC##_create(&cmd);\
+    __VA_ARGS__; goto GT_##UC##_DONE;\
+    GT_##UC##_DONE:\
     lcb_cmd##LC##_destroy(cmd);\
     if (cmd_done) goto GT_DONE;}
 #define PYCBC_SCOPE_GET(SCOPE,CTXTYPE,ATTRIB,TYPE)\
@@ -648,6 +652,15 @@ TYPE pycbc_##SCOPE##_##ATTRIB(CTXTYPE ctx){\
     lcb_resp##SCOPE##_##ATTRIB(ctx, TYPE##_USE(TYPE));\
     return temp;\
 }
+
+#define PYCBC_CMD_SET_KEY_SCOPE(SCOPE,CMD,KEY)\
+        PYCBC_DEBUG_LOG("Setting key %.*s",(KEY).length, (KEY).buffer)\
+        lcb_cmd##SCOPE##_key(CMD,(KEY).buffer, (KEY).length)
+
+#define PYCBC_CMD_SET_VALUE_SCOPE(SCOPE,CMD,KEY)\
+        PYCBC_DEBUG_LOG("Setting value %.*s",(KEY).length, (KEY).buffer)\
+        lcb_cmd##SCOPE##_value(CMD,(KEY).buffer, (KEY).length)
+
 #else
 typedef lcb_error_t lcb_STATUS;
 #define PYCBC_get_ATTR(CMD,attrib,...) CMD->attrib=__VA_ARGS__;
@@ -693,6 +706,7 @@ typedef lcb_error_t lcb_STATUS;
 #define lcb_respview_key(CTX,DEST,NDEST) *(DEST)=(CTX)->key; *(NDEST)=(CTX)->nkey;
 #define lcb_respview_geometry(CTX,DEST,NDEST) *(DEST)=(CTX)->geometry; *(NDEST)=(CTX)->ngeometry;
 #define lcb_respview_row(CTX,DEST,NDEST) *(DEST)=(CTX)->value; *(NDEST)=(CTX)->nvalue;
+#define lcb_respview_doc_id(RESP,DOCID,NDOCID) *(DOCID)=(RESP)->docid; *(NDOCID)=(RESP)->ndocid;
 
 
 #define lcb_http_cancel(instance, req) lcb_cancel_http_request(instance,req)
@@ -1139,11 +1153,11 @@ LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
 #define LCB_CMDVIEWQUERY_F_SPATIAL (1 << 18)
 #define lcb_cmdsubdoc_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
 #define lcb_cmdobserve_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
-#define lcb_cmdview_parent_span(CMD, ...)
+//#define lcb_cmdview_parent_span(CMD, ...)
     //lcb_view_set_parent_span(CMD, __VA_ARGS__);
-#define lcb_cmdn1ql_parent_span(CMD, ...)
+//#define lcb_cmdn1ql_parent_span(CMD, ...)
 //    lcb_n1ql_set_parent_span(CMD, __VA_ARGS__);
-#define lcb_cmdendure_parent_span(CMD, ...) LCB_CMD_SET_TRACESPAN(&(CMD), __VA_ARGS__);
+#define lcb_cmdendure_parent_span(CMD, ...) LCB_CMD_SET_TRACESPAN((CMD), __VA_ARGS__);
 #define lcb_cmdstats_create(CMD) (*(CMD))=lcb_cmdstats_alloc();
 #define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
 #define PYCBC_CMD_SET_TRACESPAN(TYPE,CMD,SPAN)\
@@ -1156,22 +1170,22 @@ LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
     lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
 
 #define lcb_cmdfts_parent_span(...)     lcb_fts_set_parent_span(__VA_ARGS__)
-#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, CMD, HANDLE, CONTEXT) \
     lcb_cmd##SCOPE##_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
 #define GENERIC_NULL_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
     lcb_##SCOPE(INSTANCE, __VA_ARGS__);
 #else
 #if PYCBC_LCB_API<0x030000
-#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT)
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, CMD, HANDLE, CONTEXT)
 #define GENERIC_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT)\
     RV = lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
 
 #else
-#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
-    lcb_cmd##SCOPE##_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, CMD, HANDLE, CONTEXT) \
+    lcb_cmd##SCOPE##_parent_span(CMD, (CONTEXT)->span)
 #define GENERIC_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
     lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
-#define GENERIC_NULL_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT, ...)\
+#define GENERIC_NULL_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
     lcb_##SCOPE(INSTANCE, __VA_ARGS__);
 #endif
 #endif
@@ -1182,7 +1196,7 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
                             (int)(CMD).key.contig.nbytes,          \
                             (const char *)(CMD).key.contig.bytes);
 #else
-#define PYCBC_LOG_KEY(key)
+#define PYCBC_LOG_KEY(CMD,key)
 #endif
 
 #define PYCBC_TRACECMD_PURE(TYPE,CMD, CONTEXT)                          \
@@ -1196,18 +1210,19 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
     }
 
 #define PYCBC_TRACECMD_SCOPED_GENERIC(                               \
-        RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, SPAN_OPERAND, OPERAND, ...) \
+        RV, SCOPE, COMMAND, INSTANCE, CMD, HANDLE, CONTEXT, SPAN_OPERAND, OPERAND, ...) \
     if (PYCBC_CHECK_CONTEXT(CONTEXT)) {                              \
-        SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT);                   \
+        SPAN_OPERAND(SCOPE, INSTANCE, CMD, HANDLE, CONTEXT);                   \
     }                                                                \
     RV = OPERAND(SCOPE,COMMAND,INSTANCE,HANDLE, CONTEXT, __VA_ARGS__);
 
 #define PYCBC_TRACECMD_SCOPED(                              \
-        RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...) \
+        RV, SCOPE, COMMAND, INSTANCE, CMD, HANDLE, CONTEXT, ...) \
     PYCBC_TRACECMD_SCOPED_GENERIC(RV,                       \
                                   SCOPE,                    \
                                   COMMAND,                  \
                                   INSTANCE,                 \
+                                  CMD,\
                                   HANDLE,                   \
                                   CONTEXT,                  \
                                   GENERIC_SPAN_OPERAND,          \
@@ -1215,11 +1230,12 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
                                   __VA_ARGS__)
 
 #define PYCBC_TRACECMD_SCOPED_NULL(                              \
-        RV, SCOPE, INSTANCE, HANDLE, CONTEXT, ...) \
+        RV, SCOPE, INSTANCE, CMD, HANDLE, CONTEXT, ...) \
     PYCBC_TRACECMD_SCOPED_GENERIC(RV,                       \
                                   SCOPE,                    \
                                   ,                  \
                                   INSTANCE,                 \
+                                  CMD,\
                                   HANDLE,                   \
                                   CONTEXT,                  \
                                   GENERIC_SPAN_OPERAND,          \
@@ -2242,5 +2258,16 @@ extern struct lcb_logprocs_st pycbc_lcb_logprocs;
  */
 extern PyObject *pycbc_DummyTuple;
 extern PyObject *pycbc_DummyKeywords;
+
+
+#if PY_MAJOR_VERSION >= 3
+PyObject *PyInit__libcouchbase(void);
+#define INITERROR return NULL
+
+#else
+#define INITERROR return
+PyMODINIT_FUNC
+init_libcouchbase(void);
+#endif
 
 #endif /* PYCBC_H_ */
