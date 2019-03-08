@@ -27,6 +27,14 @@ warnings.filterwarnings(action='default',
 
 from couchbase.user_constants import *
 import couchbase._libcouchbase as _LCB
+import os
+
+cppyy_build=os.getenv("PYCBC_CPPYY")
+if cppyy_build:
+    try:
+        import cppyy
+    except:
+        pass
 
 from typing import Union, Mapping, List
 
