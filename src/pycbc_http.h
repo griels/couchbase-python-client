@@ -5,26 +5,7 @@
 #ifndef COUCHBASE_PYTHON_CLIENT_HTTP_H
 #define COUCHBASE_PYTHON_CLIENT_HTTP_H
 #include "pycbc.h"
-#include "Python.h"
-#include "libcouchbase/cbft.h"
-#include "libcouchbase/http.h"
-#ifdef PYCBC_V4
-#else
-typedef lcb_VIEWHANDLE  lcb_VIEW_HANDLE;
-typedef lcb_N1QLHANDLE  lcb_N1QL_HANDLE;
-typedef lcb_FTSHANDLE lcb_FTS_HANDLE;
-#endif
 #include <libcouchbase/couchbase.h>
-#include "libcouchbase/api3.h"
-#if 0
-#if PYCBC_LCB_API<0x030100
-#include <libcouchbase/api3.h>
-#else
-#ifdef PYCBC_V4_EXPLICIT
-#include <libcouchbase/api4.h>
-#endif
-#endif
-#endif
 #include <libcouchbase/ixmgmt.h>
 
 typedef struct {
@@ -33,10 +14,10 @@ typedef struct {
     PyObject *headers;
     pycbc_Bucket *parent;
     union {
-        lcb_http_request_t htreq;
-        lcb_VIEW_HANDLE vh;
-        lcb_N1QL_HANDLE nq;
-        lcb_FTS_HANDLE fts;
+        pycbc_HTTP_HANDLE htreq;
+        pycbc_VIEW_HANDLE vh;
+        pycbc_N1QL_HANDLE nq;
+        pycbc_FTS_HANDLE fts;
     } u;
     unsigned int format;
     unsigned short htcode;

@@ -14,18 +14,9 @@
  *   limitations under the License.
  **/
 
-#include "pycbc.h"
-//#include <libcouchbase/views.h>
-#if 0
-#if PYCBC_LCB_API<0x030100
-#include <libcouchbase/api3.h>
-#else
-#include <libcouchbase/api4.h>
-#endif
-#endif
-#include "iops.h"
 #include "pycbc_http.h"
-//#include <oldstructs.h>
+#include "iops.h"
+
 /**
  * Very simple file that simply adds LCB constants to the module
  */
@@ -122,7 +113,7 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
     XHTTP(X);
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API<=0x030001
 #undef X
 #define X(b) handler(module, "LCB_" #b, LCB_STORE_##b);
 #endif
@@ -219,10 +210,10 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_STRING(LCB_LOG_SD_CTAG);
     ADD_STRING(LCB_LOG_UD_OTAG);
     ADD_STRING(LCB_LOG_UD_CTAG);
+
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
     ADD_MACRO(LCB_CMDVIEWQUERY_F_SPATIAL);
-
     ADD_MACRO(LCB_SDCMD_REPLACE);
     ADD_MACRO(LCB_SDCMD_DICT_ADD);
     ADD_MACRO(LCB_SDCMD_DICT_UPSERT);
@@ -234,14 +225,13 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_SDCMD_COUNTER);
     ADD_MACRO(LCB_SDCMD_REMOVE);
     ADD_MACRO(LCB_SDCMD_ARRAY_INSERT);
-
     /* Bucket types */
     ADD_MACRO(LCB_BTYPE_UNSPEC);
     ADD_MACRO(LCB_BTYPE_COUCHBASE);
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
     /* Encryption options */
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
     ADD_MACRO(LCBCRYPTO_KEY_ENCRYPT);
     ADD_MACRO(LCBCRYPTO_KEY_DECRYPT);
 #endif

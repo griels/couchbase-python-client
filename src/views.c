@@ -9,7 +9,7 @@
 #include "libcouchbase/api4.h"
 #endif
 #endif
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
 lcb_STATUS lcb_respview_http_response(const lcb_RESPVIEW *resp, const lcb_RESPHTTP** dest){
     *(dest)=resp->htresp;
     return LCB_SUCCESS;
@@ -78,8 +78,7 @@ X(view,VIEW, document, pycbc_RESPGET)\
 X(view,VIEW, key, pycbc_strn_base_const)\
 X(view,VIEW, geometry, pycbc_strn_base_const)\
 X(view,VIEW, row, pycbc_strn_base_const)
-#define DUMMY(...)
-PYCBC_GETTERS(DUMMY);
+PYCBC_GETTERS(PYCBC_DUMMY);
 
 #ifdef PYCBC_GETTER_GEN
 PYCBC_GETTERS(PYCBC_RESP_GET)
@@ -140,7 +139,6 @@ parse_row_json(pycbc_Bucket *bucket, pycbc_ViewResult *vres,
 
     const char *doc_id = NULL;
     size_t doc_id_len;
-#define lcb_respview_doc_id(RESP,DOCID,NDOCID) *(DOCID)=(RESP)->docid; *(NDOCID)=(RESP)->ndocid;
     lcb_respview_doc_id(resp, &doc_id, &doc_id_len);
     if (doc_id_len) {
         rv = pycbc_tc_decode_key(bucket, doc_id, doc_id_len, &docid);
@@ -344,6 +342,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
                               view,
                               query,
                               self->instance,
+                              vmcd,
                               *vcmd->handle,
                               context,
                               mres,
@@ -352,6 +351,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
         PYCBC_TRACECMD_SCOPED_NULL(rc,
                                    view,
                                    self->instance,
+                                   vcmd,
                                    *vcmd.handle,
                                    context,
                                    mres,
