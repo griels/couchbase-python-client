@@ -88,9 +88,9 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
         }
     }
 #define COMMON_OPTS(CMD,X,NAME,CMDNAME)\
-    X((CMD),cas,cas)\
-    PYCBC_CMD_SET_KEY_SCOPE(UNLOCK,(*CMD),keybuf)\
-    PYCBC_TRACECMD_TYPED(CMDNAME,*(CMD), context, cv->mres, curkey, self);
+    X((CMD),cas,cas);\
+    PYCBC_CMD_SET_KEY_SCOPE(CMDNAME,(CMD),keybuf);\
+    PYCBC_TRACECMD_TYPED(CMDNAME,(CMD), context, cv->mres, curkey, self);
 
 //    u_cmd.base.cas = cas;
 
@@ -110,9 +110,9 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 #endif
 
             COMMON_OPTS(cmd, PYCBC_unlock_ATTR, unl, unlock);
-            err = lcb_unlock3(self->instance, cv->mres, cmd);
+            err = pycbc_unlock(self->instance, cv->mres, cmd);
 #ifdef PYCBC_V4
-      lcb_cmdunlock_destory(cmd);
+      lcb_cmdunlock_destroy(cmd);
 #endif
         }
     } else if (optype == PYCBC_CMD_ENDURE) {
@@ -127,7 +127,7 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 
         CMDSCOPE(REMOVE,remove,
             COMMON_OPTS(cmd,PYCBC_remove_ATTR, rm, remove);
-            err = lcb_remove3(self->instance, cv->mres, cmd);
+            err = pycbc_remove(self->instance, cv->mres, cmd);
         )
     }
     if (err == LCB_SUCCESS) {
@@ -384,7 +384,7 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
                 rv = pycbc_BufFromString(curkey, &key, &nkey, &newkey);
                 if (rv < 0) {
                     PYCBC_EXC_WRAP_KEY(PYCBC_EXC_ARGUMENTS, 0, "bad key type in stats", curkey);
-                    goto GT_DONE;
+                    CMDSCOPE_FAIL(STATS)
                 }
 
                 LCB_CMD_SET_KEY(cmd, key, nkey);
