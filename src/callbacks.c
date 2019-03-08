@@ -14,9 +14,8 @@
  *   limitations under the License.
  **/
 
-#include <libcouchbase/api3.h>
 #include "pycbc.h"
-
+#include "pycbc_http.h"
 #define CB_THREADS
 
 #ifdef CB_THREADS
@@ -79,9 +78,9 @@ enum {
 };
 
 /* Returns true if an error has been added... */
+/* Returns true if an error has been added... */
 static int
-maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
-    int check_enoent)
+maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err, int check_enoent, pycbc_debug_info debug_info)
 {
 #ifdef PYCBC_TRACING
     pycbc_stack_context_handle parent_context =
@@ -106,9 +105,38 @@ maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
     }
 
     mres->errop = (PyObject*)res;
+    if (pycbc_debug_info_is_valid(&debug_info))
+    {
+        PyObject* py_debug_info=NULL;
+        if (!res->tracing_output)
+        {
+            res->tracing_output=PyDict_New();
+        }
+        {
+            py_debug_info=PyDict_GetItemString(res->tracing_output, PYCBC_DEBUG_INFO_STR);
+            if (!py_debug_info)
+            {
+                py_debug_info=PyDict_New();
+                PyDict_SetItemString(res->tracing_output, PYCBC_DEBUG_INFO_STR, py_debug_info);
+
+            }
+            pycbc_dict_add_text_kv(py_debug_info,"FILE",debug_info.FILE);
+            pycbc_dict_add_text_kv(py_debug_info,"FUNC",debug_info.FUNC);
+            pycbc_set_kv_ull_str(py_debug_info, "LINE", (lcb_uint64_t) debug_info.LINE);
+            PYCBC_DECREF(py_debug_info);
+        };
+    }
     Py_INCREF(mres->errop);
     return 1;
 }
+
+pycbc_debug_info pycbc_build_debug_info(const char* FILE, const char* FUNC, int line)
+{
+    return (pycbc_debug_info){FILE,FUNC,line};
+}
+
+#define PYCBC_BUILD_DEBUG_INFO  pycbc_build_debug_info(__FILE__,__FUNCTION_NAME__,__LINE__)
+#define MAYBE_PUSH_OPERR(mres,res,err,check_enoent) maybe_push_operr(mres,res,err,check_enoent,PYCBC_BUILD_DEBUG_INFO)
 
 static void operation_completed3(pycbc_Bucket *self,
                                  pycbc_MultiResult *mres,
@@ -167,13 +195,21 @@ void pycbc_enhanced_err_register_entry(PyObject **dict,
 }
 
 static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
-        const lcb_RESPBASE *respbase, int cbtype)
+        const lcb_RESPBASE *respbase, int cbtype, pycbc_debug_info* info)
 {
     pycbc_enhanced_err_info *err_info = NULL;
     const char *ref = lcb_resp_get_error_ref(cbtype, respbase);
     const char *context = lcb_resp_get_error_context(cbtype, respbase);
     pycbc_enhanced_err_register_entry(&err_info, "ref", ref);
     pycbc_enhanced_err_register_entry(&err_info, "context", context);
+    if (info) {
+        char LINEBUF[100]={0};
+
+        pycbc_enhanced_err_register_entry(&err_info, "FILE", info->FILE);
+        pycbc_enhanced_err_register_entry(&err_info, "FUNC", info->FUNC);
+        snprintf(LINEBUF, 100, "%d", info->LINE);
+        pycbc_enhanced_err_register_entry(&err_info, "LINE", LINEBUF);
+    }
     return err_info;
 }
 
@@ -184,7 +220,7 @@ static void operation_completed_with_err_info(pycbc_Bucket *self,
                                               pycbc_Result *res)
 {
     pycbc_enhanced_err_info *err_info =
-            pycbc_enhanced_err_info_store(resp, cbtype);
+            pycbc_enhanced_err_info_store(resp, cbtype, NULL);
     pycbc_stack_context_handle context = PYCBC_RESULT_EXTRACT_CONTEXT(res);
     PYCBC_DEBUG_LOG("Completed context %p with %p, nremaining is %d",
                     context,
@@ -356,6 +392,7 @@ invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
     Py_XDECREF(argtuple);
 }
 
+
 #ifdef PYCBC_V4
 #define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
 #define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
@@ -396,7 +433,7 @@ dur_chain2(pycbc_Bucket *conn,
     }
 
     /** For remove, we check quiet */
-    maybe_push_operr(mres, (pycbc_Result*)res, resp->rc, is_delete ? 1 : 0);
+    MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, resp->rc, is_delete ? 1 : 0);
 
     if ((mres->mropts & PYCBC_MRES_F_DURABILITY) == 0 || resp->rc != LCB_SUCCESS) {
         operation_completed_with_err_info(
@@ -443,7 +480,7 @@ dur_chain2(pycbc_Bucket *conn,
     }
     if (err != LCB_SUCCESS) {
         res->rc = err;
-        maybe_push_operr(mres, (pycbc_Result*)res, err, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, err, 0);
         operation_completed_with_err_info(
                 conn, mres, cbtype, resp, (pycbc_Result *)res);
     }
@@ -501,8 +538,8 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     if (resp->rc == LCB_SUCCESS) {
         res->cas = resp->cas;
     } else {
-        maybe_push_operr(mres, (pycbc_Result*)res, resp->rc,
-            cbtype != LCB_CALLBACK_COUNTER);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, resp->rc,
+                         cbtype != LCB_CALLBACK_COUNTER);
         goto GT_DONE;
     }
 
@@ -597,7 +634,7 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     if (rb->rc == LCB_SUCCESS || rb->rc == LCB_SUBDOC_MULTI_FAILURE) {
         res->cas = rb->cas;
     } else {
-        maybe_push_operr(mres, (pycbc_Result*)res, rb->rc, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, rb->rc, 0);
         goto GT_ERROR;
     }
 
@@ -658,7 +695,7 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
 
     if (rv == 0) {
         res->rc = resp->rc;
-        maybe_push_operr(mres, (pycbc_Result*)res, resp->rc, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, resp->rc, 0);
     }
     if (resp->cas) {
         res->cas = resp->cas;
@@ -693,7 +730,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
             res = (pycbc_Result *)pycbc_result_new(parent);
             res->rc = resp->rc;
             res->key = Py_None; Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, resp->rc, 0);
         }
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
@@ -766,7 +803,7 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
                             "observe callback continues")
 
     if (resp_base->rc != LCB_SUCCESS) {
-        maybe_push_operr(mres, (pycbc_Result*)vres, resp_base->rc, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) vres, resp_base->rc, 0);
         goto GT_DONE;
     }
 
@@ -869,7 +906,7 @@ static void ping_callback(lcb_t instance,
             res->rc = resp->rc;
             res->key = Py_None;
             Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, resp->rc, 0);
         }
     }
 
@@ -948,7 +985,7 @@ static void diag_callback(lcb_t instance,
             res->rc = resp->rc;
             res->key = Py_None;
             Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, resp->rc, 0);
         }
     }
 
@@ -985,8 +1022,8 @@ void pycbc_generic_cb(lcb_t instance,
             res ? res->tracing_context : NULL, "%s callback continues", NAME)
 
     if (rv == 0) {
-        res->rc = resp->rc;
-        maybe_push_operr(mres, (pycbc_Result *)res, resp->rc, 0);
+        res->rc = lcb_respcounter_status(resp);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, res->rc, 0);
     }
 
     operation_completed_with_err_info(conn,

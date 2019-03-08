@@ -17,10 +17,11 @@
 
 #include "oputil.h"
 #include "pycbc.h"
-
+#ifndef PYCBC_V4
 typedef lcb_storage_t lcb_STORE_OPERATION;
-struct storecmd_vars {
+#endif
 
+struct storecmd_vars {
     lcb_STORE_OPERATION operation;
     int argopts;
     unsigned int sd_doc_flags;
@@ -200,13 +201,12 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         }
 
 #ifdef PYCBC_V4
-PYCBC_CMD_SET_KEY(store, cmd, keybuf.buffer, keybuf.length);
-        PYCBC_CMD_SET_VALUE(store, cmd, valbuf.buffer, valbuf.length);
-lcb_cmdstore_flags(cmd,flags);
-                lcb_cmdstore_cas(cmd,skc.cas);
+        lcb_cmdstore_key(cmd,keybuf.buffer, keybuf.length);
+        lcb_cmdstore_value(cmd, valbuf.buffer, valbuf.length);
+        lcb_cmdstore_flags(cmd,flags);
+        lcb_cmdstore_cas(cmd,skc.cas);
         lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
-                lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
-
+        lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
 #else
         PYCBC_CMD_SET_KEY_SCOPE(store,*cmd, keybuf);
         PYCBC_CMD_SET_VALUE_SCOPE(store,*cmd, valbuf);

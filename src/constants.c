@@ -15,8 +15,17 @@
  **/
 
 #include "pycbc.h"
+//#include <libcouchbase/views.h>
+#if 0
+#if PYCBC_LCB_API<0x030100
+#include <libcouchbase/api3.h>
+#else
+#include <libcouchbase/api4.h>
+#endif
+#endif
 #include "iops.h"
-
+#include "pycbc_http.h"
+//#include <oldstructs.h>
 /**
  * Very simple file that simply adds LCB constants to the module
  */
@@ -210,7 +219,6 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_STRING(LCB_LOG_SD_CTAG);
     ADD_STRING(LCB_LOG_UD_OTAG);
     ADD_STRING(LCB_LOG_UD_CTAG);
-
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
     ADD_MACRO(LCB_CMDVIEWQUERY_F_SPATIAL);

@@ -1,4 +1,4 @@
-#include "pycbc.h"
+#include "pycbc_http.h"
 #include "oputil.h"
 #include "structmember.h"
 #ifndef PYCBC_FTS_DISABLED
