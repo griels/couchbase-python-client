@@ -177,8 +177,8 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     pycbc_Bucket *bucket;
     pycbc_HttpResult *htres;
     const lcb_RESPHTTP *resp = (const lcb_RESPHTTP *)rb;
-
-    pycbc_resphttp_cookie(resp,pycbc_MultiResult*,(void*)&mres);
+    lcb_resphttp_cookie(resp,(const void**)&mres);
+//    pycbc_resphttp_cookie(resp,pycbc_MultiResult*,(void*)&mres);
     bucket = mres->parent;
     PYCBC_CONN_THR_END(bucket);
 
@@ -202,13 +202,14 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     (void)instance; (void)cbtype;
 }
 #define DUMMY(...)
-
+#ifndef PYCBC_V4
 void lcb_cmdhttp_path(lcb_CMDHTTP* htcmd, const char* path, size_t length){
     {
         pycbc_pybuffer pathbuf = {NULL, path, length};
         PYCBC_CMD_SET_KEY_SCOPE(http, *htcmd, pathbuf);
     }
 }
+#endif
 void
 pycbc_http_callbacks_init(lcb_t instance)
 {
