@@ -396,7 +396,7 @@ void pycbc_exc_wrap_obj(pycbc_NamedCryptoProvider *named_crypto_provider,
     //Py_DecRef(attrib_dict);
 }
 
-#if PYCBC_CRYPTO_VERSION == 1
+#if PYCBC_CRYPTO_VERSION > 0
 #define PYCBC_CRYPTO_VVERSION v1
 #define PYCBC_CRYPTO_METHODS(X) PYCBC_X_V1_CRYPTO_METHODS(X)
 #else
