@@ -6,10 +6,13 @@
 #define COUCHBASE_PYTHON_CLIENT_HTTP_H
 #include "pycbc.h"
 #include "Python.h"
-#include "libcouchbase/cbft.h"
 #include "libcouchbase/http.h"
 #ifdef PYCBC_V4
+typedef lcb_VIEW_HANDLE*  pycbc_VIEW_HANDLE;
+typedef lcb_N1QL_HANDLE*  pycbc_N1QL_HANDLE;
+typedef lcb_FTS_HANDLE* pycbc_FTS_HANDLE;
 #else
+#include "libcouchbase/cbft.h"
 typedef lcb_VIEWHANDLE  lcb_VIEW_HANDLE;
 typedef lcb_N1QLHANDLE  lcb_N1QL_HANDLE;
 typedef lcb_FTSHANDLE lcb_FTS_HANDLE;
@@ -34,9 +37,9 @@ typedef struct {
     pycbc_Bucket *parent;
     union {
         lcb_http_request_t htreq;
-        lcb_VIEW_HANDLE vh;
-        lcb_N1QL_HANDLE nq;
-        lcb_FTS_HANDLE fts;
+        pycbc_VIEW_HANDLE vh;
+        pycbc_N1QL_HANDLE nq;
+        pycbc_FTS_HANDLE fts;
     } u;
     unsigned int format;
     unsigned short htcode;
