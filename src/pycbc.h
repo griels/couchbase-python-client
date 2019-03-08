@@ -196,17 +196,19 @@ void pycbc_exception_log(const char *file,
 #include <libcouchbase/couchbase.h>
 #define PYCBC_COLLECTIONS
 #if PYCBC_LCB_API>0x030000
-//#define PYCBC_V4
+#define PYCBC_V4
 #endif
-
 #if PYCBC_LCB_API<0x030100
 #include <libcouchbase/api3.h>
 #else
+#ifdef PYCBC_V4_EXPLICIT
 #include <libcouchbase/api4.h>
 #endif
+#endif
+
 #include <libcouchbase/views.h>
 #include <libcouchbase/n1ql.h>
-#include <libcouchbase/cbft.h>
+//#include <libcouchbase/cbft.h>
 #include <libcouchbase/ixmgmt.h>
 
 // TODO: fix in libcouchbase
@@ -231,7 +233,6 @@ void pycbc_exception_log(const char *file,
 #endif
 
 #include <pythread.h>
-//#include <libcouchbase/cbft.h>
 #include "mresdict.h"
 
 #define PYCBC_REFCNT_ASSERT pycbc_assert
@@ -504,7 +505,7 @@ enum {
 #ifndef PYCBC_V4
 typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
 #else
-typedef lcb_DURABILITY_LEVEL pycbc_DURABILITYLEVEL;
+typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
 
 #endif
 typedef struct {
@@ -519,6 +520,10 @@ struct pycbc_Tracer;
 
 #define PYCBC_TRACING
 
+typedef struct {
+    const void *v;
+    size_t n;
+} pycbc_generic_array;
 
 typedef struct {
     char *buffer;
@@ -538,12 +543,13 @@ typedef struct {
 extern pycbc_strn pycbc_invalid_strn;
 
 extern const char PYCBC_UNKNOWN[];
+static char *const PYCBC_DEBUG_INFO_STR = "debug_info";
 #define sizeof_array(X) sizeof(X) / sizeof(X[0])
 
 const char * pycbc_strn_buf(pycbc_strn buf);
 int pycbc_strn_valid(pycbc_strn buf);
 
-size_t pycbc_strn_len(pycbc_strn buf);
+size_t pycbc_strn_len(pycbc_strn_base_const buf);
 int pycbc_strn_repr_len(pycbc_strn buf);
 
 const char *pycbc_strn_repr_buf(const pycbc_strn buf);
@@ -558,6 +564,8 @@ char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf);
 
 void pycbc_strn_free(pycbc_strn_unmanaged buf);
 
+pycbc_generic_array pycbc_strn_base_const_array(pycbc_strn_base_const orig);
+
 #define PYCBC_STRN_FREE(BUF)                            \
     PYCBC_DEBUG_LOG("Freeing string buffer %.*s at %p", \
                     (int)(BUF).content.length,               \
@@ -567,6 +575,24 @@ void pycbc_strn_free(pycbc_strn_unmanaged buf);
 
 
 
+#define RAWTYPE_DEFINE(X) X temp;
+#define LENGTHTYPE_DEFINE(X) X temp;
+#define RAWTYPE_USE(X) temp
+#define LENGTHTYPE_USE(X) &temp.resp, &temp.nresp
+#define PYCBC_RESP_GET(SCOPE,UCSCOPE,ATTRIB,TYPE)\
+PYCBC_SCOPE_GET(SCOPE,const lcb_RESP##UCSCOPE*,ATTRIB,TYPE);
+
+typedef const lcb_RESPGET* pycbc_RESPGET;
+
+#define pycbc_RESPGET_USE(X) &temp
+#define pycbc_RESPGET_DEFINE(X) LENGTHTYPE_DEFINE(X)
+#define pycbc_RESPGET_RET(X) X
+#define pycbc_strn_unmanaged_USE(X) &temp.content.buffer, &temp.content.length
+#define pycbc_strn_unmanaged_DEFINE(X) X temp;
+#define pycbc_strn_USE(X) &temp.buffer, &temp.length
+#define pycbc_strn_DEFINE(X) X temp;
+#define pycbc_strn_base_const_USE(X) &temp.buffer, &temp.length
+#define pycbc_strn_base_const_DEFINE(X) X temp;
 
 #ifdef PYCBC_V4
 #define PYCBC_FTS_DISABLED
@@ -644,15 +670,33 @@ typedef lcb_error_t lcb_STATUS;
 #define lcb_cmdcounter_expiration(cmd, x) (cmd)->exptime=x
 #define lcb_cmdstore_flags(CMD, VAL) cmd->flags=VAL;
 
-#define lcb_resphttp_headers(htresp,dest) *(dest)= htresp->headers
-#define lcb_resphttp_status(htresp) htresp->rc
 #define lcb_cmdgetreplica_create_all(ptr) (*(ptr))->strategy=LCB_REPLICA_ALL
 #define lcb_cmdgetreplica_create_select(ptr, INDEX) (*(ptr))->strategy=LCB_REPLICA_SELECT; (*(ptr))->index=INDEX;
 #define lcb_cmdgetreplica_create_first(ptr) (*(ptr))->strategy=LCB_REPLICA_FIRST
+#define lcb_resphttp_headers(htresp,dest) *(dest)= htresp->headers
+#define lcb_resphttp_status(htresp) htresp->rc
+#define lcb_resphttp_http_status(resp,dest) *(dest)=(resp)->htstatus
+#define lcb_resphttp_body(resp, bodybuffer, bodylength) *(bodybuffer)=resp->body; (*bodylength)=resp->nbody;
+#define lcb_respn1ql_http_response(INNER,DEST) *(DEST)=INNER->htresp;
+#define lcb_respn1ql_row(INNER,ROW,ROW_COUNT) {*(ROW)=(INNER)->row; *(ROW_COUNT)=(INNER)->nrow;}
+#define lcb_respn1ql_cookie(RESP,DEST) *(DEST)=(RESP)->cookie;
+#define lcb_respn1ql_is_final(RESP) (RESP)->rflags & LCB_RESP_F_FINAL
+#define lcb_respn1ql_status(RESP) (RESP)->rc
+#define lcb_cmdn1ql_create(CMD) lcb_CMDN1QL cmd_real={0}; cmd=&cmd_real;
+#define lcb_cmdn1ql_callback(CMD,CALLBACK) (CMD)->callback=(CALLBACK)
+#define lcb_cmdn1ql_query(CMD,PARAMS,NPARAMS) (CMD)->query=PARAMS; (CMD)->nquery=NPARAMS;
+#define lcb_cmdn1ql_handle(CMD,HANDLE) (CMD)->handle=HANDLE
+#define lcb_cmdn1ql_adhoc(CMD,ENABLE) ((CMD)->cmdflags)&=(~LCB_CMDN1QL_F_PREPCACHE);((CMD)->cmdflags)|=(ENABLE?LCB_CMDN1QL_F_PREPCACHE:0);
+#define lcb_cmdn1ql_parent_span(...) lcb_n1ql_set_parent_span(__VA_ARGS__)
+#define lcb_n1ql(INSTANCE,COOKIE,QUERY)        lcb_n1ql_query(INSTANCE,COOKIE,QUERY)
+#define lcb_respview_document(CTX,DEST) *(DEST)=CTX->docresp
+#define lcb_respview_key(CTX,DEST,NDEST) *(DEST)=(CTX)->key; *(NDEST)=(CTX)->nkey;
+#define lcb_respview_geometry(CTX,DEST,NDEST) *(DEST)=(CTX)->geometry; *(NDEST)=(CTX)->ngeometry;
+#define lcb_respview_row(CTX,DEST,NDEST) *(DEST)=(CTX)->value; *(NDEST)=(CTX)->nvalue;
+
+
 #define lcb_http_cancel(instance, req) lcb_cancel_http_request(instance,req)
 #define pycbc_resphttp_cookie(resp,type,target) (*((type*)(target)))=resp->cookie;
-#define lcb_resphttp_http_status(resp, statusptr) *(statusptr)=resp->rc
-#define lcb_resphttp_body(resp, bodybuffer, bodylength) *(bodybuffer)=resp->body; (*bodylength)=resp->nbody;
 #define lcb_cmdhttp_host(CMD, HOST, NHOST) htcmd->host=HOST; DUMMY(htcmd->nhost=NHOST);
 #define lcb_cmdhttp_body(HTCMD, BODY, NBODY) HTCMD->body=BODY; HTCMD->nbody=NBODY;
 #define lcb_cmdhttp_content_type(HTCMD, CTYPE, CTYPELEN) htcmd->content_type=CTYPE; DUMMY(htcmd->ncontent_type=CTYPELEN;)
@@ -661,6 +705,26 @@ typedef lcb_error_t lcb_STATUS;
 #define pycbc_http(...) lcb_http3(__VA_ARGS__)
 #define lcb_respget_status(RG) RG->rc
 #define lcb_respget_cas(RG,DEST) *(DEST)=RG->cas
+typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
+
+#define lcb_respview_cookie(RESP, DEST) *(DEST)=(RESP)->cookie
+#define lcb_respview_is_final(RESP) (RESP)->rflags & LCB_RESP_F_FINAL
+#define lcb_respview_status(RESP) (RESP)->rc
+typedef lcb_CMDVIEWQUERY lcb_CMDVIEW;
+#define lcb_cmdview_create(DEST) lcb_CMDVIEW cmd_real={0}; *(DEST)=&cmd_real;
+#define lcb_cmdview_design_document(VCMD, DESIGN, NDESIGN) (VCMD)->ddoc=DESIGN; (VCMD)->nddoc=NDESIGN;
+#define lcb_cmdview_view_name(VCMD, VIEW, NVIEW) (VCMD)->view=VIEW; (VCMD)->nview=NVIEW;
+#define lcb_cmdview_option_string(VCMD, OPTSTR, NOPTSTR) (VCMD)->optstr=OPTSTR; (VCMD)->noptstr=NOPTSTR
+#define lcb_cmdview_post_data(VCMD, BODY, NBODY) (VCMD)->postdata=BODY; (VCMD)->npostdata=NBODY
+#define lcb_cmdview_handle(VCMD, HANDLE) (VCMD)->handle=HANDLE
+#define lcb_cmdview_callback(VCMD, CALLBACK) (VCMD)->callback=CALLBACK;
+#define lcb_cmdview_include_docs(VCMD, ENABLE) (VCMD)->cmdflags=((VCMD)->cmdflags&~LCB_CMDVIEWQUERY_F_INCLUDE_DOCS)|(ENABLE?LCB_CMDVIEWQUERY_F_INCLUDE_DOCS:0)
+#define lcb_cmdview_no_row_parse(VCMD, ENABLE) (VCMD)->cmdflags=((VCMD)->cmdflags&~LCB_CMDVIEWQUERY_F_NOROWPARSE)|(ENABLE?LCB_CMDVIEWQUERY_F_NOROWPARSE:0)
+#define lcb_cmdview_spatial(VCMD, ENABLE) (VCMD)->cmdflags=((VCMD)->cmdflags&~LCB_CMDVIEWQUERY_F_SPATIAL)|(ENABLE?LCB_CMDVIEWQUERY_F_SPATIAL:0)
+#define lcb_cmdview_parent_span(...) lcb_view_set_parent_span(__VA_ARGS__)
+#define lcb_cmdview_destroy(CMD)
+
+
 
 enum {
 #define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X=LCB_##X
@@ -689,8 +753,6 @@ lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value){\
 
 
 #endif
-//typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
-
 #ifdef PYCBC_V4_BACKPORT
 #define ACCESSORS(X)\
     X(respget,itmflags,flags)
@@ -875,6 +937,13 @@ typedef void* pycbc_stack_context_handle;
 
 typedef struct pycbc_Result pycbc_Result_t;
 typedef struct pycbc_MultiResult_st pycbc_MultiResult;
+void pycbc_set_dict_kv_object(PyObject *dict,
+                              PyObject *key,
+                              const char *value_str);
+
+
+void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_uint64_t parenti_id);
+void pycbc_set_kv_ull_str(PyObject *dict, const char *keystr, lcb_uint64_t parenti_id);
 
 #ifdef PYCBC_TRACING
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self);
@@ -1058,8 +1127,16 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
 #ifndef PYCBC_V4
 #define PYCBC_CMD_SET_TRACESPAN(TYPE,CMD,SPAN)\
 LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
-
 #else
+/** Set this flag to execute an actual get with each response */
+#define LCB_CMDVIEWQUERY_F_INCLUDE_DOCS (1 << 16)
+
+/**Set this flag to only parse the top level row, and not its constituent
+ * parts. Note this is incompatible with `F_INCLUDE_DOCS`*/
+#define LCB_CMDVIEWQUERY_F_NOROWPARSE (1 << 17)
+
+/**This view is spatial. Modifies how the final view path will be constructed */
+#define LCB_CMDVIEWQUERY_F_SPATIAL (1 << 18)
 #define lcb_cmdsubdoc_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
 #define lcb_cmdobserve_parent_span(CMD, SPAN) LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
 #define lcb_cmdview_parent_span(CMD, ...)
@@ -1075,14 +1152,27 @@ LCB_CMD_SET_TRACESPAN(&(CMD), (SPAN));
 
 
 #ifndef PYCBC_V4
-#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
-    lcb_##SCOPE##_set_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#define GENERIC_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
+
+#define lcb_cmdfts_parent_span(...)     lcb_fts_set_parent_span(__VA_ARGS__)
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
+    lcb_cmd##SCOPE##_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#define GENERIC_NULL_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    lcb_##SCOPE(INSTANCE, __VA_ARGS__);
 #else
 #if PYCBC_LCB_API<0x030000
-#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT)
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT)
+#define GENERIC_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT)\
+    RV = lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
+
 #else
-#define GENERIC_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
+#define GENERIC_SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT) \
     lcb_cmd##SCOPE##_parent_span(INSTANCE, HANDLE, (CONTEXT)->span)
+#define GENERIC_OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...)\
+    lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
+#define GENERIC_NULL_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT, ...)\
+    lcb_##SCOPE(INSTANCE, __VA_ARGS__);
 #endif
 #endif
 
@@ -1106,11 +1196,11 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
     }
 
 #define PYCBC_TRACECMD_SCOPED_GENERIC(                               \
-        RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, OPERAND, ...) \
+        RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, SPAN_OPERAND, OPERAND, ...) \
     if (PYCBC_CHECK_CONTEXT(CONTEXT)) {                              \
-        OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT);                   \
+        SPAN_OPERAND(SCOPE, INSTANCE, HANDLE, CONTEXT);                   \
     }                                                                \
-    RV = lcb_##SCOPE##_##COMMAND(INSTANCE, __VA_ARGS__);
+    RV = OPERAND(SCOPE,COMMAND,INSTANCE,HANDLE, CONTEXT, __VA_ARGS__);
 
 #define PYCBC_TRACECMD_SCOPED(                              \
         RV, SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, ...) \
@@ -1120,7 +1210,20 @@ PYCBC_DEBUG_LOG("setting trace span on %.*s\n",        \
                                   INSTANCE,                 \
                                   HANDLE,                   \
                                   CONTEXT,                  \
-                                  GENERIC_OPERAND,          \
+                                  GENERIC_SPAN_OPERAND,          \
+                                  GENERIC_OPERAND, \
+                                  __VA_ARGS__)
+
+#define PYCBC_TRACECMD_SCOPED_NULL(                              \
+        RV, SCOPE, INSTANCE, HANDLE, CONTEXT, ...) \
+    PYCBC_TRACECMD_SCOPED_GENERIC(RV,                       \
+                                  SCOPE,                    \
+                                  ,                  \
+                                  INSTANCE,                 \
+                                  HANDLE,                   \
+                                  CONTEXT,                  \
+                                  GENERIC_SPAN_OPERAND,          \
+                                  GENERIC_NULL_OPERAND, \
                                   __VA_ARGS__)
 
 //#ifndef PYCBC_V4
@@ -1195,7 +1298,7 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
         const char *COMPONENTNAME,
         const char *CATEGORY,
         PyObject *KWARGS,
-        pycbc_Bucket *self);
+        pycbc_Tracer_t *self);
 
 #define PYCBC_EXPLICIT_NAMED_SETUP(                        \
         CONTEXTPTR, COMPONENTNAME, CATEGORY, KWARGS, SELF) \
@@ -1221,7 +1324,7 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
             CONTEXTPTR,                                                       \
             NAME(__VA_ARGS__,                                                 \
                  PYCBC_EXPLICIT_NAMED_SETUP(                                  \
-                         CONTEXTPTR, COMPONENTNAME, CATEGORY, KWARGS, SELF)), \
+                         CONTEXTPTR, COMPONENTNAME, CATEGORY, KWARGS, SELF->tracer)), \
             COMPONENTNAME,                                                    \
             NOTERV,                                                           \
             CV)
@@ -1231,7 +1334,7 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
     {                                                                     \
         NAME(__VA_ARGS__,                                                 \
              PYCBC_EXPLICIT_NAMED_SETUP(                                  \
-                     CONTEXTPTR, COMPONENTNAME, CATEGORY, KWARGS, SELF)); \
+                     CONTEXTPTR, COMPONENTNAME, CATEGORY, KWARGS, SELF->tracer)); \
         PYCBC_WRAP_AND_POP(CONTEXTPTR, 0, COMPONENTNAME, 0, CV);          \
     }
 
@@ -1396,33 +1499,6 @@ enum {
     PYCBC_HTTP_HNONE
 };
 
-typedef struct {
-    pycbc_Result_HEAD
-    PyObject *http_data;
-    PyObject *headers;
-    pycbc_Bucket *parent;
-    union {
-        lcb_http_request_t htreq;
-        lcb_VIEWHANDLE vh;
-        lcb_N1QLHANDLE nq;
-        lcb_FTSHANDLE fts;
-    } u;
-    unsigned int format;
-    unsigned short htcode;
-    unsigned char done;
-    unsigned char htype;
-} pycbc_HttpResult;
-
-typedef struct {
-    pycbc_HttpResult base;
-    PyObject *rows;
-    long rows_per_call;
-    char has_parse_error;
-#ifdef PYCBC_TRACING
-    PyObject *context_capsule;
-#endif
-} pycbc_ViewResult;
-
 
 enum {
     /** 'quiet' boolean set */
@@ -1452,6 +1528,13 @@ enum {
 /**
  * Contextual info for enhanced error logging
  */
+typedef struct{
+    const char* FILE;
+    const char* FUNC;
+    int LINE;
+} pycbc_debug_info;
+
+int pycbc_debug_info_is_valid(pycbc_debug_info* info);
 
 typedef PyObject pycbc_enhanced_err_info;
 
@@ -1829,88 +1912,6 @@ pycbc__SDResult *pycbc_sdresult_new(pycbc_Bucket *parent, PyObject *specs);
 
 /* Add a result to a list of multi results. Specify the index */
 void pycbc_sdresult_addresult(pycbc__SDResult *obj, size_t ii, PyObject *item);
-
-/* Not an allocator per-se, but rather an initializer */
-void pycbc_httpresult_init(pycbc_HttpResult *self, pycbc_MultiResult *parent);
-
-/* For observe info */
-pycbc_ObserveInfo * pycbc_observeinfo_new(pycbc_Bucket *parent);
-
-/**
- * If an HTTP result was successful or not
- */
-int pycbc_httpresult_ok(pycbc_HttpResult *self);
-
-pycbc_ViewResult *pycbc_propagate_view_result(
-        pycbc_stack_context_handle context);
-
-/**
- * Append data to the HTTP result
- * @param mres The multi result
- * @param htres The HTTP result
- * @param bytes Data to append
- * @param nbytes Length of data
- */
-void
-pycbc_httpresult_add_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
-                          const void *bytes, size_t nbytes);
-
-/**
- * Append data to the HTTP result
- * @param mres The multi result
- * @param htres The HTTP result
- * @param strn the data as a pycbc_strn_unmanaged
- *
- */
-void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres, pycbc_HttpResult *htres,
-                                    pycbc_strn_unmanaged strn);
-
-/**
- * Signal completion of an HTTP result.
- *
- * @param htres The HTTP result (Python)
- * @param mres The MultiResult object
- * @param err Error code (for the HTTP operation)
- * @param status The status code
- * @param headers The headers
- */
-void
-pycbc_httpresult_complete(pycbc_HttpResult *htres, pycbc_MultiResult *mres,
-                          lcb_error_t err, short status,
-                          const char * const *headers);
-
-/**
- * Add more data to the view's row list.
- *
- * This function will attempt to parse the data as JSON, and store an appropriate
- * error code otherwise.
- *
- * @param vres The ViewResult object
- * @param mres The MultiResult object
- * @param data Buffer
- * @param n Length of buffer
- */
-void
-pycbc_viewresult_addrow(pycbc_ViewResult *vres, pycbc_MultiResult *mres,
-                        const void *data, size_t n);
-
-/**
- * Attempt to notify the relevant callbacks for new data, if the constraints
- * allow it.
- *
- * This will invoke the callback in asynchronous mode, and will break
- * the event loop
- *
- * @param vres The ViewResult
- * @param mres The MultiResult
- * @param bucket The Bucket
- * @param force_callback whether the async callback should be forcefully invoked,
- * ignoring the rows_per_call setting (usually only required on error or when
- * there are no more rows).
- */
-void
-pycbc_viewresult_step(pycbc_ViewResult *vres, pycbc_MultiResult *mres,
-                      pycbc_Bucket *bucket, int force_callback);
 
 /**
  * Simple function, here because it's defined in result.c but needed in
