@@ -233,12 +233,13 @@ Bucket_encrypt_fields(pycbc_Bucket *self, PyObject *args)
         result=NULL;
         PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not on V4 yet");
         goto FINISH;
-#endif
+#else
 #if PYCBC_CRYPTO_VERSION>1
 #elif PYCBC_CRYPTO_VERSION > 0
         res = lcbcrypto_encrypt_fields(self->instance, &cmd);
 #else
         res = lcbcrypto_encrypt_document(self->instance, &cmd);
+#endif
 #endif
     }
     if (PyErr_Occurred()) {
@@ -743,7 +744,9 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         OPFUNC(_view_request, "Internal routine for view requests"),
         OPFUNC(_n1ql_query, "Internal routine for N1QL queries"),
         OPFUNC(_cbas_query, "Internal routine for analytics queries"),
+#ifndef PYCBC_FTS_DISABLED
         OPFUNC(_fts_query, "Internal routine for Fulltext queries"),
+#endif
         OPFUNC(_ixmanage, "Internal routine for managing indexes"),
         OPFUNC(_ixwatch, "Internal routine for monitoring indexes"),
 

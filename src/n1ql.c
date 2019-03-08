@@ -13,15 +13,14 @@ n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
 {
     pycbc_MultiResult *mres=NULL;
     lcb_respn1ql_cookie(resp, (const void **) &mres);
-    //= (pycbc_MultiResult *)resp->cookie;
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
     short htcode = 0;
+    const lcb_RESPHTTP* htresp=NULL;
 
     PYCBC_CONN_THR_END(bucket);
     vres = (pycbc_ViewResult *)PyDict_GetItem((PyObject*)mres, Py_None);
-    const lcb_RESPHTTP* htresp=NULL;
     lcb_respn1ql_http_response(resp,&htresp);
     if (htresp) {
         lcb_resphttp_headers(htresp, &hdrs);
@@ -29,8 +28,8 @@ n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
     }
 
     {
-        const char *rows;
-        size_t row_count;
+        const char *rows=NULL;
+        size_t row_count=0;
         lcb_respn1ql_row(resp, &rows, &row_count);
         if (lcb_respn1ql_is_final(resp)) {
             pycbc_httpresult_add_data(mres, &vres->base, rows, row_count);
@@ -86,9 +85,6 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
         lcb_cmdn1ql_query(cmd, params, nparams);
         //lcb_cmdn1ql_payload()
         //cmd.content_type = "application/json";
-        //cmd.callback = n1ql_row_callback;
-        //cmd.query = params;
-        //cmd.nquery = nparams;
         lcb_cmdn1ql_handle(cmd,&vres->base.u.nq);
         //cmd.handle = &vres->base.u.nq;
 
@@ -108,8 +104,10 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
             cmd->host = host;
         }
 #endif
+//        PYCBC_TRACECMD_SCOPED_NULL(
+  //              rc, n1ql, self->instance, vres->base.u.nq, context, mres, cmd);
         PYCBC_TRACECMD_SCOPED_NULL(
-                rc, n1ql, self->instance, *cmd->handle, context, mres, cmd);
+                rc, n1ql, self->instance, cmd, vres->base.u.nq, context, mres, cmd);
     }
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule n1ql query");

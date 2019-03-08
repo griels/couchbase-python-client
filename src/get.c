@@ -109,9 +109,9 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         }
     }
 #define COMMON_OPTS(X,NAME,CMDNAME)\
-    lcb_cmd##NAME##_expiration(cmd,ttl);\
-    PYCBC_CMD_SET_KEY_SCOPE(NAME,*cmd,keybuf)\
-    PYCBC_TRACECMD_TYPED(CMDNAME,*cmd, context, cv->mres, curkey, self);
+    lcb_cmd##CMDNAME##_expiration(cmd,ttl);\
+    PYCBC_CMD_SET_KEY_SCOPE(CMDNAME,cmd,keybuf);\
+    PYCBC_TRACECMD_TYPED(CMDNAME,cmd, context, cv->mres, curkey, self);
 
     switch (optype) {
         case PYCBC_CMD_GAT:
@@ -143,7 +143,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
 #endif
             lcb_cmdget_locktime(cmd, lock);
             COMMON_OPTS(PYCBC_get_ATTR, get, get);
-            err = lcb_get3(self->instance, cv->mres, cmd);
+            err = pycbc_get(self->instance, cv->mres, cmd);
 #ifdef PYCBC_V4
              lcb_cmdget_destroy(cmd);
 #endif
@@ -153,7 +153,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         case PYCBC_CMD_TOUCH:
             CMDSCOPE(TOUCH,touch,
                     COMMON_OPTS(PYCBC_touch_ATTR,touch,touch);
-                    err = lcb_touch3(self->instance, cv->mres, cmd);
+                    err = pycbc_touch(self->instance, cv->mres, cmd);
             )
             break;
 
@@ -182,7 +182,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
                     break;
             }
             COMMON_OPTS(PYCBC_getreplica_ATTR,rget,getreplica);
-            err = lcb_rget3(self->instance, cv->mres, cmd);
+            err = pycbc_rget(self->instance, cv->mres, cmd);
 #ifdef PYCBC_V4
             lcb_cmdgetreplica_destroy(cmd);
 #endif
