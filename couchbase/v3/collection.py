@@ -59,6 +59,8 @@ class CollectionOptions(OptionBlock):
     def __init__(self, *args, **kwargs):
         super(Collection.CollectionOptions, self).__init__(*args, **kwargs)
 
+class LockOptions(OptionBlock):
+    pass
 
 class Collection(object):
 
@@ -89,6 +91,9 @@ class Collection(object):
         def __init__(self, *args, **kwargs):
             super(Collection.GetOptions, self).__init__(*args, **kwargs)
 
+    class GetAndLockOptions(GetOptions,LockOptions):
+        pass
+
     @overload
     def get(self,
             key,  # type:str
@@ -110,14 +115,7 @@ class Collection(object):
         # type: (...) -> GetResult
         pass
 
-    def get(self,
-            key,  # type: str
-            spec=None,  # type: Optional[GetSpec]
-            *args,  # type: Any
-            **kwargs  # type: Any
-            ):
-        # type: (...) -> GetResult
-
+    def _get_generic(self, key, spec, options, kwargs):
         options = forward_args(locals(), kwargs)
         project = options.pop('project', None)
         if project:
@@ -128,6 +126,17 @@ class Collection(object):
             x = bc.get(key, **options)
         else:
             x = bc.lookup_in(key, *spec, **options)
+        return options, x
+
+    def get(self,
+            key,  # type: str
+            spec=None,  # type: Optional[GetSpec]
+            *options,  # type: Any
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> GetResult
+
+        options, x = self._get_generic(key, spec, options, kwargs)
         return get_result(options, x)
 
     @overload
@@ -142,12 +151,12 @@ class Collection(object):
     def get_and_touch(self,
                       id,  # type: str
                       expiration,  # type: int
-                      *args,  # type: Any
+                      *options,  # type: Any
                       **kwargs  # type: Any
                       ):
         # type: (...)->IGetResult
         cb = self._bucket  # type: SDK2Bucket
-        x = cb.get(id, **forward_args(kwargs, *args))
+        x = cb.get(id, **forward_args(kwargs, *options))
         return get_result(options, x)
 
     def get_and_lock(self,
@@ -158,8 +167,8 @@ class Collection(object):
         # type: (...)->IGetResult
         cb = self.bucket  # type: SDK2Bucket
         x = cb.get(id, expiration, False, False, False)
-        cb.lock(id)
-        return get_result(options, x)
+        cb.lock(id,options)
+        return get_result(x, options)
 
     def get_from_replica(self,
                          id,  # type: str

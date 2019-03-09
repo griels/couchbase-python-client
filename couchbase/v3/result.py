@@ -108,7 +108,8 @@ class GetResult(IGetResult):
         return self._content
 
 
-def get_result(self, options, x):
+def get_result(self, x, options=None):
+    options|={}
     return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout', None), id=x.key)
 
 
