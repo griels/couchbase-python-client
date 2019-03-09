@@ -1,12 +1,6 @@
-#include <libcouchbase/couchbase.h>
 #include "pycbc.h"
 #include "oputil.h"
 #include "pycbc_http.h"
-#if 0
-#if PYCBC_LCB_API>=0x030100
-#include "libcouchbase/api4.h"
-#endif
-#endif
 #include <libcouchbase/ixmgmt.h>
 static void
 n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
@@ -93,11 +87,11 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
             //cmd.cmdflags |= LCB_CMDN1QL_F_PREPCACHE;
         }
         if (is_xbucket) {
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
             cmd->cmdflags |= LCB_CMD_F_MULTIAUTH;
 #endif
         }
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
         if (host) {
             /* #define LCB_CMDN1QL_F_CBASQUERY 1<<18 */
             cmd->cmdflags |= (1 << 18);
