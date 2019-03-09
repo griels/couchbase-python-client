@@ -9,7 +9,7 @@
 #include "libcouchbase/api4.h"
 #endif
 #endif
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
 lcb_STATUS lcb_respview_http_response(const lcb_RESPVIEW *resp, const lcb_RESPHTTP** dest){
     *(dest)=resp->htresp;
     return LCB_SUCCESS;
@@ -78,8 +78,7 @@ X(view,VIEW, document, pycbc_RESPGET)\
 X(view,VIEW, key, pycbc_strn_base_const)\
 X(view,VIEW, geometry, pycbc_strn_base_const)\
 X(view,VIEW, row, pycbc_strn_base_const)
-#define DUMMY(...)
-PYCBC_GETTERS(DUMMY);
+PYCBC_GETTERS(PYCBC_DUMMY);
 
 #ifdef PYCBC_GETTER_GEN
 PYCBC_GETTERS(PYCBC_RESP_GET)
@@ -343,6 +342,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
                               view,
                               query,
                               self->instance,
+                              vmcd,
                               *vcmd->handle,
                               context,
                               mres,
