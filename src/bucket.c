@@ -133,7 +133,7 @@ Bucket_register_crypto_provider(pycbc_Bucket *self, PyObject *args) {
         PYCBC_XDECREF(ctor_args);
         if (named_provider_proxy && !PyErr_Occurred()) {
             PYCBC_INCREF(named_provider_proxy);
-#ifndef PYCBC_V4
+#if PYCBC_CRYPTO_VERSION<2
             lcbcrypto_register(
                     self->instance, name, named_provider_proxy->lcb_provider);
 #else
@@ -158,7 +158,7 @@ Bucket_unregister_crypto_provider(pycbc_Bucket *self, PyObject *args)
         PYCBC_EXCTHROW_ARGS();
         return NULL;
     }
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API>0x030000
     PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not available in V4 yet");
 #else
     lcbcrypto_unregister(self->instance, name);
@@ -229,17 +229,14 @@ Bucket_encrypt_fields(pycbc_Bucket *self, PyObject *args)
         cmd.nfields = pycbc_populate_fieldspec(&cmd.fields, fieldspec);
     }
     if (!PyErr_Occurred()) {
-#ifdef PYCBC_V4
+#if PYCBC_CRYPTO_VERSION>1
         result=NULL;
         PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not on V4 yet");
         goto FINISH;
-#else
-#if PYCBC_CRYPTO_VERSION>1
 #elif PYCBC_CRYPTO_VERSION > 0
         res = lcbcrypto_encrypt_fields(self->instance, &cmd);
 #else
         res = lcbcrypto_encrypt_document(self->instance, &cmd);
-#endif
 #endif
     }
     if (PyErr_Occurred()) {
@@ -281,7 +278,7 @@ Bucket_decrypt_fields(pycbc_Bucket *self, PyObject *args)
 
     if (!PyErr_Occurred()) {
 #if PYCBC_CRYPTO_VERSION > 0
-#ifdef PYCBC_V4
+#if PYCBC_CRYPTO_VERSION> 1
         PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not on V4 yet")
         goto FINISH;
 #else
@@ -553,8 +550,8 @@ Bucket__mutinfo(pycbc_Bucket *self)
         if (mt == NULL) {
             continue;
         }
-        cur = Py_BuildValue("HKK", LCB_MUTATION_TOKEN_VB(mt),
-            LCB_MUTATION_TOKEN_ID(mt), LCB_MUTATION_TOKEN_SEQ(mt));
+        cur = Py_BuildValue("HKK", lcb_mutation_token_vbid(mt),
+            lcb_mutation_token_uuid(mt), lcb_mutation_token_seqno(mt));
         PyList_Append(ll, cur);
         Py_DECREF(cur);
     }
@@ -753,8 +750,9 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         OPFUNC(observe, "Get replication/persistence status for keys"),
         OPFUNC(observe_multi, "multi-key variant of observe"),
 
-        OPFUNC(endure_multi, "Check durability requirements"),
-
+#ifdef PYCBC_ENDURE
+OPFUNC(endure_multi, "Check durability requirements"),
+#endif
 
 #undef OPFUNC
 
