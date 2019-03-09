@@ -14,7 +14,6 @@
  *   limitations under the License.
  **/
 
-#include <libcouchbase/api3.h>
 #include "oputil.h"
 #include "pycbc.h"
 #include "libcouchbase/tracing.h"
@@ -39,13 +38,6 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     pycbc_pybuffer keybuf = { NULL };
     lcb_uint64_t cas = 0;
     lcb_error_t err;
-
-/*    union {
-//        pycbc_CMDBASE base;
-        pycbc_CMDREMOVE rm;
-        pycbc_CMDUNLOCK unl;
-        pycbc_CMDENDURE endure;
-    } u_cmd;*/
 
     (void)options; (void)arg;
 
@@ -92,8 +84,6 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     PYCBC_CMD_SET_KEY_SCOPE(CMDNAME,(CMD),keybuf);\
     PYCBC_TRACECMD_TYPED(CMDNAME,(CMD), context, cv->mres, curkey, self);
 
-//    u_cmd.base.cas = cas;
-
     if (optype == PYCBC_CMD_UNLOCK) {
         if (!cas) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "CAS must be specified for unlock");
@@ -115,15 +105,19 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
       lcb_cmdunlock_destroy(cmd);
 #endif
         }
-    } else if (optype == PYCBC_CMD_ENDURE) {
-        lcb_CMDBASE cmd_real = {0};
-        lcb_CMDBASE* cmd=&cmd_real;
+    }
+#ifdef PYCBC_ENDURE
+    else if (optype == PYCBC_CMD_ENDURE) {
+        lcb_CMDSTORE cmd_real={0};
+        lcb_CMDSTORE* cmd=&cmd_real;
         //COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
 
-        err = cv->mctx->addcmd(cv->mctx, cmd);
-    } else {
+        err = cv->mctx->addcmd(cv->mctx, (lcb_CMDBASE*)cmd);
+    }
+#endif
+    else {
 
         CMDSCOPE(REMOVE,remove,
             COMMON_OPTS(cmd,PYCBC_remove_ATTR, rm, remove);
@@ -244,7 +238,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-
+#ifdef PYCBC_ENDURE
 TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;
@@ -315,6 +309,7 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     return cv.ret;
 
 }
+#endif
 
 #define DECLFUNC(name, operation, mode)                           \
     PyObject *pycbc_Bucket_##name(                                \
@@ -418,22 +413,20 @@ TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
-    lcb_CMDPING cmd = {0};
-    cmd.services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS |
-                   LCB_PINGSVC_F_FTS;
-    cmd.options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
-    if (1) {
-        cmd.options |= LCB_PINGOPT_F_JSONDETAILS;
-    }
+    CMDSCOPE(PING,ping,
+        cmd->services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS |
+                       LCB_PINGSVC_F_FTS;
+        cmd->options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
+        cmd->options |= LCB_PINGOPT_F_JSONDETAILS;
 
-    rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
-    if (rv < 0) {
-        return NULL;
-    }
+        rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
+        if (rv < 0) {
+            return NULL;
+        }
 
-    lcb_sched_enter(self->instance);
-    err = lcb_ping3(self->instance, cv.mres, &cmd);
-
+        lcb_sched_enter(self->instance);
+        err = lcb_ping3(self->instance, cv.mres, cmd);
+    )
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
@@ -454,19 +447,20 @@ TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
-    lcb_CMDDIAG cmd = {0};
-    cmd.options = LCB_PINGOPT_F_JSONPRETTY;
+    CMDSCOPE(DIAG,diag,
+        cmd->options = LCB_PINGOPT_F_JSONPRETTY;
 
-    cmd.id = "PYCBC";
-    rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
+        cmd->id = "PYCBC";
+        rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
 
-    if (rv < 0) {
-        return NULL;
-    }
+        if (rv < 0) {
+            return NULL;
+        }
 
-    lcb_sched_enter(self->instance);
-    PYCBC_CONN_THR_BEGIN(self);
-    err = lcb_diag(self->instance, cv.mres, &cmd);
+        lcb_sched_enter(self->instance);
+        PYCBC_CONN_THR_BEGIN(self);
+        err = lcb_diag(self->instance, cv.mres, cmd);
+    )
     PYCBC_CONN_THR_END(self);
 
     if (err != LCB_SUCCESS) {

@@ -177,8 +177,7 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     pycbc_Bucket *bucket;
     pycbc_HttpResult *htres;
     const lcb_RESPHTTP *resp = (const lcb_RESPHTTP *)rb;
-    lcb_resphttp_cookie(resp,(const void**)&mres);
-//    pycbc_resphttp_cookie(resp,pycbc_MultiResult*,(void*)&mres);
+    lcb_resphttp_cookie(resp,(void**)&mres);
     bucket = mres->parent;
     PYCBC_CONN_THR_END(bucket);
 
@@ -194,19 +193,18 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
         lcb_resphttp_body(resp,&body.buffer,&body.length);
 
         pycbc_httpresult_add_data_strn(mres, htres, body);
-
         pycbc_httpresult_complete(htres, mres, lcb_resphttp_status(resp), http_status, headers );
     }
 
     /* CONN_THR_BEGIN called by httpresult_complete() */
     (void)instance; (void)cbtype;
 }
-#define DUMMY(...)
+
 #ifndef PYCBC_V4
 void lcb_cmdhttp_path(lcb_CMDHTTP* htcmd, const char* path, size_t length){
     {
         pycbc_pybuffer pathbuf = {NULL, path, length};
-        PYCBC_CMD_SET_KEY_SCOPE(http, *htcmd, pathbuf);
+        PYCBC_CMD_SET_KEY_SCOPE(http, htcmd, pathbuf);
     }
 }
 #endif
@@ -290,10 +288,10 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
         lcb_CMDHTTP htcmd_real={0};
         htcmd=&htcmd_real;
         htcmd->type=reqtype;
+#endif
         if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(host)) {
             lcb_cmdhttp_host(htcmd, host, pycbc_strlen_safe(host));
         }
-#endif
         PYCBC_DEBUG_LOG("Encoding host [%s]",host?host:"")
         if (PYCBC_BYPASS_SAFETY || (body && nbody)){
             PYCBC_DEBUG_LOG("Encoding body [%.*s]",nbody,body?body:"")

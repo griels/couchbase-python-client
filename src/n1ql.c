@@ -1,18 +1,12 @@
-#include <libcouchbase/couchbase.h>
 #include "pycbc.h"
 #include "oputil.h"
 #include "pycbc_http.h"
-#if 0
-#if PYCBC_LCB_API>=0x030100
-#include "libcouchbase/api4.h"
-#endif
-#endif
 #include <libcouchbase/ixmgmt.h>
 static void
 n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
 {
     pycbc_MultiResult *mres=NULL;
-    lcb_respn1ql_cookie(resp, (const void **) &mres);
+    lcb_respn1ql_cookie(resp, (void **) &mres);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
