@@ -43,7 +43,7 @@ if os.environ.get("PYCBC_TRACE_GC") in ['FULL', 'STATS_LEAK_ONLY']:
 
 from utilspie.collectionsutils import frozendict
 
-loglevel=os.environ.get("PYCBC_DEBUG_LOG")
+loglevel=os.environ.get("PYCBC_DEBUG_LOG_LEVEL")
 if loglevel:
     ch = logging.StreamHandler()
     ch.setLevel(logging.getLevelName(loglevel))
