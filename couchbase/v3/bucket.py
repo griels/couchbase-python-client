@@ -1,6 +1,8 @@
 from couchbase.bucket import Bucket as SDK2Bucket
-from couchbase.v3 import *
+from couchbase.v3.collection import Collection as SDK3Collection, CollectionOptions
 from couchbase.v3.options import *
+import couchbase.v3.collection as cb_coll
+from couchbase.v3.views import IViewResult
 
 
 class BucketOptions(OptionBlock):
@@ -9,7 +11,7 @@ class BucketOptions(OptionBlock):
 
 class Bucket(object):
     _bucket=None  # type: SDK2Bucket
-    from couchbase.v3.collection import Scope, Collection, CollectionOptions
+    from couchbase.v3.collection import Scope
 
     @overload
     def __init__(self,name,
@@ -24,38 +26,42 @@ class Bucket(object):
                  **kwargs
                 ):
         # type: (...)->None
-        self.name=name
+        self._name=name
         self._bucket=SDK2Bucket(name,**forward_args(kwargs,args))
 
+    @property
     def name(self):
         # type: (...)->str
-        pass
+        return self._name
 
     def scope(self,
-              scopeName  # type: str
+              scope_name  # type: str
               ):
         # type: (...)->Scope
-        pass
+        return cb_coll.Scope(scope_name)
 
     def default_collection(self,
                            options=None  # type: CollectionOptions
                            ):
-        # type: (...)->Collection
-        return Collection(self)
+        # type: (...)->SDK3Collection
+        return SDK3Collection(self)
 
     def collection(self,
                    collection_name,  # type: str
                    options=None  # type: CollectionOptions
                    ):
-        # type: (...)->Collection
-        return Collection(self, collection_name)
+        # type: (...)->SDK3Collection
+        return SDK3Collection(self, collection_name)
 
     def view_query(self,
                    design_doc,  # type: str
                    view_name,  # type: str
-                   view_options=None):
+                   *view_options # type: ViewOptions
+                   ):
         # type: (...)->IViewResult
-        pass
+        cb=self._bucket # type: SDK2Bucket
+        res=cb.query(design_doc, view_name, **forward_args(None,view_options))
+        return IViewResult(res)
 
     def spatial_view_query(self,
                            design_doc,  # type: str

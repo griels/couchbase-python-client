@@ -78,8 +78,8 @@ X(view,VIEW, document, pycbc_RESPGET)\
 X(view,VIEW, key, pycbc_strn_base_const)\
 X(view,VIEW, geometry, pycbc_strn_base_const)\
 X(view,VIEW, row, pycbc_strn_base_const)
-#define DUMMY(...)
-PYCBC_GETTERS(DUMMY);
+#define PYCBC_DUMMY(...)
+PYCBC_GETTERS(PYCBC_DUMMY);
 
 #ifdef PYCBC_GETTER_GEN
 PYCBC_GETTERS(PYCBC_RESP_GET)
@@ -204,7 +204,7 @@ static void
 row_callback(lcb_t instance, int cbtype, const lcb_RESPVIEW *resp)
 {
     pycbc_MultiResult *mres;
-    lcb_respview_cookie(resp, (const void **) &mres);
+    lcb_respview_cookie(resp, (void **) &mres);
     //= (pycbc_MultiResult*)resp->cookie;
     pycbc_Bucket *bucket = mres->parent;
     const char * const * hdrs = NULL;
@@ -343,6 +343,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
                               view,
                               query,
                               self->instance,
+                              vmcd,
                               *vcmd->handle,
                               context,
                               mres,

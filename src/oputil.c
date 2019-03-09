@@ -636,6 +636,137 @@ pycbc_encode_sd_keypath(pycbc_Bucket *conn, PyObject *src,
     return rv;
 }
 
+
+typedef enum{
+    PYCBC_NIL,PYCBC_PATH_ONLY,PYCBC_COUNTER,PYCBC_STR
+} pycbc_sd_op_category;
+
+typedef struct{
+    int is_multival;
+    pycbc_sd_op_category category;
+    int has_valbuf;
+    lcb_STATUS err;
+} pycbc_sd_metainfo;
+
+typedef struct{
+    lcb_STATUS err;
+} pycbc_sdspec;
+
+typedef struct{
+    lcb_SUBDOCOP op;
+    size_t index;
+    unsigned flags;
+    pycbc_pybuffer* pathbuf;
+    pycbc_pybuffer* valbuf;
+    int64_t delta;
+} pycbc_sdspec_details;
+
+#if PYCBC_LCB_API>0x030000
+#define PYCBC_X_SD_OPS_FULLDOC(X, NP, VAL, MVAL, CTR)\
+NP(FULLDOC_GET,fulldoc_get)\
+X(FULLDOC_UPSERT,fulldoc_upsert)\
+X(FULLDOC_ADD,fulldoc_add)\
+X(FULLDOC_REPLACE,fulldoc_replace)\
+NP(FULLDOC_REMOVE,fulldoc_remove)
+#else
+#define PYCBC_X_SD_OPS_FULLDOC(X, NP, VAL, MVAL, CTR)\
+NP(GET_FULLDOC,GET_FULLDOC)\
+X(SET_FULLDOC,SET_FULLDOC)\
+NP(REMOVE_FULLDOC,REMOVE_FULLDOC)
+#endif
+
+#define PYCBC_X_SD_OPS(X, NP, VAL, MVAL, CTR)\
+            X(GET,get)\
+X(EXISTS,exists)\
+VAL(REPLACE,replace)\
+VAL(DICT_ADD,dict_add)\
+VAL(DICT_UPSERT,dict_upsert)\
+MVAL(ARRAY_ADD_FIRST,array_add_first)\
+MVAL(ARRAY_ADD_LAST,array_add_last)\
+MVAL(ARRAY_ADD_UNIQUE,array_add_unique)\
+MVAL(ARRAY_INSERT,array_insert)\
+CTR(COUNTER,counter)\
+X(REMOVE,remove)\
+X(GET_COUNT,get_count)\
+PYCBC_X_SD_OPS_FULLDOC(X,NP,VAL,MVAL,CTR)
+
+#define DUMMY(...)
+#define PYCBC_SDCMD_CASE_GENERIC(UC,LC,FN,...)\
+    case LCB_SDCMD_##UC:\
+            FN(UC,LC,__VA_ARGS__)\
+            break;
+
+pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
+{
+    pycbc_sd_metainfo result={0};
+#define PYCBC_PATH_ONLY(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=0,.category=PYCBC_PATH_ONLY};
+#define PYCBC_COUNTER(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=0,.category=PYCBC_COUNTER};
+#define PYCBC_NP(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=0,.category=PYCBC_NIL};
+#define PYCBC_VAL_GEN(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=0,.category=PYCBC_STR};
+#define PYCBC_IS_MVAL(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=1,.category=PYCBC_STR};
+
+#define PYCBC_SDCMD_CASE(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_PATH_ONLY,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_NP(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_NP,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_VAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_IS_MVAL,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
+    switch (details.op){
+        PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
+        default:
+            result.err=LCB_SUBDOC_PATH_EINVAL;
+            break;
+    }
+    result.has_valbuf=(result.category==PYCBC_STR);
+    return result;
+#undef PYCBC_PATH_ONLY
+#undef PYCBC_COUNTER
+#undef PYCBC_NP
+#undef PYCBC_VAL_GEN
+#undef PYCBC_IS_MVAL
+
+#undef PYCBC_SDCMD_CASE
+#undef PYCBC_SDCMD_CASE_NP
+#undef PYCBC_SDCMD_CASE_VAL
+#undef PYCBC_SDCMD_CASE_MVAL
+#undef PYCBC_SDCMD_CASE_COUNTER
+};
+
+#if PYCBC_LCB_API<0x030001
+typedef lcb_SDSPEC lcb_SUBDOCOPS;
+#endif
+
+pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details details)
+{
+    pycbc_sdspec result={0};
+
+    #if PYCBC_LCB_API>0x030000
+    #define PYCBC_PATH_ONLY(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length);
+    #define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length, details.delta);
+    #define PYCBC_NP(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags);
+    #define PYCBC_VAL_GEN(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length,\
+                    details.valbuf->buffer, details.valbuf->length);
+
+    #define PYCBC_SDCMD_CASE(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_PATH_ONLY,__VA_ARGS__)
+    #define PYCBC_SDCMD_CASE_NP(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_NP,__VA_ARGS__)
+    #define PYCBC_SDCMD_CASE_VAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+    #define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+    #define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
+    switch (details.op){
+        PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
+
+        default:
+            result.err=LCB_SUBDOC_PATH_EINVAL;
+            break;
+    }
+#else
+    sdspec->sdcmd = details.op;
+    sdspec->options = details.flags;
+    LCB_SDSPEC_SET_PATH(sdspec, details.pathbuf->buffer, details.pathbuf->length);
+#endif
+
+    return result;
+}
+
 static int
 sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
     pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf)
@@ -775,7 +906,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     }
 
     if (rv == 0) {
-        PYCBC_TRACECMD_PURE(subdoc,(*cmd), context);
+        PYCBC_TRACECMD_PURE(subdoc,cmd, context);
 #ifdef PYCBC_TRACING
         newitm->tracing_context = context;
         newitm->is_tracing_stub = 0;

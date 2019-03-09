@@ -753,8 +753,9 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         OPFUNC(observe, "Get replication/persistence status for keys"),
         OPFUNC(observe_multi, "multi-key variant of observe"),
 
-        OPFUNC(endure_multi, "Check durability requirements"),
-
+#ifndef PYCBC_V4
+OPFUNC(endure_multi, "Check durability requirements"),
+#endif
 
 #undef OPFUNC
 

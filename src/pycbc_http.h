@@ -5,29 +5,18 @@
 #ifndef COUCHBASE_PYTHON_CLIENT_HTTP_H
 #define COUCHBASE_PYTHON_CLIENT_HTTP_H
 #include "pycbc.h"
-#include "Python.h"
-#include "libcouchbase/http.h"
+#include <libcouchbase/http.h>
 #ifdef PYCBC_V4
 typedef lcb_VIEW_HANDLE*  pycbc_VIEW_HANDLE;
 typedef lcb_N1QL_HANDLE*  pycbc_N1QL_HANDLE;
 typedef lcb_FTS_HANDLE* pycbc_FTS_HANDLE;
 #else
 #include "libcouchbase/cbft.h"
-typedef lcb_VIEWHANDLE  lcb_VIEW_HANDLE;
-typedef lcb_N1QLHANDLE  lcb_N1QL_HANDLE;
-typedef lcb_FTSHANDLE lcb_FTS_HANDLE;
+typedef lcb_VIEWHANDLE  pycbc_VIEW_HANDLE;
+typedef lcb_N1QLHANDLE  pycbc_N1QL_HANDLE;
+typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
 #endif
 #include <libcouchbase/couchbase.h>
-#include "libcouchbase/api3.h"
-#if 0
-#if PYCBC_LCB_API<0x030100
-#include <libcouchbase/api3.h>
-#else
-#ifdef PYCBC_V4_EXPLICIT
-#include <libcouchbase/api4.h>
-#endif
-#endif
-#endif
 #include <libcouchbase/ixmgmt.h>
 
 typedef struct {

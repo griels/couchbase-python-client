@@ -29,7 +29,6 @@ struct getcmd_vars_st {
         unsigned long ttl;
         struct {
             int strategy;
-            short index;
         } replica;
     } u;
 };
@@ -42,9 +41,8 @@ lcb_STATUS lcb_cmdget_key(lcb_CMDBASE* ctx, pycbc_pybuffer* buf) {
     LCB_CMD_SET_KEY(ctx,buf->buffer, buf->length);
     return LCB_SUCCESS;
 }
-#define DUMMY(X...)
 
-GET_ATTRIBS(DUMMY)
+GET_ATTRIBS(PYCBC_DUMMY)
 GET_ATTRIBS(PYCBC_SCOPE_SET)
 #endif
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
@@ -161,29 +159,16 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL:
         {
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API>0x030000
             lcb_CMDGETREPLICA* cmd=NULL;
 #else
             lcb_CMDGETREPLICA cmd_real={0};
             lcb_CMDGETREPLICA* cmd=&cmd_real;
 #endif
-            switch(gv->u.replica.strategy)
-            {
-                case LCB_REPLICA_ALL:
-                    lcb_cmdgetreplica_create_all(&cmd);
-                    break;
-                case LCB_REPLICA_FIRST:
-                    lcb_cmdgetreplica_create_first(&cmd);
-                    break;
-                case LCB_REPLICA_SELECT:
-                    lcb_cmdgetreplica_create_select(&cmd, gv->u.replica.index);
-                    break;
-                default:
-                    break;
-            }
+            lcb_cmdgetreplica_create(cmd,gv->u.replica.strategy);
             COMMON_OPTS(PYCBC_getreplica_ATTR,rget,getreplica);
             err = pycbc_rget(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API>0x030000
             lcb_cmdgetreplica_destroy(cmd);
 #endif
         }
@@ -222,27 +207,38 @@ handle_replica_options(int *optype, struct getcmd_vars_st *gv, PyObject *replica
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "TTL specified along with replica");
             return -1;
         }
-        gv->u.replica.strategy = LCB_REPLICA_FIRST;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ANY;
         return 0;
 
     case PYCBC_CMD_GETREPLICA:
-        gv->u.replica.strategy = LCB_REPLICA_FIRST;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ANY;
         return 0;
 
     case PYCBC_CMD_GETREPLICA_INDEX:
-        gv->u.replica.strategy = LCB_REPLICA_SELECT;
         if (replica_O == NULL || replica_O == Py_None) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "rgetix must have a valid replica index");
             return -1;
         }
-        gv->u.replica.index = (short)pycbc_IntAsL(replica_O);
+        switch ((short)pycbc_IntAsL(replica_O)) {
+            case 0:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX0;
+                break;
+            case 1:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX1;
+                break;
+            case 2:
+                gv->u.replica.strategy = LCB_REPLICA_MODE_IDX2;
+                break;
+            default:
+                break;
+        }
         if (PyErr_Occurred()) {
             return -1;
         }
         return 0;
 
     case PYCBC_CMD_GETREPLICA_ALL:
-        gv->u.replica.strategy = LCB_REPLICA_ALL;
+        gv->u.replica.strategy = LCB_REPLICA_MODE_ALL;
         return 0;
 
     default:
@@ -423,7 +419,8 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
 {
     pycbc_pybuffer keybuf = { NULL };
 #ifdef PYCBC_V4
-    lcb_CMDSUBDOC* cmd = lcb_cmdsubdoc_alloc();
+    lcb_CMDSUBDOC* cmd=NULL;
+    lcb_cmdsubdoc_create(&cmd);
 #else
     lcb_CMDSUBDOC cmd_real ={0};
     lcb_CMDSUBDOC* cmd = &cmd_real;
@@ -438,11 +435,11 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
         return -1;
     }
 
-    LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
+    PYCBC_CMD_SET_KEY_SCOPE(subdoc,cmd, keybuf);
     rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curval, cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
 #ifdef PYCBC_V4
-    lcb_cmdsubdoc_dispose(cmd);
+    lcb_cmdsubdoc_destroy(cmd);
 #endif
 
     return rv;
