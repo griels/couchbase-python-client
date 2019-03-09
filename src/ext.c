@@ -486,6 +486,14 @@ FAIL:
 #include <inttypes.h>
 #endif
 
+int pycbc_free_debug(const char* FILE, const char* FUNC, int LINE, void* X){
+    if (X) {
+        PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"freeing %p", X);
+    }                                     \
+    free(X);
+    return 0;
+}
+
 #include "oputil.h"
 #if PY_MAJOR_VERSION < 3
 const char *pycbc_cstrn(PyObject *object, Py_ssize_t *length)
@@ -850,6 +858,13 @@ PyObject *pycbc_null_or_value(PyObject *tracer)
 {
     return (tracer && PyObject_IsTrue(tracer)) ? tracer : NULL;
 }
+
+lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result)
+{
+    PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"Doing %s, %s==%llx: %llx, %llx, got result %d", VERB, CMDNAME, CMD, instance, COOKIE, result);
+    return result;
+}
+
 
 #ifdef PYCBC_TRACING
 
@@ -3027,3 +3042,65 @@ int pycbc_TracerType_init(PyObject **ptr) {
 }
 
 #endif
+
+#if PYCBC_LCB_API<0x030001
+unsigned long long int lcb_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_SEQ(pToken);
+}
+
+unsigned short lcb_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_VB(pToken);
+}
+
+unsigned long long int lcb_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_ID(pToken);
+}
+#endif
+
+#if PYCBC_LCB_API<0x031000
+void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy) {
+#if PYCBC_LCB_API >0x030000
+    switch (strategy) {
+        case LCB_REPLICA_MODE_ANY:
+            lcb_cmdgetreplica_create_first(pcmd);
+            break;
+        case LCB_REPLICA_MODE_ALL:
+            lcb_cmdgetreplica_create_all(pcmd);
+            break;
+
+        case LCB_REPLICA_MODE_IDX0:
+        case LCB_REPLICA_MODE_IDX1:
+        case LCB_REPLICA_MODE_IDX2:
+        default:
+        lcb_cmdgetreplica_create_select(pcmd, strategy - LCB_REPLICA_MODE_IDX0);
+            break;
+    }
+#else
+    (*pcmd)->strategy = strategy;                 \
+    switch (strategy) {                         \
+    case LCB_REPLICA_MODE_ANY:                  \
+        (*pcmd)->strategy = LCB_REPLICA_FIRST;    \
+        break;                                  \
+    case LCB_REPLICA_MODE_ALL:                  \
+        (*pcmd)->strategy = LCB_REPLICA_ALL;      \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX0:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 0;                       \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX1:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 1;                       \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX2:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 2;                       \
+        break;                                  \
+    default:                                    \
+        break;                                  \
+    }
+
+#endif
+}
+#endif
+
