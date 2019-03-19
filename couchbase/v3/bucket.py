@@ -1,17 +1,20 @@
 from couchbase.bucket import Bucket as SDK2Bucket
 from couchbase.v3.collection import Collection as SDK3Collection, CollectionOptions
 from couchbase.v3.options import *
-import couchbase.v3.collection as cb_coll
-from couchbase.v3.views import IViewResult
 
 
 class BucketOptions(OptionBlock):
     pass
 
 
+class IViewResult(IResult):
+    def __init__(self, sdk2_result # type: couchbase.ViewResult
+                ):
+        pass
+
+
 class Bucket(object):
     _bucket=None  # type: SDK2Bucket
-    from couchbase.v3.collection import Scope
 
     @overload
     def __init__(self,name,
@@ -33,12 +36,15 @@ class Bucket(object):
     def name(self):
         # type: (...)->str
         return self._name
+    from couchbase.v3.collection import Scope
 
     def scope(self,
               scope_name  # type: str
               ):
         # type: (...)->Scope
-        return cb_coll.Scope(scope_name)
+        from couchbase.v3.collection import Scope
+
+        return Scope(scope_name)
 
     def default_collection(self,
                            options=None  # type: CollectionOptions

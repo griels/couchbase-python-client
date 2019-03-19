@@ -683,7 +683,7 @@ VAL(DICT_ADD,dict_add)\
 VAL(DICT_UPSERT,dict_upsert)\
 MVAL(ARRAY_ADD_FIRST,array_add_first)\
 MVAL(ARRAY_ADD_LAST,array_add_last)\
-MVAL(ARRAY_ADD_UNIQUE,array_add_unique)\
+VAL(ARRAY_ADD_UNIQUE,array_add_unique)\
 MVAL(ARRAY_INSERT,array_insert)\
 CTR(COUNTER,counter)\
 X(REMOVE,remove)\
@@ -696,7 +696,7 @@ PYCBC_X_SD_OPS_FULLDOC(X,NP,VAL,MVAL,CTR)
             FN(UC,LC,__VA_ARGS__)\
             break;
 
-pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
+static pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 {
     pycbc_sd_metainfo result={0};
 #define PYCBC_PATH_ONLY(UC,LC,...) result=(pycbc_sd_metainfo){.is_multival=0,.category=PYCBC_PATH_ONLY};
@@ -707,8 +707,8 @@ pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 
 #define PYCBC_SDCMD_CASE(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_PATH_ONLY,__VA_ARGS__)
 #define PYCBC_SDCMD_CASE_NP(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_NP,__VA_ARGS__)
-#define PYCBC_SDCMD_CASE_VAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_IS_MVAL,__VA_ARGS__)
-#define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_VAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_IS_MVAL,__VA_ARGS__)
 #define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
     switch (details.op){
         PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
@@ -735,7 +735,7 @@ pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 typedef lcb_SDSPEC lcb_SUBDOCOPS;
 #endif
 
-pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details details)
+static pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details details)
 {
     pycbc_sdspec result={0};
 
@@ -762,20 +762,20 @@ pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details detail
     sdspec->sdcmd = details.op;
     sdspec->options = details.flags;
     LCB_SDSPEC_SET_PATH(sdspec, details.pathbuf->buffer, details.pathbuf->length);
+    LCB_SDSPEC_SET_VALUE(sdspec, details.valbuf->buffer, details.valbuf->length)
 #endif
 
     return result;
 }
 
 static int
-sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
-    pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf)
+sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *sdspec, pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf, size_t index)
 {
     PyObject *path = NULL;
     PyObject *val = NULL;
     int op = 0;
     unsigned flags = 0;
-
+    sdspec+=index;
     if (!PyTuple_Check(pyspec)) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Expected tuple for spec", pyspec);
         return -1;
@@ -793,17 +793,12 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
     sdspec->options = flags;
     LCB_SDSPEC_SET_PATH(sdspec, pathbuf->buffer, pathbuf->length);
     if (val != NULL) {
-        int is_multival = 0;
-
+        pycbc_sdspec_details details={.op=op,.flags=flags,.pathbuf=pathbuf};
+        pycbc_sd_metainfo metainfo = pycbc_get_metainfo(details);
         if (PyObject_IsInstance(val, pycbc_helpers.sd_multival_type)) {
             /* Verify the operation allows it */
-            switch (op) {
-            case LCB_SDCMD_ARRAY_ADD_FIRST:
-            case LCB_SDCMD_ARRAY_ADD_LAST:
-            case LCB_SDCMD_ARRAY_INSERT:
-                is_multival = 1;
-                break;
-            default:
+            if (!metainfo.is_multival)
+            {
                 PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
                     "MultiValue not supported for operation", pyspec);
                 goto GT_ERROR;
@@ -814,7 +809,7 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
             goto GT_ERROR;
         }
 
-        if (is_multival) {
+        if (metainfo.is_multival) {
             /* Strip first and last [ */
             const char *buf = (const char *)valbuf->buffer;
             size_t len = valbuf->length;
@@ -836,7 +831,11 @@ sd_convert_spec(PyObject *pyspec, lcb_SDSPEC *sdspec,
             valbuf->length = len;
         }
 
-        LCB_SDSPEC_SET_VALUE(sdspec, valbuf->buffer, valbuf->length);
+        details.valbuf=valbuf;
+
+        if (pycbc_build_spec(sdspec,details).err) {
+            goto GT_ERROR;
+        }
     }
     return 0;
 
@@ -858,7 +857,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
 {
     int rv = 0;
     lcb_error_t err = LCB_SUCCESS;
-    Py_ssize_t nspecs = 0;
+    size_t nspecs = 0;
     pycbc__SDResult *newitm = NULL;
     lcb_SDSPEC *specs = NULL, spec_s = { 0 };
     pycbc_pybuffer pathbuf_s = { NULL }, valbuf_s = { NULL };
@@ -869,7 +868,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         return -1;
     }
 
-    nspecs = PyTuple_GET_SIZE(spectuple);
+    nspecs = (size_t)(PyTuple_GET_SIZE(spectuple));
     if (nspecs == 0) {
         PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Need one or more commands!");
         return -1;
@@ -878,7 +877,9 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     newitm = pycbc_sdresult_new(self, spectuple);
     newitm->key = key;
     Py_INCREF(newitm->key);
-
+#ifdef PYCBC_V4
+    lcb_subdocops_create(&specs, nspecs);
+#endif
     if (nspecs == 1) {
         PyObject *single_spec = PyTuple_GET_ITEM(spectuple, 0);
         pathbufs = &pathbuf_s;
@@ -886,19 +887,20 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
 
         cmd->specs = &spec_s;
         cmd->nspecs = 1;
-        rv = sd_convert_spec(single_spec, &spec_s, pathbufs, valbufs);
+        rv = sd_convert_spec(single_spec, &spec_s, pathbufs, valbufs, 0);
     } else {
-        Py_ssize_t ii;
-        specs = calloc(nspecs, sizeof *specs);
+        size_t ii;
         pathbufs = calloc(nspecs, sizeof *pathbufs);
         valbufs = calloc(nspecs, sizeof *valbufs);
 
+#ifndef PYCBC_V4
+        specs = calloc(nspecs, sizeof *specs);
         cmd->specs = specs;
         cmd->nspecs = nspecs;
-
+#endif
         for (ii = 0; ii < nspecs; ++ii) {
             PyObject *cur = PyTuple_GET_ITEM(spectuple, ii);
-            rv = sd_convert_spec(cur, specs + ii, pathbufs + ii, valbufs + ii);
+            rv = sd_convert_spec(cur, specs, pathbufs + ii, valbufs + ii, ii);
             if (rv != 0) {
                 break;
             }
@@ -911,7 +913,10 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         newitm->tracing_context = context;
         newitm->is_tracing_stub = 0;
 #endif
-        err = lcb_subdoc3(self->instance, mres, cmd);
+#if PYCBC_LCB_API<0x030001
+#define lcb_subdoc lcb_subdoc3
+#endif
+        err = lcb_subdoc(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
 #ifdef PYCBC_GLOBAL_SCHED_SD
             PYCBC_REF_CONTEXT(context);
@@ -921,7 +926,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         }
     }
 
-    free(specs);
+    if (specs){free(specs);}
     {
         size_t ii;
         for (ii = 0; nspecs > 0 && ii < (size_t) nspecs; ++ii) {
