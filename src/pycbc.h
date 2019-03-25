@@ -56,7 +56,7 @@ typedef struct pycbc_stack_context_decl *pycbc_stack_context_handle;
 #ifdef PYCBC_DEBUG_ENABLE
 #define PYCBC_DEBUG
 #else
-//#define PYCBC_DEBUG
+#define PYCBC_DEBUG
 #endif
 #endif
 
@@ -154,11 +154,9 @@ void pycbc_exception_log(const char *file,
     calloc_and_log(__FILE__, __FUNCTION_NAME__, __LINE__, X, Y, "unknown")
 #define PYCBC_CALLOC_TYPED(X, Y) \
     calloc_and_log(__FILE__, __FUNCTION_NAME__, __LINE__, X, sizeof(Y), #Y)
-#define PYCBC_FREE(X)                     \
-    if (X) {                              \
-        PYCBC_DEBUG_LOG("freeing %p", X); \
-    }                                     \
-    free(X);
+int pycbc_free_debug(const char* FILE, const char* FUNC, int line, void* X);
+#define PYCBC_FREE(X)  pycbc_free_debug(__FILE__, __FUNCTION_NAME__, __LINE__, X)
+
 
 #define LOG_REFOP(Y, OP)                                                    \
     {                                                                       \
@@ -608,6 +606,11 @@ typedef const lcb_RESPGET* pycbc_RESPGET;
 typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 typedef lcb_CMDVIEWQUERY lcb_CMDVIEW;
 #endif
+
+#define CMDSCOPE_GENERIC_FAIL fail=1; continue;
+#define CMDSCOPE_GENERIC_ALL(INITIALIZER,  DESTRUCTOR, CMDS)  \
+    INITIALIZER(CMDS)\
+    for (int finished=0,  fail=0;!(finished++) && !fail; DESTRUCTOR(CMDS))
 
 #ifdef PYCBC_V4
 #define PYCBC_FTS_DISABLED
@@ -1406,8 +1409,8 @@ LCB_CMD_SET_TRACESPAN((CMD), (SPAN));
 
 /**This view is spatial. Modifies how the final view path will be constructed */
 #define LCB_CMDVIEWQUERY_F_SPATIAL (1 << 18)
-#define lcb_cmdstats_create(CMD) (*(CMD))=lcb_cmdstats_alloc();
-#define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
+//#define lcb_cmdstats_create(CMD) (*(CMD))=lcb_cmdstats_alloc();
+//#define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
 #define PYCBC_CMD_SET_TRACESPAN(TYPE,CMD,SPAN)\
     lcb_cmd##TYPE##_parent_span((CMD),(SPAN));
 #endif
@@ -2262,6 +2265,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
  */
 #define PYCBC_EXC_WRAP_EX(e_mode, e_err, e_msg, e_key, e_objextra, e_err_info) \
     {                                                                          \
+        PYCBC_DEBUG_LOG("Raising exception at %s, %d", __FILE__, __LINE__)\
         struct pycbc_exception_params __pycbc_ep = {0};                        \
         __pycbc_ep.file = __FILE__;                                            \
         __pycbc_ep.line = __LINE__;                                            \

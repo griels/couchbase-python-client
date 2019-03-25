@@ -199,7 +199,7 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     /* CONN_THR_BEGIN called by httpresult_complete() */
     (void)instance; (void)cbtype;
 }
-#define PYCBC_DUMMY(...)
+
 #ifndef PYCBC_V4
 void lcb_cmdhttp_path(lcb_CMDHTTP* htcmd, const char* path, size_t length){
     {

@@ -486,6 +486,14 @@ FAIL:
 #include <inttypes.h>
 #endif
 
+int pycbc_free_debug(const char* FILE, const char* FUNC, int LINE, void* X){
+    if (X) {
+        PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"freeing %p", X);
+    }                                     \
+    free(X);
+    return 0;
+}
+
 #include "oputil.h"
 #if PY_MAJOR_VERSION < 3
 const char *pycbc_cstrn(PyObject *object, Py_ssize_t *length)

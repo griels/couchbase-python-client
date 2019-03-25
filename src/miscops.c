@@ -14,10 +14,12 @@
  *   limitations under the License.
  **/
 
-#include <libcouchbase/api3.h>
 #include "oputil.h"
 #include "pycbc.h"
-#include "libcouchbase/tracing.h"
+#include <libcouchbase/tracing.h>
+#if PYCBC_LCB_API>0x030000
+#include <libcouchbase/utils.h>
+#endif
 /**
  * This file contains 'miscellaneous' operations. Functions contained here
  * might move to other files if they become more complex.
@@ -115,15 +117,19 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
       lcb_cmdunlock_destroy(cmd);
 #endif
         }
-    } else if (optype == PYCBC_CMD_ENDURE) {
-        lcb_CMDBASE cmd_real = {0};
+    }
+#if PYCBC_LCB_API<0x030000
+    else if (optype == PYCBC_CMD_ENDURE) {
+        lcb_CMDSTORE cmd_real={0};
         lcb_CMDBASE* cmd=&cmd_real;
         //COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
 
         err = cv->mctx->addcmd(cv->mctx, cmd);
-    } else {
+    }
+#endif
+    else {
 
         CMDSCOPE(REMOVE,remove,
             COMMON_OPTS(cmd,PYCBC_remove_ATTR, rm, remove);
@@ -244,7 +250,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-
+#ifndef PYCBC_V4
 TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;
@@ -315,6 +321,7 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     return cv.ret;
 
 }
+#endif
 
 #define DECLFUNC(name, operation, mode)                           \
     PyObject *pycbc_Bucket_##name(                                \

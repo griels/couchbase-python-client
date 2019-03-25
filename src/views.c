@@ -78,7 +78,6 @@ X(view,VIEW, document, pycbc_RESPGET)\
 X(view,VIEW, key, pycbc_strn_base_const)\
 X(view,VIEW, geometry, pycbc_strn_base_const)\
 X(view,VIEW, row, pycbc_strn_base_const)
-#define PYCBC_DUMMY(...)
 PYCBC_GETTERS(PYCBC_DUMMY);
 
 #ifdef PYCBC_GETTER_GEN

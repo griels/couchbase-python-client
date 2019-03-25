@@ -18,6 +18,10 @@
 #include "oputil.h"
 #include "pycbc.h"
 #include "structmember.h"
+#if PYCBC_LCB_API>0x030000
+#include <libcouchbase/error.h>
+#include <libcouchbase/utils.h>
+#endif
 
 void
 pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
@@ -670,9 +674,9 @@ X(FULLDOC_REPLACE,fulldoc_replace)\
 NP(FULLDOC_REMOVE,fulldoc_remove)
 #else
 #define PYCBC_X_SD_OPS_FULLDOC(X, NP, VAL, MVAL, CTR)\
-NP(GET_FULLDOC,GET_FULLDOC)\
-X(SET_FULLDOC,SET_FULLDOC)\
-NP(REMOVE_FULLDOC,REMOVE_FULLDOC)
+NP(GET_FULLDOC,get_fulldoc)\
+X(SET_FULLDOC,set_fulldoc)\
+NP(REMOVE_FULLDOC,remove_fulldoc)
 #endif
 
 #define PYCBC_X_SD_OPS(X, NP, VAL, MVAL, CTR)\
@@ -693,6 +697,7 @@ PYCBC_X_SD_OPS_FULLDOC(X,NP,VAL,MVAL,CTR)
 #define DUMMY(...)
 #define PYCBC_SDCMD_CASE_GENERIC(UC,LC,FN,...)\
     case LCB_SDCMD_##UC:\
+            PYCBC_DEBUG_LOG("Handling case :" #UC)\
             FN(UC,LC,__VA_ARGS__)\
             break;
 
@@ -732,18 +737,447 @@ static pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 };
 
 #if PYCBC_LCB_API<0x030001
-typedef lcb_SDSPEC lcb_SUBDOCOPS;
+//typedef lcb_SDSPEC lcb_SUBDOCOPS;
+typedef struct{
+    lcb_SDSPEC* specs;
+    size_t nspecs;
+    lcb_U32 options;
+}  lcb_SUBDOCOPS;
+
+#define PYCBC_SDSPEC_SET_XX(POSTFIX,DEST,BUF,BUF_LEN) {if (BUF && BUF_LEN){LCB_SDSPEC_SET_##POSTFIX(DEST,BUF,BUF_LEN);}}
+#define PYCBC_SDSPEC_SET_PATH(DEST,BUF,BUF_LEN) PYCBC_SDSPEC_SET_XX(PATH,DEST,BUF,BUF_LEN)
+#define PYCBC_SDSPEC_SET_VALUE(DEST,BUF,BUF_LEN) PYCBC_SDSPEC_SET_XX(VALUE,DEST,BUF,BUF_LEN)
+#define PYCBC_PATH_ONLY(UC, LC, ...)                             \
+    lcb_subdocops_##LC(lcb_SUBDOCOPS *operations,                \
+                       size_t index,                             \
+                       uint32_t flags,                           \
+                       const char *path,                         \
+                       size_t path_len)                          \
+    {                                                            \
+        PYCBC_SDSPEC_SET_PATH(&operations->specs[index], path, path_len); \
+        operations->specs[index].options = flags;                       \
+        operations->specs[index].sdcmd = LCB_SDCMD_##UC;                \
+        return LCB_SUCCESS;                                      \
+    }
+#define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(lcb_SUBDOCOPS* operations, size_t index, uint32_t flags, const char* path, size_t path_len, int64_t delta)\
+{                                                            \
+        char *value = (char *)calloc(22, sizeof(char));\
+        size_t value_len = snprintf(value, 21, "%" PRId64, delta);\
+        PYCBC_SDSPEC_SET_PATH(&operations->specs[index], path, path_len); \
+        PYCBC_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len); \
+operations->specs[index].options = flags;                       \
+        operations->specs[index].sdcmd = LCB_SDCMD_##UC;                \
+        return LCB_SUCCESS;                                      \
+    }
+#define PYCBC_NP(UC,LC,...) lcb_subdocops_##LC(lcb_SUBDOCOPS* operations, size_t index, uint32_t flags){\
+operations->specs[index].options = flags;                       \
+        operations->specs[index].sdcmd = LCB_SDCMD_##UC;                \
+        return LCB_SUCCESS;                                      \
+    }
+#define PYCBC_VAL_GEN(UC,LC,...) lcb_subdocops_##LC(lcb_SUBDOCOPS* operations, size_t index, uint32_t flags, const char* path, size_t path_len,\
+                    const char* value, size_t value_len){\
+        PYCBC_SDSPEC_SET_PATH(&operations->specs[index], path, path_len); \
+        PYCBC_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len); \
+operations->specs[index].options = flags;                       \
+        operations->specs[index].sdcmd = LCB_SDCMD_##UC;                \
+        return LCB_SUCCESS;                                      \
+    }
+#define PYCBC_SDCMD_FN_DEF(UC,LC,FN,...) LIBCOUCHBASE_API lcb_STATUS FN(UC,LC,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_PATH_ONLY,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_NP(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_NP,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_VAL(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
+#define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
+
+#ifdef PYCBC_SD_OPS_GEN
+PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
+#else
+
+lcb_STATUS
+lcb_subdocops_get(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_GET;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_exists(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_EXISTS;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_replace(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                      const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_REPLACE;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_dict_add(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                       const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_DICT_ADD;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_dict_upsert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                          const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_DICT_UPSERT;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_array_add_first(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
+                                         size_t path_len, const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_FIRST;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_array_add_last(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                             const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_LAST;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_array_add_unique(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
+                                          size_t path_len, const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_UNIQUE;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_array_insert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                           const char *value, size_t value_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_INSERT;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_counter(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
+                      int64_t delta) {
+    char *value = (char *) calloc(22, sizeof(char));
+    size_t value_len = __builtin___snprintf_chk(value, 21, 0, __builtin_object_size(value, 2 > 1 ? 1 : 0), "%" "ll" "d",
+                                                delta);
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    {
+        if (value && value_len) {
+            do {
+                (&operations->specs[index])->value.vtype = LCB_KV_COPY;
+                (&operations->specs[index])->value.u_buf.contig.bytes = value;
+                (&operations->specs[index])->value.u_buf.contig.nbytes = value_len;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_COUNTER;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS
+lcb_subdocops_remove(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_REMOVE;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_get_count(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
+                                   size_t path_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_GET_COUNT;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_get_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags) {
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_GET_FULLDOC;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_set_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
+                                     size_t path_len) {
+    {
+        if (path && path_len) {
+            do {
+                (&operations->specs[index])->path.contig.bytes = path;
+                (&operations->specs[index])->path.contig.nbytes = path_len;
+                (&operations->specs[index])->path.type = LCB_KV_COPY;
+            }
+            while (0);;
+        }
+    };
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_SET_FULLDOC;
+    return LCB_SUCCESS;
+}
+
+lcb_STATUS lcb_subdocops_remove_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags) {
+    operations->specs[index].options = flags;
+    operations->specs[index].sdcmd = LCB_SDCMD_REMOVE_FULLDOC;
+    return LCB_SUCCESS;
+}
+#endif
+#undef PYCBC_PATH_ONLY
+#undef PYCBC_COUNTER
+#undef PYCBC_NP
+#undef PYCBC_VAL_GEN
+#undef PYCBC_IS_MVAL
+
+#undef PYCBC_SDCMD_CASE
+#undef PYCBC_SDCMD_CASE_NP
+#undef PYCBC_SDCMD_CASE_VAL
+#undef PYCBC_SDCMD_CASE_MVAL
+#undef PYCBC_SDCMD_CASE_COUNTER
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_create(lcb_SUBDOCOPS **operations, size_t capacity)
+{
+    lcb_SUBDOCOPS *res = (lcb_SUBDOCOPS *)calloc(1, sizeof(lcb_SUBDOCOPS));
+    res->nspecs = capacity;
+    res->specs = (lcb_SDSPEC *)calloc(res->nspecs, sizeof(lcb_SDSPEC));
+    *operations = res;
+    return LCB_SUCCESS;
+}
+LIBCOUCHBASE_API lcb_STATUS lcb_cmdsubdoc_operations(lcb_CMDSUBDOC *cmd, const lcb_SUBDOCOPS *operations)
+{
+    //cmd->cmdflags |= operations->options;
+    cmd->specs = operations->specs;
+    cmd->nspecs = operations->nspecs;
+    for (size_t i=0; i<cmd->nspecs; ++i)
+    {
+//        PYCBC_DEBUG_LOG("Command %d: {.cmd=%d, .options=%d, path=%.*s, value=%.*s} ",i, operations->specs[i].sdcmd, operations->specs[i].options, operations->specs[i].path.contig.nbytes, operations->specs[i].path.contig.bytes, operations->specs[i].value.u_buf.contig.nbytes, operations->specs[i].value.u_buf.contig.bytes)
+    }
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_destroy(lcb_SUBDOCOPS *operations)
+{
+    if (operations) {
+        if (operations->specs) {
+            size_t ii;
+            for (ii = 0; ii < operations->nspecs; ii++) {
+                if (operations->specs[ii].sdcmd == LCB_SDCMD_COUNTER) {
+                    free((void *)operations->specs[ii].value.u_buf.contig.bytes);
+                }
+            }
+        }
+        free(operations->specs);
+    }
+    free(operations);
+    return LCB_SUCCESS;
+}
+
+#define lcb_subdocops_destroy(SPECS) PYCBC_FREE(SPECS)
+#define lcb_subdoc lcb_subdoc3
+
 #endif
 
-static pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details details)
+static pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* subdocops, pycbc_sdspec_details details)
 {
     pycbc_sdspec result={0};
 
-    #if PYCBC_LCB_API>0x030000
-    #define PYCBC_PATH_ONLY(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length);
-    #define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length, details.delta);
-    #define PYCBC_NP(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags);
-    #define PYCBC_VAL_GEN(UC,LC,...) lcb_subdocops_##LC(sdspec, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length,\
+    #if 1 || PYCBC_LCB_API>0x030000
+    #define PYCBC_PATH_ONLY(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length);
+    #define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length, atoi(details.valbuf->buffer));
+    #define PYCBC_NP(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags);
+    #define PYCBC_VAL_GEN(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length,\
                     details.valbuf->buffer, details.valbuf->length);
 
     #define PYCBC_SDCMD_CASE(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_PATH_ONLY,__VA_ARGS__)
@@ -753,29 +1187,39 @@ static pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* sdspec, pycbc_sdspec_details
     #define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_CASE_GENERIC(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
     switch (details.op){
         PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
-
+        case LCB_SDCMD_MAX:
+            result.err=LCB_EINVAL;
+            break;
         default:
             result.err=LCB_SUBDOC_PATH_EINVAL;
             break;
     }
-#else
+    #else
+    lcb_SDSPEC* sdspec=&subdocops->specs[details.index];
     sdspec->sdcmd = details.op;
     sdspec->options = details.flags;
-    LCB_SDSPEC_SET_PATH(sdspec, details.pathbuf->buffer, details.pathbuf->length);
-    LCB_SDSPEC_SET_VALUE(sdspec, details.valbuf->buffer, details.valbuf->length)
+
+    if (details.pathbuf && details.pathbuf->buffer && details.pathbuf->length){
+        LCB_SDSPEC_SET_PATH(sdspec, details.pathbuf->buffer, details.pathbuf->length);
+    }
+    if (details.valbuf && details.valbuf->buffer && details.valbuf->length){
+        LCB_SDSPEC_SET_VALUE(sdspec, details.valbuf->buffer, details.valbuf->length)
+    }
 #endif
 
     return result;
 }
 
 static int
-sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *sdspec, pycbc_pybuffer *pathbuf, pycbc_pybuffer *valbuf, size_t index)
+sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *subdocops, pycbc_pybuffer *pathbuf_base, pycbc_pybuffer *valbuf_base, size_t index)
 {
     PyObject *path = NULL;
     PyObject *val = NULL;
     int op = 0;
     unsigned flags = 0;
-    sdspec+=index;
+    lcb_SDSPEC* sdspec=&subdocops->specs[index];
+    pycbc_pybuffer* pathbuf=pathbuf_base+index;
+    pycbc_pybuffer* valbuf=valbuf_base+index;
     if (!PyTuple_Check(pyspec)) {
         PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0, "Expected tuple for spec", pyspec);
         return -1;
@@ -791,37 +1235,38 @@ sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *sdspec, pycbc_pybuffer *pathbuf
 
     sdspec->sdcmd = op;
     sdspec->options = flags;
-    LCB_SDSPEC_SET_PATH(sdspec, pathbuf->buffer, pathbuf->length);
+    //LCB_SDSPEC_SET_PATH(sdspec, pathbuf->buffer, pathbuf->length);
+    PYCBC_DEBUG_PYFORMAT("Got val %R from pyspec %R", val, pyspec)
+    pycbc_sdspec_details details = {.op=op, .flags=flags, .pathbuf=pathbuf, .valbuf=valbuf, .index=index};//,.index=index};
     if (val != NULL) {
-        pycbc_sdspec_details details={.op=op,.flags=flags,.pathbuf=pathbuf};
         pycbc_sd_metainfo metainfo = pycbc_get_metainfo(details);
         if (PyObject_IsInstance(val, pycbc_helpers.sd_multival_type)) {
             /* Verify the operation allows it */
-            if (!metainfo.is_multival)
-            {
+            if (!metainfo.is_multival) {
                 PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ARGUMENTS, 0,
-                    "MultiValue not supported for operation", pyspec);
+                                   "MultiValue not supported for operation", pyspec);
                 goto GT_ERROR;
             }
         }
-
+        PYCBC_DEBUG_PYFORMAT("Encoding val %R", val)
         if (pycbc_tc_simple_encode(val, valbuf, PYCBC_FMT_JSON) != 0) {
             goto GT_ERROR;
         }
 
+        PYCBC_DEBUG_PYFORMAT("Encoded val %R to %.*s", val, valbuf->length, valbuf->buffer)
         if (metainfo.is_multival) {
             /* Strip first and last [ */
-            const char *buf = (const char *)valbuf->buffer;
+            const char *buf = (const char *) valbuf->buffer;
             size_t len = valbuf->length;
 
             for (; isspace(*buf) && len; len--, buf++) {
             }
-            for (; len && isspace(buf[len-1]); len--) {
+            for (; len && isspace(buf[len - 1]); len--) {
             }
-            if (len < 3 || buf[0] != '[' || buf[len-1] != ']') {
+            if (len < 3 || buf[0] != '[' || buf[len - 1] != ']') {
                 PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_ENCODING, 0,
-                    "Serialized MultiValue shows invalid JSON (maybe empty?)",
-                    pyspec);
+                                   "Serialized MultiValue shows invalid JSON (maybe empty?)",
+                                   pyspec);
                 goto GT_ERROR;
             }
 
@@ -831,11 +1276,9 @@ sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *sdspec, pycbc_pybuffer *pathbuf
             valbuf->length = len;
         }
 
-        details.valbuf=valbuf;
-
-        if (pycbc_build_spec(sdspec,details).err) {
-            goto GT_ERROR;
-        }
+    }
+    if (pycbc_build_spec(subdocops,details).err) {
+        goto GT_ERROR;
     }
     return 0;
 
@@ -851,6 +1294,37 @@ sd_convert_spec(PyObject *pyspec, lcb_SUBDOCOPS *sdspec, pycbc_pybuffer *pathbuf
 #endif
 #endif
 
+#if PYCBC_LCB_API<0x030001
+#define lcb_subdoc lcb_subdoc3
+#endif
+
+TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,,lcb_error_t,pycbc_call_subdoc, const pycbc_Bucket *self, const pycbc_MultiResult *mres, PyObject *key,
+                              lcb_CMDSUBDOC *cmd,  int rv,
+                              lcb_error_t *err, pycbc__SDResult *newitm) {
+    if (rv == 0) {
+        PYCBC_TRACECMD_PURE(subdoc,cmd, context);
+#ifdef PYCBC_TRACING
+        newitm->tracing_context = context;
+        newitm->is_tracing_stub = 0;
+#endif
+        PYCBC_DEBUG_LOG_CONTEXT(context, "Calling subdoc on %llx", cmd)
+        (*err) = lcb_subdoc(self->instance, mres, cmd);
+        PYCBC_DEBUG_LOG_CONTEXT(context, "Called subdoc on %llx, got err %s", cmd,lcb_strerror(self->instance, *err))
+        if ((*err) == LCB_SUCCESS) {
+#ifdef PYCBC_GLOBAL_SCHED_SD
+            PYCBC_REF_CONTEXT(context);
+#endif
+            PyDict_SetItem((PyObject*)mres, key, (PyObject*)newitm);
+            pycbc_assert(Py_REFCNT(newitm) == 2);
+        }
+        else
+        {
+            PYCBC_DEBUG_LOG_CONTEXT(context, "Got err %d %s", *err, lcb_strerror(self->instance, *err))
+        }
+    }
+    return (*err);
+}
+
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,, int,
 pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd)
@@ -862,6 +1336,8 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     lcb_SDSPEC *specs = NULL, spec_s = { 0 };
     pycbc_pybuffer pathbuf_s = { NULL }, valbuf_s = { NULL };
     pycbc_pybuffer *pathbufs = NULL, *valbufs = NULL;
+    lcb_SUBDOCOPS ops_real={0};
+    lcb_SUBDOCOPS* ops=&ops_real;
 
     if (!PyTuple_Check(spectuple)) {
         PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Value must be a tuple!");
@@ -877,30 +1353,30 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     newitm = pycbc_sdresult_new(self, spectuple);
     newitm->key = key;
     Py_INCREF(newitm->key);
-#ifdef PYCBC_V4
-    lcb_subdocops_create(&specs, nspecs);
-#endif
+
+    lcb_subdocops_create(&ops, nspecs);
+
     if (nspecs == 1) {
         PyObject *single_spec = PyTuple_GET_ITEM(spectuple, 0);
         pathbufs = &pathbuf_s;
         valbufs = &valbuf_s;
-
-        cmd->specs = &spec_s;
-        cmd->nspecs = 1;
-        rv = sd_convert_spec(single_spec, &spec_s, pathbufs, valbufs, 0);
+#ifndef PYCBC_V4
+        ops->specs = &spec_s;
+        ops->nspecs = 1;
+#endif
+        rv = sd_convert_spec(single_spec, ops, pathbufs, valbufs, 0);
     } else {
         size_t ii;
         pathbufs = calloc(nspecs, sizeof *pathbufs);
         valbufs = calloc(nspecs, sizeof *valbufs);
 
 #ifndef PYCBC_V4
-        specs = calloc(nspecs, sizeof *specs);
-        cmd->specs = specs;
-        cmd->nspecs = nspecs;
+        ops->specs = specs;
+        ops->nspecs = nspecs;
 #endif
         for (ii = 0; ii < nspecs; ++ii) {
             PyObject *cur = PyTuple_GET_ITEM(spectuple, ii);
-            rv = sd_convert_spec(cur, specs, pathbufs + ii, valbufs + ii, ii);
+            rv = sd_convert_spec(cur, ops, pathbufs + ii, valbufs + ii, ii);
             if (rv != 0) {
                 break;
             }
@@ -913,9 +1389,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         newitm->tracing_context = context;
         newitm->is_tracing_stub = 0;
 #endif
-#if PYCBC_LCB_API<0x030001
-#define lcb_subdoc lcb_subdoc3
-#endif
+        lcb_cmdsubdoc_operations(cmd,ops);
         err = lcb_subdoc(self->instance, mres, cmd);
         if (err == LCB_SUCCESS) {
 #ifdef PYCBC_GLOBAL_SCHED_SD
