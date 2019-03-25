@@ -199,10 +199,11 @@ int pycbc_free_debug(const char* FILE, const char* FUNC, int line, void* X);
 
 #if PYCBC_LCB_API>0x030000
 #define PYCBC_V4
-#include <libcouchbase/utils.h>
+//#include <libcouchbase/utils.h>
 #endif
 #if PYCBC_LCB_API<0x030100
 #include <libcouchbase/api3.h>
+#define PYCBC_ENDURE
 #else
 #ifdef PYCBC_V4_EXPLICIT
 #include <libcouchbase/api4.h>
@@ -948,8 +949,9 @@ typedef enum {
 #define lcb_cmdhttp_method(HTCMD, METHOD) HTCMD->method=METHOD;
 #define lcb_cmdhttp_handle(HTCMD, HANDLE) HTCMD->reqhandle=HANDLE;
 #define pycbc_http(...) lcb_http3(__VA_ARGS__)
-#define lcb_respget_status(RG) RG->rc
-#define lcb_respget_cas(RG,DEST) *(DEST)=RG->cas
+#define lcb_respget_key(RESP, BUF, NBUF) *(BUF)=(RESP)->key;*(NBUF)=(RESP)->nkey;
+#define lcb_respget_status(RG) (RG)->rc
+#define lcb_respget_cas(RG,DEST) *(DEST)=(RG)->cas
 typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 #define lcb_respget_cookie(RG,DEST) *(DEST)=(RG)->cookie
 

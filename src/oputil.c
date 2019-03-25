@@ -1175,7 +1175,7 @@ static pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS* subdocops, pycbc_sdspec_deta
 
     #if 1 || PYCBC_LCB_API>0x030000
     #define PYCBC_PATH_ONLY(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length);
-    #define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length, atoi(details.valbuf->buffer));
+    #define PYCBC_COUNTER(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length, (details.valbuf && details.valbuf->buffer)?strtol((const char*)details.valbuf->buffer,NULL,10):0);
     #define PYCBC_NP(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags);
     #define PYCBC_VAL_GEN(UC,LC,...) lcb_subdocops_##LC(subdocops, details.index, details.flags, details.pathbuf->buffer, details.pathbuf->length,\
                     details.valbuf->buffer, details.valbuf->length);
@@ -1371,12 +1371,13 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
         valbufs = calloc(nspecs, sizeof *valbufs);
 
 #ifndef PYCBC_V4
+        specs = calloc(nspecs, sizeof *specs);
         ops->specs = specs;
         ops->nspecs = nspecs;
 #endif
         for (ii = 0; ii < nspecs; ++ii) {
             PyObject *cur = PyTuple_GET_ITEM(spectuple, ii);
-            rv = sd_convert_spec(cur, ops, pathbufs + ii, valbufs + ii, ii);
+            rv = sd_convert_spec(cur, ops, pathbufs, valbufs, ii);
             if (rv != 0) {
                 break;
             }

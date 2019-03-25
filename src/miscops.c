@@ -16,10 +16,7 @@
 
 #include "oputil.h"
 #include "pycbc.h"
-#include <libcouchbase/tracing.h>
-#if PYCBC_LCB_API>0x030000
-#include <libcouchbase/utils.h>
-#endif
+#include "libcouchbase/tracing.h"
 /**
  * This file contains 'miscellaneous' operations. Functions contained here
  * might move to other files if they become more complex.
@@ -41,13 +38,6 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     pycbc_pybuffer keybuf = { NULL };
     lcb_uint64_t cas = 0;
     lcb_error_t err;
-
-/*    union {
-//        pycbc_CMDBASE base;
-        pycbc_CMDREMOVE rm;
-        pycbc_CMDUNLOCK unl;
-        pycbc_CMDENDURE endure;
-    } u_cmd;*/
 
     (void)options; (void)arg;
 
@@ -94,8 +84,6 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
     PYCBC_CMD_SET_KEY_SCOPE(CMDNAME,(CMD),keybuf);\
     PYCBC_TRACECMD_TYPED(CMDNAME,(CMD), context, cv->mres, curkey, self);
 
-//    u_cmd.base.cas = cas;
-
     if (optype == PYCBC_CMD_UNLOCK) {
         if (!cas) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "CAS must be specified for unlock");
@@ -118,15 +106,15 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 #endif
         }
     }
-#if PYCBC_LCB_API<0x030000
+#ifdef PYCBC_ENDURE
     else if (optype == PYCBC_CMD_ENDURE) {
         lcb_CMDSTORE cmd_real={0};
-        lcb_CMDBASE* cmd=&cmd_real;
+        lcb_CMDSTORE* cmd=&cmd_real;
         //COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         COMMON_OPTS(cmd,PYCBC_endure_ATTR, endure, endure);
         LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
 
-        err = cv->mctx->addcmd(cv->mctx, cmd);
+        err = cv->mctx->addcmd(cv->mctx, (lcb_CMDBASE*)cmd);
     }
 #endif
     else {
@@ -250,7 +238,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-#ifndef PYCBC_V4
+#ifdef PYCBC_ENDURE
 TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;

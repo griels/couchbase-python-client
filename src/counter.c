@@ -78,9 +78,9 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
         }
     }
     CMDSCOPE(COUNTER,counter,
-        PYCBC_DEBUG_LOG("Encoding delta %ll",my_params.delta)
+        PYCBC_DEBUG_LOG("Encoding delta %llu",my_params.delta)
         lcb_cmdcounter_delta(cmd, my_params.delta);
-        PYCBC_DEBUG_LOG("Encoded delta %ll",my_params.delta)
+        PYCBC_DEBUG_LOG("Encoded delta %llu",my_params.delta)
 #ifndef PYCBC_V4
         cmd->create=my_params.create;
 #endif
