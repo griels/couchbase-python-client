@@ -859,7 +859,7 @@ PyObject *pycbc_null_or_value(PyObject *tracer)
     return (tracer && PyObject_IsTrue(tracer)) ? tracer : NULL;
 }
 
-lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE* instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result)
+lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result)
 {
     PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"Doing %s, %s==%llx: %llx, %llx, got result %d", VERB, CMDNAME, CMD, instance, COOKIE, result);
     return result;

@@ -5,19 +5,6 @@
 #ifndef COUCHBASE_PYTHON_CLIENT_HTTP_H
 #define COUCHBASE_PYTHON_CLIENT_HTTP_H
 #include "pycbc.h"
-#if PYCBC_LCB_API<0x031000
-typedef lcb_VIEW_HANDLE*  pycbc_VIEW_HANDLE;
-typedef lcb_N1QL_HANDLE*  pycbc_N1QL_HANDLE;
-typedef lcb_FTS_HANDLE* pycbc_FTS_HANDLE;
-typedef lcb_HTTP_HANDLE* pycbc_HTTP_HANDLE;
-#else
-#include <libcouchbase/http.h>
-
-#include "libcouchbase/cbft.h"
-typedef lcb_VIEWHANDLE  pycbc_VIEW_HANDLE;
-typedef lcb_N1QLHANDLE  pycbc_N1QL_HANDLE;
-typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
-#endif
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/ixmgmt.h>
 

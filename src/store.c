@@ -334,8 +334,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         goto GT_DONE;
     }
     {
-
-    #define GENSTORE(UC,LC,CMD) lcb_CMDSTORE* CMD; lcb_cmdstore_create(&(CMD), scv->operation)
+#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create((CMD), scv->operation)
         CMDSCOPE_GENERIC(STORE,store,GENSTORE,
             lcb_cmdstore_flags(cmd,flags);
             if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {

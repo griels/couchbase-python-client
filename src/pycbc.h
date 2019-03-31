@@ -201,9 +201,9 @@ int pycbc_free_debug(const char* FILE, const char* FUNC, int line, void* X);
 #define PYCBC_V4
 #endif
 #if PYCBC_LCB_API<0x030100
+#define PYCBC_ENDURE
 #include <libcouchbase/api3.h>
 #else
-#define PYCBC_ENDURE
 #include <libcouchbase/utils.h>
 #ifdef PYCBC_V4_EXPLICIT
 #include <libcouchbase/api4.h>
@@ -615,19 +615,16 @@ typedef const lcb_RESPGET* pycbc_RESPGET;
 typedef lcb_PINGSVCTYPE lcb_PING_SERVICE;
 #endif
 
+
+
+
 #if PYCBC_LCB_API < 0x030001
 
 typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 typedef lcb_CMDVIEWQUERY lcb_CMDVIEW;
 typedef lcb_error_t lcb_STATUS;
-#define pycbc_get lcb_get3
-#define pycbc_store lcb_store3
-#define pycbc_remove lcb_remove3
-#define pycbc_rget lcb_rget3
-#define pycbc_touch lcb_touch3
-#define pycbc_unlock lcb_unlock3
-#define pycbc_counter lcb_counter3
-#define pycbc_http(...) lcb_http3(__VA_ARGS__)
+
+
 
 #define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)                          \
   TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx) { return ctx->ATTRIB; }
@@ -648,18 +645,6 @@ typedef lcb_error_t lcb_STATUS;
 
 
 
-#if PYCBC_LCB_API > 0x030001
-
-typedef lcb_STATUS lcb_error_t;
-#else // PYCBC_LCB_API > 0x030001
-
-#define LCB_PING_SERVICE_KV LCB_PINGSVC_KV
-#define LCB_PING_SERVICE_VIEWS LCB_PINGSVC_VIEWS
-#define LCB_PING_SERVICE_N1QL LCB_PINGSVC_N1QL
-#define LCB_PING_SERVICE_FTS LCB_PINGSVC_FTS
-#define LCB_PING_SERVICE_ANALYTICS LCB_PINGSVC_ANALYTICS
-#define LCB_PING_SERVICE__MAX LCB_PINGSVC__MAX
-#endif // PYCBC_LCB_API > 0x030001
 
 
 #if PYCBC_LCB_API < 0x031000
@@ -678,13 +663,15 @@ typedef lcb_error_t lcb_STATUS;
 #define CMDSCOPE_GENERIC_FAIL fail=1; continue;
 #define CMDSCOPE_GENERIC_ALL_PREFIX(PREFIX, UC, LC, INITIALIZER,  DESTRUCTOR, CMDS, ...)  \
     INITIALIZER(UC,LC, CMDS, __VA_ARGS__);\
+    PYCBC_DEBUG_LOG("Called initialzer for %s, %s, with args %s", #UC, #LC, #__VA_ARGS__)\
     goto SKIP_##PREFIX##_##UC##_FAIL;\
     goto GT_##PREFIX##_##UC##_DONE;\
     GT_##PREFIX##_##UC##_DONE:\
+    PYCBC_DEBUG_LOG("Cleanup up %s %s",#UC,#LC)\
     DESTRUCTOR(UC,LC,CMDS);\
     goto GT_DONE;\
     SKIP_##PREFIX##_##UC##_FAIL:\
-    for (int finished=0,  fail=0;!(finished++) && !fail; DESTRUCTOR(UC,LC,CMDS))\
+    for (int finished=0,  fail=0;!(finished) && !fail; (finished=1) && DESTRUCTOR(UC,LC,CMDS))
 
 #define CMDSCOPE_GENERIC_ALL(UC, LC, INITIALIZER,  DESTRUCTOR, CMDS, ...)  \
     CMDSCOPE_GENERIC_ALL_PREFIX(,UC,LC,INITIALIZER, DESTRUCTOR, CMDS, __VA_ARGS__)
@@ -698,6 +685,11 @@ typedef lcb_error_t lcb_STATUS;
 //#define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
 #endif
 
+#define pycbc_verb_postfix(POSTFIX,VERB, INSTANCE, COOKIE, CMD)                                \
+  pycbc_logging_monad_verb(__FILE__, __FUNCTION__, __LINE__, INSTANCE, COOKIE, \
+                           CMD, #CMD, #VERB,                                   \
+                           lcb_##VERB##POSTFIX(INSTANCE, COOKIE, CMD))
+
 #if PYCBC_LCB_API>0x030000
 
 #define PYCBC_FTS_DISABLED
@@ -705,21 +697,48 @@ typedef lcb_INSTANCE* lcb_t;
 typedef lcb_STATUS lcb_error_t;
 typedef lcb_HTTP_HANDLE* lcb_http_request_t;
 typedef lcb_FTS_HANDLE* lcb_FTSHANDLE;
+#define DEFAULT_VERBPOSTFIX
+#define pycbc_rget(INSTANCE,COOKIE,CMD) pycbc_verb_postfix(,getreplica,(INSTANCE),(COOKIE),(CMD))
+#define pycbc_verb(VERB,...) pycbc_verb_postfix(,VERB,__VA_ARGS__)
 
-lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE* instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result);
+#else
+#include "libcouchbase/cbft.h"
+typedef lcb_t lcb_INSTANCE;
+typedef lcb_VIEWHANDLE  pycbc_VIEW_HANDLE;
+typedef lcb_N1QLHANDLE  pycbc_N1QL_HANDLE;
+typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
+typedef lcb_http_request_t pycbc_HTTP_HANDLE;
+#define DEFAULT_VERBPOSTFIX 3
+#define pycbc_verb(VERB,INSTANCE,...) pycbc_verb_postfix(3,VERB,INSTANCE,__VA_ARGS__)
+#define pycbc_rget(INSTANCE,COOKIE,CMD) pycbc_verb_postfix(3,rget,(INSTANCE),(COOKIE),(CMD))
 
-#define pycbc_verb(VERB, INSTANCE, COOKIE, CMD)                                \
-  pycbc_logging_monad_verb(__FILE__, __FUNCTION__, __LINE__, INSTANCE, COOKIE, \
-                           CMD, #CMD, #VERB,                                   \
-                           lcb_##VERB(INSTANCE, COOKIE, CMD))
+#endif
 
+lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result);
+
+
+#define pycbc_counter(INSTANCE,COOKIE,CMD) pycbc_verb(counter,(INSTANCE),(COOKIE),(CMD))
 #define pycbc_get(INSTANCE,COOKIE,CMD) pycbc_verb(get,INSTANCE,COOKIE,CMD)
 #define pycbc_touch(INSTANCE,COOKIE,CMD) pycbc_verb(touch,(INSTANCE),(COOKIE),(CMD))
-#define pycbc_rget(INSTANCE,COOKIE,CMD) pycbc_verb(getreplica,(INSTANCE),(COOKIE),(CMD))
-#define pycbc_counter(INSTANCE,COOKIE,CMD) pycbc_verb(counter,(INSTANCE),(COOKIE),(CMD))
 #define pycbc_unlock(INSTANCE,COOKIE,CMD) pycbc_verb(unlock,(INSTANCE),(COOKIE),(CMD))
 #define pycbc_remove(INSTANCE,COOKIE,CMD) pycbc_verb(remove,(INSTANCE),(COOKIE),(CMD))
 #define pycbc_store(INSTANCE,COOKIE,CMD) pycbc_verb(store,(INSTANCE),(COOKIE),(CMD))
+#define pycbc_http(INSTANCE,COOKIE,CMD) pycbc_verb(http,(INSTANCE),(COOKIE),(CMD))
+
+
+#if PYCBC_LCB_API > 0x030001
+
+#else // PYCBC_LCB_API > 0x030001
+
+#define LCB_PING_SERVICE_KV LCB_PINGSVC_KV
+#define LCB_PING_SERVICE_VIEWS LCB_PINGSVC_VIEWS
+#define LCB_PING_SERVICE_N1QL LCB_PINGSVC_N1QL
+#define LCB_PING_SERVICE_FTS LCB_PINGSVC_FTS
+#define LCB_PING_SERVICE_ANALYTICS LCB_PINGSVC_ANALYTICS
+#define LCB_PING_SERVICE__MAX LCB_PINGSVC__MAX
+#endif // PYCBC_LCB_API > 0x030001
+
+#if PYCBC_LCB_API>0x030000
 
 #define PYCBC_CMD_SET_KEY(TYPE, CMD, BUF, LEN)\
     PYCBC_DEBUG_LOG("Setting key %.*s on cmd %s at %llx", LEN,BUF,#TYPE,CMD);\
@@ -742,7 +761,6 @@ enum replica_legacy{
 #define PYCBC_unlock_ATTR(CMD, attrib,...) lcb_cmdunlock_##attrib(CMD,__VA_ARGS__);
 #define PYCBC_remove_ATTR(CMD, attrib,...) lcb_cmdremove_##attrib(CMD,__VA_ARGS__);
 #define PYCBC_endure_ATTR(CMD, attrib,...) lcb_cmdendure_##attrib(CMD,__VA_ARGS__);
-#define pycbc_http(INSTANCE, MRES, HTCMD) lcb_http(INSTANCE,MRES, HTCMD)
 
 
 
@@ -806,6 +824,9 @@ enum replica_legacy{
 #define lcb_respcounter_status(resp) (resp)->rc
 #define lcb_cmdget_expiration(cmd,time) cmd->exptime=time;
 #define lcb_cmdget_timeout(cmd,time) cmd->exptime=time;
+#define lcb_cmdtouch_create(CMD) lcb_CMDTOUCH cmd_real={0};*(CMD)=&cmd_real;
+#define lcb_cmdtouch_destroy(CMD) 0
+
 #define lcb_cmdtouch_expiration(cmd,time) cmd->exptime=time;
 #define lcb_cmdtouch_timeout(cmd,time) cmd->exptime=time;
 #define lcb_cmdrget_expiration(cmd,time) cmd->exptime=time;
@@ -972,6 +993,12 @@ typedef enum {
 #define     CMDSUBDOC_F_ACCESS_DELETED (1 << 18)
 
 #else //  PYCBC_LCB_API>0x030001
+typedef struct{
+    lcb_SDSPEC* specs;
+    size_t nspecs;
+    lcb_U32 options;
+}  lcb_SUBDOCOPS;
+
 #if PYCBC_LCB_API<0x030001
 unsigned long long int lcb_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken);
 
@@ -1112,7 +1139,7 @@ typedef lcb_CMDSTORE* pycbc_CMDSTORE;
 
 #define CMDSCOPE_DESTROYCMD_V3(UC, LC, CMD, ...)
 
-#define CMDSCOPE_DESTROYCMD_RAW_V3(UC, LC, CMD, ...)
+#define CMDSCOPE_DESTROYCMD_RAW_V3(UC, LC, CMD, ...) 0
 
 #ifdef PYCBC_V4
 #define CMDSCOPE_CREATECMD_RAW(UC, LC, CMD, ...) \
@@ -1154,7 +1181,7 @@ typedef struct {
     PyObject_HEAD
 
     /** LCB instance */
-    lcb_t instance;
+    lcb_INSTANCE instance;
 #ifdef PYCBC_TRACING
     /** Tracer **/
     struct pycbc_Tracer *tracer;

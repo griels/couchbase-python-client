@@ -733,12 +733,6 @@ static pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 };
 
 #if PYCBC_LCB_API<0x031000
-//typedef lcb_SDSPEC lcb_SUBDOCOPS;
-typedef struct{
-    lcb_SDSPEC* specs;
-    size_t nspecs;
-    lcb_U32 options;
-}  lcb_SUBDOCOPS;
 
 #define PYCBC_SDSPEC_SET_XX(POSTFIX,DEST,BUF,BUF_LEN) {if (BUF && BUF_LEN){LCB_SDSPEC_SET_##POSTFIX(DEST,BUF,BUF_LEN);}}
 #define PYCBC_SDSPEC_SET_PATH(DEST,BUF,BUF_LEN) PYCBC_SDSPEC_SET_XX(PATH,DEST,BUF,BUF_LEN)
@@ -1354,11 +1348,11 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     lcb_subdocops_create(&ops, nspecs);
 
     if (nspecs == 1) {
-        //lcb_SDSPEC spec_s = { 0 };
         PyObject *single_spec = PyTuple_GET_ITEM(spectuple, 0);
         pathbufs = &pathbuf_s;
         valbufs = &valbuf_s;
 #ifndef PYCBC_V4
+        lcb_SDSPEC spec_s={0};
         ops->specs = &spec_s;
         ops->nspecs = 1;
 #endif
