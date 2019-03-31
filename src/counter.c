@@ -77,22 +77,28 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             return -1;
         }
     }
-    CMDSCOPE(COUNTER,counter,
-        PYCBC_DEBUG_LOG("Encoding delta %llu",my_params.delta)
-        lcb_cmdcounter_delta(cmd, my_params.delta);
-        PYCBC_DEBUG_LOG("Encoded delta %llu",my_params.delta)
-#ifndef PYCBC_V4
-        cmd->create=my_params.create;
-#endif
-        PYCBC_DEBUG_LOG_CONTEXT(context,"Encoding initial %d", my_params.initial);
-        lcb_cmdcounter_initial(cmd, my_params.initial);
-        PYCBC_DEBUG_LOG_CONTEXT(context,"Encoding timeout %d", my_params.ttl);
-        lcb_cmdcounter_expiration(cmd, my_params.ttl);
-        PYCBC_CMD_SET_KEY_SCOPE(counter,cmd, keybuf);
 
-        PYCBC_TRACECMD_TYPED(counter,cmd,context,cv->mres,curkey, self);
-        err = pycbc_counter(self->instance, cv->mres, cmd);
-    )
+
+    {
+        CMDSCOPE_NG(COUNTER, counter)
+        {
+            PYCBC_DEBUG_LOG("Encoding delta %llu", my_params.delta)
+            lcb_cmdcounter_delta(cmd, my_params.delta);
+            PYCBC_DEBUG_LOG("Encoded delta %llu", my_params.delta)
+#if PYCBC_LCB_API < 0x030001
+            cmd->create=my_params.create;
+#endif
+            PYCBC_DEBUG_LOG_CONTEXT(context, "Encoding initial %d", my_params.initial);
+            lcb_cmdcounter_initial(cmd, my_params.initial);
+            PYCBC_DEBUG_LOG_CONTEXT(context, "Encoding timeout %d", my_params.ttl);
+            lcb_cmdcounter_expiration(cmd, my_params.ttl);
+            PYCBC_CMD_SET_KEY_SCOPE(counter, cmd, keybuf);
+
+            //PYCBC_TRACECMD_TYPED(counter, cmd, context, cv->mres, curkey, self);
+            PYCBC_TRACECMD_TYPED(counter, cmd, context, cv->mres, curkey, self);
+            err = pycbc_counter(self->instance, cv->mres, cmd);
+        }
+    }
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         rv = -1;

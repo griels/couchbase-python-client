@@ -33,7 +33,7 @@ struct getcmd_vars_st {
     } u;
 };
 
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
 #define GET_ATTRIBS(X) \
 X(get, lcb_CMDGET*, locktime, lock, int)\
 
@@ -148,13 +148,13 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         }
         break;
 
-        case PYCBC_CMD_TOUCH:
-            CMDSCOPE(TOUCH,touch,
-                    COMMON_OPTS(PYCBC_touch_ATTR,touch,touch);
-                    err = pycbc_touch(self->instance, cv->mres, cmd);
-            )
+        case PYCBC_CMD_TOUCH: {
+            CMDSCOPE_NG_V4(TOUCH, touch) {
+            COMMON_OPTS(PYCBC_touch_ATTR, touch, touch);
+            err = pycbc_touch(self->instance, cv->mres, cmd);
+        }
             break;
-
+        }
         case PYCBC_CMD_GETREPLICA:
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL:
@@ -165,7 +165,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
             lcb_CMDGETREPLICA cmd_real={0};
             lcb_CMDGETREPLICA* cmd=&cmd_real;
 #endif
-            lcb_cmdgetreplica_create(cmd,gv->u.replica.strategy);
+            lcb_cmdgetreplica_create(&cmd,gv->u.replica.strategy);
             COMMON_OPTS(PYCBC_getreplica_ATTR,rget,getreplica);
             err = pycbc_rget(self->instance, cv->mres, cmd);
 #if PYCBC_LCB_API>0x030000
@@ -418,7 +418,8 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     void *arg)
 {
     pycbc_pybuffer keybuf = { NULL };
-#ifdef PYCBC_V4
+
+#if PYCBC_LCB_API>0x030001
     lcb_CMDSUBDOC* cmd=NULL;
     lcb_cmdsubdoc_create(&cmd);
 #else

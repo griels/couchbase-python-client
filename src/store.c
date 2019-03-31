@@ -17,7 +17,7 @@
 
 #include "oputil.h"
 #include "pycbc.h"
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
 typedef lcb_storage_t lcb_STORE_OPERATION;
 #endif
 
@@ -260,6 +260,8 @@ LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_remove(lcb_SUBDOCOPS *operatio
 }
 
  * */
+
+
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
                 handle_multi_mutate, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
@@ -279,7 +281,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
 
         lcb_cmdsubdoc_cas(cmd,scv->single_cas);
         lcb_cmdsubdoc_expiration(cmd,scv->ttl);
-#if PYCBC_LCB_API<0x030001
+#if PYCBC_LCB_API<0x031000
         cmd->cmdflags |= scv->sd_doc_flags;
 #else
         lcb_cmdsubdoc_create_if_missing(cmd,(scv->sd_doc_flags & CMDSUBDOC_F_UPSERT_DOC)?1:0);
@@ -332,7 +334,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         goto GT_DONE;
     }
     {
-#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create(CMD, scv->operation)
+#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create((CMD), scv->operation)
         CMDSCOPE_GENERIC(STORE,store,GENSTORE,
             lcb_cmdstore_flags(cmd,flags);
             if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {

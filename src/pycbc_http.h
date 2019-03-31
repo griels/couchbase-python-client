@@ -5,18 +5,6 @@
 #ifndef COUCHBASE_PYTHON_CLIENT_HTTP_H
 #define COUCHBASE_PYTHON_CLIENT_HTTP_H
 #include "pycbc.h"
-#ifdef PYCBC_V4
-typedef lcb_VIEW_HANDLE*  pycbc_VIEW_HANDLE;
-typedef lcb_N1QL_HANDLE*  pycbc_N1QL_HANDLE;
-typedef lcb_FTS_HANDLE* pycbc_FTS_HANDLE;
-#else
-#include <libcouchbase/http.h>
-
-#include "libcouchbase/cbft.h"
-typedef lcb_VIEWHANDLE  pycbc_VIEW_HANDLE;
-typedef lcb_N1QLHANDLE  pycbc_N1QL_HANDLE;
-typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
-#endif
 #include <libcouchbase/couchbase.h>
 #include <libcouchbase/ixmgmt.h>
 
@@ -26,7 +14,7 @@ typedef struct {
     PyObject *headers;
     pycbc_Bucket *parent;
     union {
-        lcb_http_request_t htreq;
+        pycbc_HTTP_HANDLE htreq;
         pycbc_VIEW_HANDLE vh;
         pycbc_N1QL_HANDLE nq;
         pycbc_FTS_HANDLE fts;

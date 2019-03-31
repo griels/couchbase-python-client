@@ -113,7 +113,7 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
     XHTTP(X);
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API<=0x030001
 #undef X
 #define X(b) handler(module, "LCB_" #b, LCB_STORE_##b);
 #endif
@@ -231,7 +231,7 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
     /* Encryption options */
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
     ADD_MACRO(LCBCRYPTO_KEY_ENCRYPT);
     ADD_MACRO(LCBCRYPTO_KEY_DECRYPT);
 #endif
