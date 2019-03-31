@@ -18,10 +18,6 @@
 #include "oputil.h"
 #include "pycbc.h"
 #include "structmember.h"
-#if PYCBC_LCB_API>0x030000
-#include <libcouchbase/error.h>
-#include <libcouchbase/utils.h>
-#endif
 
 void
 pycbc_common_vars_finalize(struct pycbc_common_vars *cv, pycbc_Bucket *conn)
@@ -665,7 +661,7 @@ typedef struct{
     int64_t delta;
 } pycbc_sdspec_details;
 
-#if PYCBC_LCB_API>0x030000
+#if PYCBC_LCB_API>0x030001
 #define PYCBC_X_SD_OPS_FULLDOC(X, NP, VAL, MVAL, CTR)\
 NP(FULLDOC_GET,fulldoc_get)\
 X(FULLDOC_UPSERT,fulldoc_upsert)\
@@ -736,7 +732,7 @@ static pycbc_sd_metainfo pycbc_get_metainfo(pycbc_sdspec_details details)
 #undef PYCBC_SDCMD_CASE_COUNTER
 };
 
-#if PYCBC_LCB_API<0x030001
+#if PYCBC_LCB_API<0x031000
 //typedef lcb_SDSPEC lcb_SUBDOCOPS;
 typedef struct{
     lcb_SDSPEC* specs;
@@ -789,6 +785,7 @@ operations->specs[index].options = flags;                       \
 #define PYCBC_SDCMD_CASE_MVAL(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_VAL_GEN,__VA_ARGS__)
 #define PYCBC_SDCMD_CASE_COUNTER(UC,LC,...) PYCBC_SDCMD_FN_DEF(UC,LC,PYCBC_COUNTER,__VA_ARGS__)
 
+#define PYCBC_SD_OPS_GEN
 #ifdef PYCBC_SD_OPS_GEN
 PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,PYCBC_SDCMD_CASE_NP,PYCBC_SDCMD_CASE_VAL, PYCBC_SDCMD_CASE_MVAL, PYCBC_SDCMD_CASE_COUNTER)
 #else
@@ -1333,7 +1330,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     lcb_error_t err = LCB_SUCCESS;
     size_t nspecs = 0;
     pycbc__SDResult *newitm = NULL;
-    lcb_SDSPEC *specs = NULL, spec_s = { 0 };
+    lcb_SDSPEC *specs = NULL;
     pycbc_pybuffer pathbuf_s = { NULL }, valbuf_s = { NULL };
     pycbc_pybuffer *pathbufs = NULL, *valbufs = NULL;
     lcb_SUBDOCOPS ops_real={0};
@@ -1357,6 +1354,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     lcb_subdocops_create(&ops, nspecs);
 
     if (nspecs == 1) {
+        //lcb_SDSPEC spec_s = { 0 };
         PyObject *single_spec = PyTuple_GET_ITEM(spectuple, 0);
         pathbufs = &pathbuf_s;
         valbufs = &valbuf_s;

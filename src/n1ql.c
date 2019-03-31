@@ -6,7 +6,7 @@ static void
 n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
 {
     pycbc_MultiResult *mres=NULL;
-    lcb_respn1ql_cookie(resp, (void **) &mres);
+    lcb_respn1ql_cookie(resp, (const void **) &mres);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
@@ -87,11 +87,11 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
             //cmd.cmdflags |= LCB_CMDN1QL_F_PREPCACHE;
         }
         if (is_xbucket) {
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
             cmd->cmdflags |= LCB_CMD_F_MULTIAUTH;
 #endif
         }
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
         if (host) {
             /* #define LCB_CMDN1QL_F_CBASQUERY 1<<18 */
             cmd->cmdflags |= (1 << 18);

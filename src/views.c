@@ -9,7 +9,7 @@
 #include "libcouchbase/api4.h"
 #endif
 #endif
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
 lcb_STATUS lcb_respview_http_response(const lcb_RESPVIEW *resp, const lcb_RESPHTTP** dest){
     *(dest)=resp->htresp;
     return LCB_SUCCESS;
@@ -203,7 +203,7 @@ static void
 row_callback(lcb_t instance, int cbtype, const lcb_RESPVIEW *resp)
 {
     pycbc_MultiResult *mres;
-    lcb_respview_cookie(resp, (void **) &mres);
+    lcb_respview_cookie(resp, (const void **) &mres);
     //= (pycbc_MultiResult*)resp->cookie;
     pycbc_Bucket *bucket = mres->parent;
     const char * const * hdrs = NULL;

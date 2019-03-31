@@ -15,16 +15,11 @@
  **/
 
 #include <libcouchbase/couchbase.h>
-#if PYCBC_LCB_API>0x030000
-#include <libcouchbase/utils.h>
-#endif
 #include "pycbc.h"
 #include "pycbc_http.h"
 #define CB_THREADS
 
 #ifdef CB_THREADS
-
-static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
 
 /*
  * Add the sub-document error to the result list
@@ -293,9 +288,9 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn, pycbc_Result *
         case LCB_CALLBACK_PING:
         case LCB_CALLBACK_DIAG:
         default:
-            lcb_respget_key(resp, &handler->key.buffer, &handler->key.length);
+            lcb_respget_key((const lcb_RESPGET*)resp, &handler->key.buffer, &handler->key.length);
             handler->rc=lcb_respget_status((lcb_RESPGET*)resp);
-            lcb_respget_cookie((const lcb_RESPGET*)resp,(void**)mres);
+            lcb_respget_cookie((const lcb_RESPGET*)resp,(const void**)mres);
             lcb_respget_cas((const lcb_RESPGET*)resp,(uint64_t*)&handler->cas);
             break;
     }
@@ -434,14 +429,6 @@ invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
 }
 #endif
 
-
-#ifdef PYCBC_V4
-#define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
-#define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
-#define LCB_MUTATION_TOKEN_ID(p) lcb_mutation_token_uuid(p)
-#define LCB_MUTATION_TOKEN_SEQ(p) lcb_mutation_token_seqno(p)
-#else
-#endif
 
 #ifndef PYCBC_V4
 static void
@@ -800,14 +787,14 @@ static void subdoc_v4_callback(lcb_INSTANCE* dummy, int type, const lcb_RESPSUBD
 }
 */
 
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API>0x030001
 typedef struct{const lcb_RESPSUBDOC* resp; size_t index;} pycbc_SDENTRY;
 #else
 typedef lcb_SDENTRY pycbc_SDENTRY;
 #endif
 
 lcb_STATUS pycbc_respsubdoc_status(const pycbc_SDENTRY* ent){
-#if PYCBC_LCB_API>0x030000
+#if PYCBC_LCB_API>0x030001
     return lcb_respsubdoc_result_status(ent->resp,ent->index);
 #else
     return ent->status;
@@ -817,7 +804,7 @@ lcb_STATUS pycbc_respsubdoc_status(const pycbc_SDENTRY* ent){
 pycbc_strn_base_const pycbc_respsubdoc_value(const pycbc_SDENTRY *ent)
 {
     pycbc_strn_base_const result;
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API>0x030001
     lcb_respsubdoc_result_value(ent->resp,ent->index,&result.buffer, &result.length);
 #else
     result.buffer=ent->value;
@@ -850,7 +837,7 @@ mk_sd_tuple(const pycbc_SDENTRY *ent)
 }
 
 int pycbc_sdresult_next(const lcb_RESPSUBDOC *resp, pycbc_SDENTRY *dest, size_t *index){
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x031000
     return lcb_sdresult_next(resp, dest, index);
 #else
     if (((*index)+1)>=lcb_respsubdoc_result_size(resp)){
@@ -1134,7 +1121,7 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     X(N1QL, n1ql)        \
     X(FTS, fts)
 
-#if PYCBC_V4
+#ifdef PYCBC_V4
 #define LCB_PING_GET_TYPE_S(X, Y)  \
     case LCB_PING_SERVICE_##X: \
         return #Y;
@@ -1142,8 +1129,8 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
 #define LCB_PING_GET_TYPE_S(X, Y)  \
     case LCB_PINGSVC_##X: \
         return #Y;
-        typedef lcb_PINGSVCTYPE lcb_PING_SERVICE;
 #endif
+
 const char *get_type_s(lcb_PING_SERVICE type)
 {
     switch (type) {
@@ -1153,10 +1140,11 @@ const char *get_type_s(lcb_PING_SERVICE type)
     }
     return "Unknown type";
 }
+
 #undef LCB_PING_GET_TYPE_S
 #undef LCB_PING_FOR_ALL_TYPES
 
-#if PYCBC_LCB_API<0x030001
+#if PYCBC_LCB_API<0x031000
 typedef enum {
     LCB_PING_STATUS_OK=LCB_PINGSTATUS_OK,
     LCB_PING_STATUS_TIMEOUT=LCB_PINGSTATUS_TIMEOUT
@@ -1177,7 +1165,7 @@ static void ping_callback(lcb_t instance,
 
     pycbc_MultiResult *mres = NULL;
     PyObject *resultdict = NULL;
-#if PYCBC_LCB_API<0x030001
+#if PYCBC_LCB_API<0x031000
 #define lcb_respping_cookie(RESP, DEST) *(DEST)=(RESP)->cookie;
 #define lcb_respping_status(RESP) (RESP)->rc
 #define lcb_respping_result_size(RESP) resp->nservices
@@ -1281,7 +1269,7 @@ static void diag_callback(lcb_t instance,
     pycbc_MultiResult *mres = NULL;
     pycbc_Result *res = NULL;
     PyObject *resultdict = NULL;
-#if PYCBC_LCB_API<0x030001
+#if PYCBC_LCB_API<0x031000
 #define lcb_respdiag_cookie(RESP,DEST) *(DEST)=(RESP)->cookie
 #define lcb_respdiag_value(RESP,JSON,NJSON) *(JSON)=(RESP)->json;*(NJSON)=(RESP)->njson;
 #define lcb_respdiag_status(RESP) (RESP)->rc
@@ -1376,12 +1364,7 @@ static void getcid_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp
     pycbc_coll_context* context=NULL;
     pycbc_strn_base collection,scope;
     const lcb_RESPGETCID* resp = (const lcb_RESPGETCID*)resp_base;
-#if PYCBC_LCB_API<0x030001
-#define lcb_respgetcid_cookie(RESP,DEST) *(DEST)=(RESP)->cookie;
-#define lcb_respgetcid_status(RESP) (RESP)->rc
-#define lcb_respgetcid_collection_id(RESP,DEST) *(DEST)=(RESP)->collection_id
-#define lcb_respgetcid_manifest_id(RESP,DEST) *(DEST)=(RESP)->manifest_id
-#endif
+
     lcb_respgetcid_cookie(resp,(void**)&context);
     collection=context->coll->collection.collection.content;
     scope=context->coll->collection.scope.content;
