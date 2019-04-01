@@ -91,19 +91,10 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             goto GT_DONE;
         }
         {
-#ifdef PYCBC_V4
-            lcb_CMDUNLOCK* cmd=NULL;
-            lcb_cmdunlock_create(&cmd);
-#else
-            lcb_CMDUNLOCK cmd_real={0};
-            lcb_CMDUNLOCK *cmd = &cmd_real;
-#endif
-
-            COMMON_OPTS(cmd, PYCBC_unlock_ATTR, unl, unlock);
-            err = pycbc_unlock(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
-      lcb_cmdunlock_destroy(cmd);
-#endif
+            CMDSCOPE_NG(UNLOCK,unlock) {
+                COMMON_OPTS(cmd, PYCBC_unlock_ATTR, unl, unlock);
+                err = pycbc_unlock(self->instance, cv->mres, cmd);
+            }
         }
     }
 #ifdef PYCBC_ENDURE
@@ -119,10 +110,10 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 #endif
     else {
 
-        CMDSCOPE(REMOVE,remove,
-            COMMON_OPTS(cmd,PYCBC_remove_ATTR, rm, remove);
+        CMDSCOPE_NG(REMOVE,remove) {
+            COMMON_OPTS(cmd, PYCBC_remove_ATTR, rm, remove);
             err = pycbc_remove(self->instance, cv->mres, cmd);
-        )
+        }
     }
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -368,9 +359,9 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     if (rv < 0) {
         return NULL;
     }
-    CMDSCOPE(STATS,stats,
+    CMDSCOPE_NG_V4(STATS,stats) {
         if (keys) {
-            for (ii =0; ii < ncmds; ii++) {
+            for (ii = 0; ii < ncmds; ii++) {
                 char *key;
                 Py_ssize_t nkey;
                 PyObject *newkey = NULL;
@@ -379,7 +370,7 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
                 rv = pycbc_BufFromString(curkey, &key, &nkey, &newkey);
                 if (rv < 0) {
                     PYCBC_EXC_WRAP_KEY(PYCBC_EXC_ARGUMENTS, 0, "bad key type in stats", curkey);
-                    CMDSCOPE_FAIL(STATS)
+                    CMDSCOPE_GENERIC_FAIL;
                 }
 
                 LCB_CMD_SET_KEY(cmd, key, nkey);
@@ -393,7 +384,7 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
         } else {
             err = lcb_stats3(self->instance, cv.mres, cmd);
         }
-    )
+    }
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
@@ -419,20 +410,25 @@ TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
-    CMDSCOPE(PING,ping,
+    CMDSCOPE_NG(PING,ping)
+    {
+#if PYCBC_LCB_API>0x030001
+        lcb_cmdping_all(cmd);
+        lcb_cmdping_encode_json(cmd,1,1,1);
+#else
         cmd->services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | LCB_PINGSVC_F_VIEWS |
-                       LCB_PINGSVC_F_FTS;
+                        LCB_PINGSVC_F_FTS;
         cmd->options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
         cmd->options |= LCB_PINGOPT_F_JSONDETAILS;
-
+#endif
         rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
         if (rv < 0) {
             return NULL;
         }
 
         lcb_sched_enter(self->instance);
-        err = lcb_ping3(self->instance, cv.mres, cmd);
-    )
+        err = pycbc_ping(self->instance, cv.mres, cmd);
+    }
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
@@ -457,10 +453,15 @@ TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     Py_ssize_t ncmds = 0;
     lcb_error_t err = LCB_ERROR;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
-    CMDSCOPE(DIAG,diag,
+    CMDSCOPE_NG(DIAG, diag) {
+#ifdef PYCBC_V4
+        lcb_cmddiag_prettify(cmd,1);
+        lcb_cmddiag_report_id(cmd,"PYCBC",strlen("PYCBC"));
+#else
         cmd->options = LCB_PINGOPT_F_JSONPRETTY;
 
         cmd->id = "PYCBC";
+#endif
         rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
 
         if (rv < 0) {
@@ -470,7 +471,7 @@ TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
         lcb_sched_enter(self->instance);
         PYCBC_CONN_THR_BEGIN(self);
         err = lcb_diag(self->instance, cv.mres, cmd);
-    )
+    }
     PYCBC_CONN_THR_END(self);
 
     if (err != LCB_SUCCESS) {
