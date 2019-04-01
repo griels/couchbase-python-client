@@ -17,9 +17,6 @@
 
 #include "oputil.h"
 #include "pycbc.h"
-#if PYCBC_LCB_API<0x030001
-typedef lcb_storage_t lcb_STORE_OPERATION;
-#endif
 
 struct storecmd_vars {
     lcb_STORE_OPERATION operation;
@@ -260,8 +257,6 @@ LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_remove(lcb_SUBDOCOPS *operatio
 }
 
  * */
-
-
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
                 handle_multi_mutate, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curvalue, PyObject *options, pycbc_Item *itm,
@@ -277,18 +272,18 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
         return -1;
     }
-	CMDSCOPE(SUBDOC,subdoc,
+	CMDSCOPE_NG(SUBDOC,subdoc) {
 
-        lcb_cmdsubdoc_cas(cmd,scv->single_cas);
-        lcb_cmdsubdoc_expiration(cmd,scv->ttl);
-#if PYCBC_LCB_API<0x031000
+        lcb_cmdsubdoc_cas(cmd, scv->single_cas);
+        lcb_cmdsubdoc_expiration(cmd, scv->ttl);
+    #if PYCBC_LCB_API < 0x031000
         cmd->cmdflags |= scv->sd_doc_flags;
-#else
-        lcb_cmdsubdoc_create_if_missing(cmd,(scv->sd_doc_flags & CMDSUBDOC_F_UPSERT_DOC)?1:0);
-#endif
-        PYCBC_CMD_SET_KEY_SCOPE(subdoc,cmd,keybuf);
+    #else
+        lcb_cmdsubdoc_create_if_missing(cmd, (scv->sd_doc_flags & CMDSUBDOC_F_UPSERT_DOC) ? 1 : 0);
+    #endif
+        PYCBC_CMD_SET_KEY_SCOPE(subdoc, cmd, keybuf);
         rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, cmd);
-	)
+    }
     GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
@@ -334,26 +329,26 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         goto GT_DONE;
     }
     {
-#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create((CMD), scv->operation)
-        CMDSCOPE_GENERIC(STORE,store,GENSTORE,
-            lcb_cmdstore_flags(cmd,flags);
+#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create(CMD, scv->operation)
+        CMDSCOPE_NG_PARAMS(STORE,store, scv->operation) {
+            lcb_cmdstore_flags(cmd, flags);
             if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
                 /* The server ignores these flags and libcouchbase will throw an error
                  * if the flags are present. We check elsewhere here to ensure that
                  * only UTF8/BYTES are accepted for append/prepend anyway */
-                lcb_cmdstore_flags(cmd,0);
+                lcb_cmdstore_flags(cmd, 0);
             }
 
-            PYCBC_CMD_SET_KEY_SCOPE(store,cmd, keybuf);
-            PYCBC_CMD_SET_VALUE_SCOPE(store,cmd, valbuf);
+            PYCBC_CMD_SET_KEY_SCOPE(store, cmd, keybuf);
+            PYCBC_CMD_SET_VALUE_SCOPE(store, cmd, valbuf);
 
-            lcb_cmdstore_cas(cmd,skc.cas);
+            lcb_cmdstore_cas(cmd, skc.cas);
             lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
 
 
             PYCBC_TRACECMD_TYPED(store, cmd, context, cv->mres, curkey, self);
             err = pycbc_store(self->instance, cv->mres, cmd);
-        )
+        }
     }
     PYCBC_DEBUG_LOG_CONTEXT(context, "got result %d", err)
     if (err == LCB_SUCCESS) {
