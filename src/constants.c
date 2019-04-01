@@ -291,7 +291,6 @@ static void setup_tracing_map(PyObject *module,
 #define convert_intbool_desc_val_units ""
     PyObject *result = PyDict_New();
     LCB_FOR_EACH_THRESHOLD_PARAM(LCB_CNTL_CONSTANT, ;);
-    LCB_CNTL_TRACING_THRESHOLD_KV;
 #define X(NAME, TYPE)                                       \
     {                                                       \
         PyObject *attrdict = PyDict_New();                  \

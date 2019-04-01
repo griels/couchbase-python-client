@@ -3055,6 +3055,10 @@ unsigned short lcb_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
 unsigned long long int lcb_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
     return LCB_MUTATION_TOKEN_ID(pToken);
 }
+const int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN) {
+    return LCB_MUTATION_TOKEN_ISVALID(pTOKEN);
+}
+
 #endif
 
 #if PYCBC_LCB_API<0x031000
@@ -3103,4 +3107,5 @@ void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy) {
 #endif
 }
 #endif
+PYCBC_X_VERBS(PYCBC_CMD_PROXY)
 
