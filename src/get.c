@@ -49,6 +49,8 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
                 handle_single_key, pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
                 void *arg)
+
+
 {
     pycbc_Bucket* self=collection->bucket;
     int rv;
@@ -132,29 +134,23 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
         case PYCBC_CMD_GET:
         GT_GET:
         {
-#ifndef PYCBC_V4
-            lcb_CMDGET cmd_real={0};
-            lcb_CMDGET* cmd=&cmd_real;
-#else
-            lcb_CMDGET* cmd=NULL;
-            lcb_cmdget_create(&cmd);
-#endif
-            lcb_cmdget_locktime(cmd, lock);
-            COMMON_OPTS(PYCBC_get_ATTR, get, get);
-            err = pycbc_get(self->instance, cv->mres, cmd);
-#ifdef PYCBC_V4
-             lcb_cmdget_destroy(cmd);
-#endif
+            CMDSCOPE_NG(GET,get) {
+                lcb_cmdget_locktime(cmd, lock);
+                COMMON_OPTS(PYCBC_get_ATTR, get, get);
+                err = pycbc_get(self->instance, cv->mres, cmd);
+            }
         }
         break;
 
-        case PYCBC_CMD_TOUCH: {
-            CMDSCOPE_NG_V4(TOUCH, touch) {
-            COMMON_OPTS(PYCBC_touch_ATTR, touch, touch);
-            err = pycbc_touch(self->instance, cv->mres, cmd);
-        }
+        case PYCBC_CMD_TOUCH:
+            {
+                CMDSCOPE_NG_V4(TOUCH, touch) {
+                    COMMON_OPTS(PYCBC_touch_ATTR, touch, touch);
+                    err = pycbc_touch(self->instance, cv->mres, cmd);
+                }
+            }
             break;
-        }
+
         case PYCBC_CMD_GETREPLICA:
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL:
@@ -418,8 +414,7 @@ handle_single_lookup, pycbc_Bucket *self, struct pycbc_common_vars *cv, int opty
     void *arg)
 {
     pycbc_pybuffer keybuf = { NULL };
-
-#if PYCBC_LCB_API>0x030001
+#ifdef PYCBC_V4
     lcb_CMDSUBDOC* cmd=NULL;
     lcb_cmdsubdoc_create(&cmd);
 #else
