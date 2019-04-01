@@ -280,38 +280,30 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     }
     mres->mropts |= PYCBC_MRES_F_SINGLE;
     {
-        pycbc_CMDHTTP htcmd=NULL;
-#define PYCBC_BYPASS_SAFETY 1
-#ifdef PYCBC_V4
-        lcb_cmdhttp_create(&htcmd, reqtype);
-#else
-        lcb_CMDHTTP htcmd_real={0};
-        htcmd=&htcmd_real;
-        htcmd->type=reqtype;
-#endif
-        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(host)) {
-            lcb_cmdhttp_host(htcmd, host, pycbc_strlen_safe(host));
-        }
-        PYCBC_DEBUG_LOG("Encoding host [%s]",host?host:"")
-        if (PYCBC_BYPASS_SAFETY || (body && nbody)){
-            PYCBC_DEBUG_LOG("Encoding body [%.*s]",nbody,body?body:"")
+//        pycbc_CMDHTTP htcmd=NULL;
+#define PYCBC_BYPASS_SAFETY 0
+        CMDSCOPE_NG_PARAMS(HTTP,http, reqtype) {
+            if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(host)) {
+                lcb_cmdhttp_host(cmd, host, pycbc_strlen_safe(host));
+            }
+            PYCBC_DEBUG_LOG("Encoding host [%s]", host ? host : "")
+            if (PYCBC_BYPASS_SAFETY || (body && nbody)) {
+                PYCBC_DEBUG_LOG("Encoding body [%.*s]", nbody, body ? body : "")
 
-            lcb_cmdhttp_body(htcmd, body, (size_t) nbody);
+                lcb_cmdhttp_body(cmd, body, (size_t) nbody);
+            }
+            if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(content_type)) {
+                PYCBC_DEBUG_LOG("Encoding content_type [%.*s]", content_type, content_type ? content_type : "")
+                lcb_cmdhttp_content_type(cmd, content_type, pycbc_strlen_safe(content_type));
+            }
+            lcb_cmdhttp_method(cmd, method);
+            lcb_cmdhttp_handle(cmd, &htres->u.htreq);
+            PYCBC_DEBUG_LOG("Encoding path [%s]", path ? path : "")
+            if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(path)) {
+                lcb_cmdhttp_path(cmd, path, pycbc_strlen_safe(path));
+            }
+            err = pycbc_http(self->instance, mres, cmd);
         }
-        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(content_type)){
-            PYCBC_DEBUG_LOG("Encoding content_type [%.*s]",content_type,content_type?content_type:"")
-            lcb_cmdhttp_content_type(htcmd, content_type, pycbc_strlen_safe(content_type));
-        }
-        lcb_cmdhttp_method(htcmd, method);
-        lcb_cmdhttp_handle(htcmd, &htres->u.htreq);
-        PYCBC_DEBUG_LOG("Encoding path [%s]",path?path:"")
-        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(path)) {
-            lcb_cmdhttp_path(htcmd, path, pycbc_strlen_safe(path));
-        }
-        err = pycbc_http(self->instance, mres, htcmd);
-#ifdef PYCBC_V4
-        lcb_cmdhttp_destroy(htcmd);
-#endif
     }
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
