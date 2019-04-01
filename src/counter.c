@@ -80,6 +80,7 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
 
 
     {
+
         CMDSCOPE_NG(COUNTER, counter)
         {
             PYCBC_DEBUG_LOG("Encoding delta %llu", my_params.delta)
@@ -94,7 +95,6 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             lcb_cmdcounter_expiration(cmd, my_params.ttl);
             PYCBC_CMD_SET_KEY_SCOPE(counter, cmd, keybuf);
 
-            //PYCBC_TRACECMD_TYPED(counter, cmd, context, cv->mres, curkey, self);
             PYCBC_TRACECMD_TYPED(counter, cmd, context, cv->mres, curkey, self);
             err = pycbc_counter(self->instance, cv->mres, cmd);
         }
