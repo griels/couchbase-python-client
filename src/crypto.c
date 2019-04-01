@@ -34,13 +34,13 @@ lcb_error_t pycbc_cstrndup(char **key, size_t *key_len, PyObject *result)
     data = PYCBC_CSTRN(result, key_len);;
     if (data) {
         lcb_result = LCB_SUCCESS;
-        PYCBC_DEBUG_LOG("Got string from %p: %.*s", result, (int)key_len, data);
+        PYCBC_DEBUG_LOG("Got string from %p: %.*s", result, (int)*key_len, data);
         *key = calloc(1, *key_len + 1);
         memcpy((void *)*key, (void *)data, *key_len);
         (*key)[*key_len] = '\0';
         PYCBC_DEBUG_LOG("Copied string from %p: %.*s",
                         result,
-                        (int)key_len,
+                        (int)*key_len,
                         (char *)*key);
     } else {
         PYCBC_DEBUG_PYFORMAT(
