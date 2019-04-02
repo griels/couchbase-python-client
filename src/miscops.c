@@ -229,7 +229,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-#ifdef PYCBC_ENDURE
+#if defined(PYCBC_ENDURE) && 1
 TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;
@@ -242,7 +242,6 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     lcb_error_t err;
     float timeout = 0.0;
     float interval = 0.00;
-
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
 
     static char *kwlist[] = {
@@ -299,6 +298,12 @@ TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 
+}
+#else
+TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
+{
+    PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_NOT_SUPPORTED, "Endure unavailable n V4");
+    return NULL;
 }
 #endif
 
@@ -359,7 +364,7 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     if (rv < 0) {
         return NULL;
     }
-    CMDSCOPE_NG_V4(STATS,stats) {
+    CMDSCOPE_NG(STATS,stats) {
         if (keys) {
             for (ii = 0; ii < ncmds; ii++) {
                 char *key;
