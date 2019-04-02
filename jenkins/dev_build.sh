@@ -8,4 +8,4 @@ if [ "$1" = "rebuild" ]; then
 echo Rebuilding
 rm -rf build
 fi;
-python setup.py build_ext --inplace --include-dirs ${CMAKE_BUILD_DIR}/install/include/ --library-dirs ${CMAKE_BUILD_DIR}/install/lib/Debug  &> build.txt &
+python setup.py build_ext --debug --inplace --include-dirs ${CMAKE_BUILD_DIR}/install/include/ --library-dirs ${CMAKE_BUILD_DIR}/install/lib/Debug  &> build.txt &
