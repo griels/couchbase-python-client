@@ -107,7 +107,7 @@ PyObject* pycbc_python_proxy(PyObject *method, PyObject *args, const char* metho
     };
     result = PyObject_CallObject(method, args);
     PYCBC_DEBUG_PYFORMAT("Called %R with %R, got %p", method, args, result);
-    PYCBC_DEBUG_PYFORMAT("%p is %S", result, result);
+    PYCBC_DEBUG_PYFORMAT("%p is %S", result, pycbc_none_or_value(result));
     if (!result || PyErr_Occurred()) {
         pycbc_report_method_exception(LCB_EINTERNAL, "Problem calling method %s",
                                       method_name);
