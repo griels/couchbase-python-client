@@ -859,7 +859,8 @@ PyObject *pycbc_null_or_value(PyObject *tracer)
     return (tracer && PyObject_IsTrue(tracer)) ? tracer : NULL;
 }
 
-lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result)
+lcb_STATUS pycbc_logging_monad_verb(const char *FILE, const char *FUNC, int LINE, lcb_INSTANCE *instance, void *COOKIE,
+                                    void *CMD, const char *CMDNAME, const char *VERB, lcb_STATUS result)
 {
     PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"Doing %s, %s==%llx: %llx, %llx, got result %d", VERB, CMDNAME, CMD, instance, COOKIE, result);
     return result;
@@ -3042,24 +3043,36 @@ int pycbc_TracerType_init(PyObject **ptr) {
 }
 
 #endif
-
+uint64_t pycbc_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken) {
 #if PYCBC_LCB_API<0x030001
-unsigned long long int lcb_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken) {
     return LCB_MUTATION_TOKEN_SEQ(pToken);
+#else
+    return pToken->seqno_;
+#endif
 }
 
-unsigned short lcb_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
+uint64_t pycbc_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
+#if PYCBC_LCB_API<0x030001
     return LCB_MUTATION_TOKEN_VB(pToken);
-}
-
-unsigned long long int lcb_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
-    return LCB_MUTATION_TOKEN_ID(pToken);
-}
-const int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN) {
-    return LCB_MUTATION_TOKEN_ISVALID(pTOKEN);
-}
+#else
+    return pToken->vbid_;
 
 #endif
+}
+
+uint64_t pycbc_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
+#if PYCBC_LCB_API<0x030001
+    return LCB_MUTATION_TOKEN_ID(pToken);
+#else
+    return pToken->uuid_;
+#endif
+}
+#if PYCBC_LCB_API<0x030001
+int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN) {
+    return LCB_MUTATION_TOKEN_ISVALID(pTOKEN);
+}
+#endif
+
 
 #if PYCBC_LCB_API<0x031000
 void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy) {
