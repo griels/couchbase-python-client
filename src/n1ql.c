@@ -6,7 +6,7 @@ static void
 n1ql_row_callback(lcb_t instance, int ign, const lcb_RESPN1QL *resp)
 {
     pycbc_MultiResult *mres=NULL;
-    lcb_respn1ql_cookie(resp, (const void **) &mres);
+    lcb_respn1ql_cookie(resp, (void **) &mres);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
