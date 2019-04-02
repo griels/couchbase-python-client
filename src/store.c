@@ -18,6 +18,10 @@
 #include "oputil.h"
 #include "pycbc.h"
 
+#if PYCBC_LCB_API<0x030001
+typedef lcb_U64 lcb_STORE_OPERATION;
+#endif
+
 struct storecmd_vars {
     lcb_STORE_OPERATION operation;
     int argopts;

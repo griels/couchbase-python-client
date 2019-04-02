@@ -270,7 +270,7 @@ typedef struct {
             return resp->rc;                                       \
         }                                                          \
         lcb_STATUS lcb_resp##LC##_cookie(const lcb_RESP##UC *resp, \
-                                         const void **dest)        \
+                                         void **dest)        \
         {                                                          \
             *dest = resp->cookie;                                  \
             return LCB_SUCCESS;                                    \
@@ -306,6 +306,13 @@ typedef struct {
             return LCB_SUCCESS;                                   \
         }
 
+#    define PYCBC_ITMFLAGS_ACCESSORS_U32(UC, LC)                     \
+        lcb_STATUS lcb_resp##LC##_flags(const lcb_RESP##UC *resp, \
+                                        lcb_uint32_t *dest)       \
+        {                                                         \
+            *dest = resp->itmflags;                                 \
+            return LCB_SUCCESS;                                   \
+        }
 #    define PYCBC_FLAGS_ACCESSORS_U64(UC, LC)                     \
         lcb_STATUS lcb_resp##LC##_flags(const lcb_RESP##UC *resp, \
                                         lcb_U64 *dest)            \
@@ -329,7 +336,7 @@ typedef struct {
 #    define PYCBC_GET_ACCESSORS(UC, LC) \
         PYCBC_RESP_ACCESSORS(UC, LC)    \
         PYCBC_VAL_ACCESSORS(UC, LC)     \
-        PYCBC_FLAGS_ACCESSORS_U32(UC, LC)
+        PYCBC_ITMFLAGS_ACCESSORS_U32(UC, LC)
 
 #    define PYCBC_STATS_ACCESSORS(UC, LC) \
         PYCBC_RESP_ACCESSORS(UC, LC)      \
@@ -349,14 +356,22 @@ PYCBC_X_FOR_EACH_OP(PYCBC_RESP_ACCESSORS,
                     PYCBC_GET_ACCESSORS,
                     PYCBC_COUNT_ACCESSORS)
 #    else
+
 PYCBC_X_FOR_EACH_OP_POSTFIX()
+
 #    endif
+#else
+#define lcb_resphttp_key(CMD,...)
+#define lcb_resphttp_cas(CMD,...)
+#define lcb_respstats_cookie(CMD,...)
 #endif
 
-void pycbc_extract_respdata(const lcb_RESPBASE *resp,
+
+int pycbc_extract_respdata(const lcb_RESPBASE *resp,
                             pycbc_MultiResult *const *mres,
                             response_handler *handler)
 {
+            lcb_STATUS result=LCB_SUCCESS;
     switch (handler->cbtype) {
 #define PYCBC_UPDATE_ALL(UC, LC)                                   \
     case LCB_CALLBACK_##UC:                                        \
@@ -365,7 +380,7 @@ void pycbc_extract_respdata(const lcb_RESPBASE *resp,
                            &handler->key.length);                  \
         handler->rc = lcb_resp##LC##_status((lcb_RESP##UC *)resp); \
         lcb_resp##LC##_cookie((const lcb_RESP##UC *)resp,          \
-                              (const void **)mres);                \
+                              (void **)mres);                \
         lcb_resp##LC##_cas((const lcb_RESP##UC *)resp,             \
                            (uint64_t *)&handler->cas);             \
         break;
@@ -373,118 +388,39 @@ void pycbc_extract_respdata(const lcb_RESPBASE *resp,
     case LCB_CALLBACK_##UC:                                        \
         handler->rc = lcb_resp##LC##_status((lcb_RESP##UC *)resp); \
         lcb_resp##LC##_cookie((const lcb_RESP##UC *)resp,          \
-                              (const void **)mres);                \
+                              (void **)mres);                \
         break;
 #define PYCBC_UPDATE_ALL_NO_KEY_OR_COOKIE_OR_CAS(UC, LC)  \
     case LCB_CALLBACK_##UC:                               \
         lcb_resp##LC##_cookie((const lcb_RESP##UC *)resp, \
-                              (const void **)mres);       \
+                              (void **)mres);       \
         break;
-#ifdef PYCBC_X_FOR_EACH_OP_GEN
+#if (defined(PYCBC_X_FOR_EACH_OP_GEN) || PYCBC_LCB_API>0x030001) &&0
         PYCBC_X_FOR_EACH_OP(PYCBC_UPDATE_ALL,
                             PYCBC_UPDATE_ALL_NOKEYORCAS,
                             PYCBC_UPDATE_ALL_NO_KEY_OR_COOKIE_OR_CAS,
                             PYCBC_UPDATE_ALL,
                             PYCBC_UPDATE_ALL)
 #else
-    //        PYCBC_X_FOR_EACH_OP(PYCBC_UPDATE_ALL,PYCBC_UPDATE_ALL_NOKEYORCAS,PYCBC_UPDATE_ALL_NO_KEY_OR_COOKIE_OR_CAS)
-    case LCB_CALLBACK_REMOVE:
-        lcb_respremove_key((const lcb_RESPREMOVE *)resp,
-                           &handler->key.buffer,
-                           &handler->key.length);
-        handler->rc = lcb_respremove_status((lcb_RESPREMOVE *)resp);
-        lcb_respremove_cookie((const lcb_RESPREMOVE *)resp,
-                              (const void **)mres);
-        lcb_respremove_cas((const lcb_RESPREMOVE *)resp,
-                           (uint64_t *)&handler->cas);
-        break;
-    case LCB_CALLBACK_UNLOCK:
-        lcb_respunlock_key((const lcb_RESPUNLOCK *)resp,
-                           &handler->key.buffer,
-                           &handler->key.length);
-        handler->rc = lcb_respunlock_status((lcb_RESPUNLOCK *)resp);
-        lcb_respunlock_cookie((const lcb_RESPUNLOCK *)resp,
-                              (const void **)mres);
-        lcb_respunlock_cas((const lcb_RESPUNLOCK *)resp,
-                           (uint64_t *)&handler->cas);
-        break;
-    case LCB_CALLBACK_TOUCH:
-        lcb_resptouch_key((const lcb_RESPTOUCH *)resp,
-                          &handler->key.buffer,
-                          &handler->key.length);
-        handler->rc = lcb_resptouch_status((lcb_RESPTOUCH *)resp);
-        lcb_resptouch_cookie((const lcb_RESPTOUCH *)resp, (const void **)mres);
-        lcb_resptouch_cas((const lcb_RESPTOUCH *)resp,
-                          (uint64_t *)&handler->cas);
-        break;
-    case LCB_CALLBACK_GET:
-        *(&handler->key.buffer) = ((const lcb_RESPGET *)resp)->key;
-        *(&handler->key.length) = ((const lcb_RESPGET *)resp)->nkey;
-        ;
-        handler->rc = ((lcb_RESPGET *)resp)->rc;
-        *((const void **)mres) = ((const lcb_RESPGET *)resp)->cookie;
-        *((uint64_t *)&handler->cas) = ((const lcb_RESPGET *)resp)->cas;
-        break;
-    case LCB_CALLBACK_GETREPLICA:
-        lcb_respgetreplica_key((const lcb_RESPGETREPLICA *)resp,
-                               &handler->key.buffer,
-                               &handler->key.length);
-        handler->rc = lcb_respgetreplica_status((lcb_RESPGETREPLICA *)resp);
-        lcb_respgetreplica_cookie((const lcb_RESPGETREPLICA *)resp,
-                                  (const void **)mres);
-        lcb_respgetreplica_cas((const lcb_RESPGETREPLICA *)resp,
-                               (uint64_t *)&handler->cas);
-        break;
-    case LCB_CALLBACK_COUNTER:
-        lcb_respcounter_key((const lcb_RESPCOUNTER *)resp,
-                            &handler->key.buffer,
-                            &handler->key.length);
-        handler->rc = ((lcb_RESPCOUNTER *)resp)->rc;
-        lcb_respcounter_cookie((const lcb_RESPCOUNTER *)resp,
-                               (const void **)mres);
-        lcb_respcounter_cas((const lcb_RESPCOUNTER *)resp,
-                            (uint64_t *)&handler->cas);
-        break;
-    case LCB_CALLBACK_STATS:
-        *((const void **)mres) = ((const lcb_RESPSTATS *)resp)->cookie;
-        ;
-        break;
-    case LCB_CALLBACK_PING:
-        handler->rc = ((lcb_RESPPING *)resp)->rc;
-        *((const void **)mres) = ((const lcb_RESPPING *)resp)->cookie;
-        ;
-        break;
-    case LCB_CALLBACK_DIAG:
-        handler->rc = ((lcb_RESPDIAG *)resp)->rc;
-        *((const void **)mres) = ((const lcb_RESPDIAG *)resp)->cookie;
-        ;
-        break;
-    case LCB_CALLBACK_OBSERVE:
-        *(&handler->key.buffer) = ((const lcb_RESPOBSERVE *)resp)->key;
-        *(&handler->key.length) = ((const lcb_RESPOBSERVE *)resp)->nkey;
-        ;
-        handler->rc = ((lcb_RESPOBSERVE *)resp)->rc;
-        *((const void **)mres) = ((const lcb_RESPOBSERVE *)resp)->cookie;
-        *((uint64_t *)&handler->cas) = ((const lcb_RESPOBSERVE *)resp)->cas;
-        break;
-    case LCB_CALLBACK_ENDURE:
-        *(&handler->key.buffer) = ((const lcb_RESPENDURE *)resp)->key;
-        *(&handler->key.length) = ((const lcb_RESPENDURE *)resp)->nkey;
-        ;
-        handler->rc = ((lcb_RESPENDURE *)resp)->rc;
-        *((const void **)mres) = ((const lcb_RESPENDURE *)resp)->cookie;
-        *((uint64_t *)&handler->cas) = ((const lcb_RESPENDURE *)resp)->cas;
-        break;
+        PYCBC_X_FOR_EACH_OP(PYCBC_UPDATE_ALL,
+                            PYCBC_UPDATE_ALL_NOKEYORCAS,
+                            PYCBC_UPDATE_ALL_NO_KEY_OR_COOKIE_OR_CAS,
+                            PYCBC_UPDATE_ALL,
+                            PYCBC_UPDATE_ALL)
+
+
 #endif
     default:
-        lcb_respget_key((const lcb_RESPGET *)resp,
+
+        result=lcb_respget_key((const lcb_RESPGET *)resp,
                         &handler->key.buffer,
                         &handler->key.length);
         handler->rc = lcb_respget_status((lcb_RESPGET *)resp);
-        lcb_respget_cookie((const lcb_RESPGET *)resp, (const void **)mres);
+        lcb_respget_cookie((const lcb_RESPGET *)resp, (void **)mres);
         lcb_respget_cas((const lcb_RESPGET *)resp, (uint64_t *)&handler->cas);
         break;
     }
+    return result;
 }
 
 static int get_common_objects(const lcb_RESPBASE *resp,
@@ -662,9 +598,9 @@ dur_chain2(pycbc_Bucket *conn,
         if (mutinfo && lcb_mutation_token_is_valid(mutinfo)) {
             /* Create the mutation token tuple: (vb,uuid,seqno) */
             res->mutinfo = Py_BuildValue("HKKO",
-                lcb_mutation_token_vbid(mutinfo),
-                lcb_mutation_token_uuid(mutinfo),
-                lcb_mutation_token_seqno(mutinfo),
+                pycbc_mutation_token_vbid(mutinfo),
+                pycbc_mutation_token_uuid(mutinfo),
+                pycbc_mutation_token_seqno(mutinfo),
                 conn->bucket);
         } else {
             Py_INCREF(Py_None);
