@@ -203,7 +203,7 @@ static void
 row_callback(lcb_t instance, int cbtype, const lcb_RESPVIEW *resp)
 {
     pycbc_MultiResult *mres;
-    lcb_respview_cookie(resp, (const void **) &mres);
+    lcb_respview_cookie(resp, (void **) &mres);
     //= (pycbc_MultiResult*)resp->cookie;
     pycbc_Bucket *bucket = mres->parent;
     const char * const * hdrs = NULL;

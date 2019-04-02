@@ -550,8 +550,9 @@ Bucket__mutinfo(pycbc_Bucket *self)
         if (mt == NULL) {
             continue;
         }
-        cur = Py_BuildValue("HKK", lcb_mutation_token_vbid(mt),
-            lcb_mutation_token_uuid(mt), lcb_mutation_token_seqno(mt));
+
+        cur = Py_BuildValue("HKK", pycbc_mutation_token_vbid(mt),
+                            pycbc_mutation_token_uuid(mt), pycbc_mutation_token_seqno(mt));
         PyList_Append(ll, cur);
         Py_DECREF(cur);
     }
@@ -750,9 +751,9 @@ static PyMethodDef Bucket_TABLE_methods[] = {
         OPFUNC(observe, "Get replication/persistence status for keys"),
         OPFUNC(observe_multi, "multi-key variant of observe"),
 
-#ifdef PYCBC_ENDURE
+//#ifdef PYCBC_ENDURE
 OPFUNC(endure_multi, "Check durability requirements"),
-#endif
+//#endif
 
 #undef OPFUNC
 

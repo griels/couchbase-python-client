@@ -177,7 +177,7 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     pycbc_Bucket *bucket;
     pycbc_HttpResult *htres;
     const lcb_RESPHTTP *resp = (const lcb_RESPHTTP *)rb;
-    lcb_resphttp_cookie(resp,(const void**)&mres);
+    lcb_resphttp_cookie(resp,(void**)&mres);
     bucket = mres->parent;
     PYCBC_CONN_THR_END(bucket);
 
