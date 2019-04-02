@@ -94,7 +94,6 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             PYCBC_DEBUG_LOG_CONTEXT(context, "Encoding timeout %d", my_params.ttl);
             lcb_cmdcounter_expiration(cmd, my_params.ttl);
             PYCBC_CMD_SET_KEY_SCOPE(counter, cmd, keybuf);
-
             PYCBC_TRACECMD_TYPED(counter, cmd, context, cv->mres, curkey, self);
             err = pycbc_counter(self->instance, cv->mres, cmd);
         }
