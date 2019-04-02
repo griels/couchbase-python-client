@@ -20,8 +20,9 @@
  * @author Mark Nunberg
  */
 #ifndef PYCBC_LCB_API
-#define PYCBC_LCB_API 0x030000
+//#define PYCBC_LCB_API 0x0310000
 #endif
+//#define PYCBC_LCB_API 0x03100000
 
 #define PYCBC_TRACE_FINISH_SPANS
 #define PYCBC_GLOBAL_SCHED
@@ -200,7 +201,7 @@ int pycbc_free_debug(const char* FILE, const char* FUNC, int line, void* X);
 #if PYCBC_LCB_API>0x030000
 #define PYCBC_V4
 #endif
-#if PYCBC_LCB_API<0x030100
+#if PYCBC_LCB_API<0x031000
 #define PYCBC_ENDURE
 #include <libcouchbase/api3.h>
 #else
@@ -511,11 +512,6 @@ enum {
 typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
 typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 
-typedef enum {
-#define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X=LCB_##X
-#define ALL_ENUMS(X) X(APPEND),X(PREPEND),X(SET),X(ADD),X(REPLACE)
-    ALL_ENUMS(PYCBC_BACKPORT_STORE)
-} lcb_STORE_OPERATION;
 typedef lcb_error_t lcb_STATUS;
 
 #else
@@ -610,55 +606,52 @@ typedef const lcb_RESPGET* pycbc_RESPGET;
 
 #define PYCBC_DUMMY(...)
 
-#if PYCBC_LCB_API< 0x031000
+
+#if PYCBC_LCB_API<0x031000
 
 typedef lcb_PINGSVCTYPE lcb_PING_SERVICE;
 #endif
 
-
-
-
-#if PYCBC_LCB_API < 0x030001
-
+#if PYCBC_LCB_API<0x030001
 typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 typedef lcb_CMDVIEWQUERY lcb_CMDVIEW;
 typedef lcb_error_t lcb_STATUS;
 
+#    define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE) \
+        TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx)  \
+        {                                                 \
+            return ctx->ATTRIB;                           \
+        }
 
-
-#define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)                          \
-  TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx) { return ctx->ATTRIB; }
-
-#define PYCBC_SCOPE_SET(SCOPE, CTXTYPE, ATTRIB, MEMBER, TYPE)                  \
-  lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value) {              \
-    ctx->MEMBER = value;                                                       \
-    return LCB_SUCCESS;                                                        \
-  }
+#    define PYCBC_SCOPE_SET(SCOPE, CTXTYPE, ATTRIB, MEMBER, TYPE)     \
+        lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value) \
+        {                                                             \
+            ctx->MEMBER = value;                                      \
+            return LCB_SUCCESS;                                       \
+        }
 
 #else // PYCBC_LCB_API<0x030001
-#define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)                          \
-  TYPE pycbc_##SCOPE##_##ATTRIB(CTXTYPE ctx) {                                 \
-    TYPE##_DEFINE(TYPE);                                                       \
-    lcb_resp##SCOPE##_##ATTRIB(ctx, TYPE##_USE(TYPE));                         \
-    return temp;                                                               \
-  }
+#    define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)      \
+        TYPE pycbc_##SCOPE##_##ATTRIB(CTXTYPE ctx)             \
+        {                                                      \
+            TYPE##_DEFINE(TYPE);                               \
+            lcb_resp##SCOPE##_##ATTRIB(ctx, TYPE##_USE(TYPE)); \
+            return temp;                                       \
+        }
 
+#endif // PYCBC_LCB_API < 0x030001
 
-
-
-
-#if PYCBC_LCB_API < 0x031000
-#else // PYCBC_LCB_API < 0x031000
-typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
-
+#    if PYCBC_LCB_API < 0x031000
 enum {
-#define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X = LCB_##X
-#define ALL_ENUMS(X) X(APPEND), X(PREPEND), X(SET), X(ADD), X(REPLACE)
-  ALL_ENUMS(PYCBC_BACKPORT_STORE)
+#        define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X = LCB_##X
+#        define ALL_ENUMS(X) X(APPEND), X(PREPEND), X(SET), X(ADD), X(REPLACE)
+    ALL_ENUMS(PYCBC_BACKPORT_STORE)
 };
 typedef lcb_error_t lcb_STATUS;
-#endif // PYCBC_LCB_API < 0x031000
-#endif // PYCBC_LCB_API < 0x030001
+#    else // PYCBC_LCB_API < 0x031000
+//typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
+
+#    endif // PYCBC_LCB_API < 0x031000
 
 #define CMDSCOPE_GENERIC_FAIL fail=1; continue;
 #define CMDSCOPE_GENERIC_ALL_PREFIX(PREFIX, UC, LC, INITIALIZER,  DESTRUCTOR, CMDS, ...)  \
@@ -676,14 +669,14 @@ typedef lcb_error_t lcb_STATUS;
 #define CMDSCOPE_GENERIC_ALL(UC, LC, INITIALIZER,  DESTRUCTOR, CMDS, ...)  \
     CMDSCOPE_GENERIC_ALL_PREFIX(,UC,LC,INITIALIZER, DESTRUCTOR, CMDS, __VA_ARGS__)
 
-#if PYCBC_LCB_API<0x031000
+//#if PYCBC_LCB_API<0x031000
 #define lcb_cmdstats_create(DEST) lcb_CMDSTATS cmd_real={0}; *(DEST)=&cmd_real;
 #define lcb_cmdstats_destroy(DEST) 0
-#else
+//#else
 
 //#define lcb_cmdstats_create(CMD) (*(CMD)) = lcb_cmdstats_alloc();
 //#define lcb_cmdstats_destroy(CMD) lcb_cmdstats_dispose(CMD);
-#endif
+//#endif
 
 #define pycbc_verb_postfix(POSTFIX, VERB, INSTANCE, COOKIE, CMD) \
     pycbc_logging_monad_verb(__FILE__,                           \
@@ -710,7 +703,7 @@ typedef lcb_error_t lcb_STATUS;
 #define PYCBC_GET_ACCESSORS_POSTFIX(POSTFIX, UC, LC) \
     PYCBC_RESP_ACCESSORS##POSTFIX(UC, LC);           \
     PYCBC_VAL_ACCESSORS##POSTFIX(UC, LC);            \
-    PYCBC_FLAGS_ACCESSORS_U32##POSTFIX(UC, LC)
+    PYCBC_ITMFLAGS_ACCESSORS_U32##POSTFIX(UC, LC)
 
 #define PYCBC_HTTP_ACCESSORS_POSTFIX(POSTFIX, UC, LC) \
     PYCBC_RESP_ACCESSORS##POSTFIX(UC, LC);            \
@@ -742,6 +735,7 @@ typedef lcb_error_t lcb_STATUS;
 #    define OBSERVEOPS(X, ...) X(OBSERVE, observe)
 #else
 #    define OBSERVEOPS(X)
+#    define ENDUREOPS(X)
 #    define PYCBC_OBSERVE_ACCESSORS_POSTFIX(POSTFIX)
 #endif
 
@@ -750,7 +744,7 @@ typedef lcb_error_t lcb_STATUS;
             const lcb_RESP##UC *resp, const char **buffer, size_t *len); \
     lcb_STATUS lcb_resp##LC##_status(const lcb_RESP##UC *resp);          \
     lcb_STATUS lcb_resp##LC##_cookie(const lcb_RESP##UC *resp,           \
-                                     const void **dest);                 \
+    void **dest);                 \
     lcb_STATUS lcb_resp##LC##_cas(const lcb_RESP##UC *resp, uint64_t *dest);
 
 #define PYCBC_KEY_ACCESSORS_DECLS(UC, LC) \
@@ -770,7 +764,7 @@ typedef lcb_error_t lcb_STATUS;
 #define PYCBC_NOKEY_ACCESSORS_DECLS(UC, LC)                     \
     lcb_STATUS lcb_resp##LC##_status(const lcb_RESP##UC *resp); \
     lcb_STATUS lcb_resp##LC##_cookie(const lcb_RESP##UC *resp,  \
-                                     const void **dest);        \
+    void **dest);        \
     lcb_STATUS lcb_resp##LC##_cas(const lcb_RESP##UC *resp, lcb_uint64_t *dest);
 
 #define PYCBC_LLUVAL_ACCESSOR_DECLS(UC, LC) \
@@ -779,6 +773,10 @@ typedef lcb_error_t lcb_STATUS;
 #define PYCBC_FLAGS_ACCESSORS_U32_DECLS(UC, LC)               \
     lcb_STATUS lcb_resp##LC##_flags(const lcb_RESP##UC *resp, \
                                     lcb_uint32_t *dest);
+#define PYCBC_ITMFLAGS_ACCESSORS_U32_DECLS(UC, LC)               \
+    lcb_STATUS lcb_resp##LC##_flags(const lcb_RESP##UC *resp, \
+                                    lcb_uint32_t *dest);
+
 #define PYCBC_FLAGS_ACCESSORS_U64_DECLS(UC, LC) \
     lcb_STATUS lcb_resp##LC##_flags(const lcb_RESP##UC *resp, lcb_U64 *dest);
 
@@ -837,8 +835,11 @@ PYCBC_X_FOR_EACH_OP(PYCBC_RESP_ACCESSORS,
 #    define PYCBC_FTS_DISABLED
 typedef lcb_INSTANCE *lcb_t;
 typedef lcb_STATUS lcb_error_t;
-typedef lcb_HTTP_HANDLE *lcb_http_request_t;
-typedef lcb_FTS_HANDLE *lcb_FTSHANDLE;
+
+typedef lcb_VIEW_HANDLE *pycbc_VIEW_HANDLE;
+typedef lcb_HTTP_HANDLE *pycbc_HTTP_HANDLE;
+typedef lcb_FTS_HANDLE *pycbc_FTS_HANDLE;
+typedef lcb_N1QL_HANDLE *pycbc_N1QL_HANDLE;
 #    define DEFAULT_VERBPOSTFIX
 #    define pycbc_rget(INSTANCE, COOKIE, CMD) \
         pycbc_verb_postfix(, getreplica, (INSTANCE), (COOKIE), (CMD))
@@ -846,11 +847,11 @@ typedef lcb_FTS_HANDLE *lcb_FTSHANDLE;
 
 #else
 #    include "libcouchbase/cbft.h"
-typedef lcb_t lcb_INSTANCE;
+typedef struct lcb_st lcb_INSTANCE;
 typedef lcb_VIEWHANDLE pycbc_VIEW_HANDLE;
-typedef lcb_N1QLHANDLE pycbc_N1QL_HANDLE;
-typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
 typedef lcb_http_request_t pycbc_HTTP_HANDLE;
+typedef lcb_FTSHANDLE pycbc_FTS_HANDLE;
+typedef lcb_N1QLHANDLE pycbc_N1QL_HANDLE;
 #    define DEFAULT_VERBPOSTFIX 3
 #    define pycbc_verb(VERB, INSTANCE, ...) \
         pycbc_verb_postfix(3, VERB, INSTANCE, __VA_ARGS__)
@@ -862,7 +863,7 @@ typedef lcb_http_request_t pycbc_HTTP_HANDLE;
 lcb_STATUS pycbc_logging_monad_verb(const char *FILE,
                                     const char *FUNC,
                                     int LINE,
-                                    lcb_INSTANCE instance,
+                                    lcb_INSTANCE *instance,
                                     void *COOKIE,
                                     void *CMD,
                                     const char *CMDNAME,
@@ -871,13 +872,13 @@ lcb_STATUS pycbc_logging_monad_verb(const char *FILE,
 
 #define PYCBC_CMD_PROXY(UC, LC)                                    \
     lcb_STATUS pycbc_##LC(                                         \
-            lcb_INSTANCE instance, void *cookie, lcb_CMD##UC *cmd) \
+            lcb_INSTANCE* instance, void *cookie, lcb_CMD##UC *cmd) \
     {                                                              \
         return pycbc_verb(LC, instance, cookie, cmd);              \
     };
 #define PYCBC_CMD_PROXY_DECL(UC, LC) \
     lcb_STATUS pycbc_##LC(           \
-            lcb_INSTANCE instance, void *cookie, lcb_CMD##UC *cmd);
+            lcb_INSTANCE* instance, void *cookie, lcb_CMD##UC *cmd);
 #define PYCBC_X_VERBS(X) \
     X(COUNTER, counter)  \
     X(GET, get)          \
@@ -1163,15 +1164,6 @@ typedef struct{
     lcb_U32 options;
 }  lcb_SUBDOCOPS;
 
-#if PYCBC_LCB_API<0x030001
-unsigned long long int lcb_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken);
-
-unsigned short lcb_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken);
-
-unsigned long long int lcb_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken);
-const int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN);
-
-#endif // PYCBC_LCB_API<0x030001
 typedef lcb_SDSPEC pycbc_SDSPEC;
 #endif //  PYCBC_LCB_API>0x030001
 
@@ -1259,6 +1251,18 @@ void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy);
 #define lcb_respgetcid_manifest_id(RESP,DEST) *(DEST)=(RESP)->manifest_id
 #endif
 
+#define CMDSCOPE_SDCMD_CREATE_RAW_V4(TYPE, LC, CMD, ...) \
+    TYPE* CMD=NULL;lcb_##LC##_create(&CMD)
+
+#define CMDSCOPE_SDCMD_CREATE_V4(TYPE, LC, CMD, ...) \
+    TYPE* CMD=NULL;lcb_##LC##_create(&(CMD), __VA_ARGS__);
+
+#define CMDSCOPE_SDCMD_DESTROY_V4(TYPE, LC, CMD, ...) \
+    lcb_##LC##_destroy(CMD)
+
+#define CMDSCOPE_SDCMD_DESTROY_RAW_V4(TYPE, LC, CMD, ...) \
+    lcb_##LC##_destroy(CMD)
+
 #ifdef PYCBC_V4_BACKPORT
 #define ACCESSORS(X)\
     X(respget,itmflags,flags)
@@ -1266,6 +1270,15 @@ void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy);
 #define PYCBC_STRUCT_ACC(prefix.structname,accname,...)\
 lcb_error_t lcb_##prefix##_accname(__VA_ARGS__){}
 
+#endif
+
+uint64_t pycbc_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken);
+
+uint64_t pycbc_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken);
+
+uint64_t pycbc_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken);
+#if PYCBC_LCB_API<0x031000
+int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN);
 #endif
 
 typedef lcb_CMDBASE* pycbc_CMDBASE;
@@ -1343,7 +1356,7 @@ typedef struct {
     PyObject_HEAD
 
     /** LCB instance */
-    lcb_INSTANCE instance;
+    lcb_INSTANCE* instance;
 #ifdef PYCBC_TRACING
     /** Tracer **/
     struct pycbc_Tracer *tracer;
@@ -1703,8 +1716,12 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
 #define lcb_cmdendure_parent_span(CMD, ...)                                    \
   LCB_CMD_SET_TRACESPAN((CMD), __VA_ARGS__);
 
+#else
+#define lcb_cmdobserve_parent_span(CMD, SPAN)                                  \
+  LCB_CMD_SET_TRACESPAN((CMD), (SPAN));
 #endif
-#if PYCBC_LCB_API<0x030001
+
+  #if PYCBC_LCB_API<0x030001
 #define PYCBC_CMD_SET_TRACESPAN(TYPE, CMD, SPAN)                               \
   LCB_CMD_SET_TRACESPAN((CMD), (SPAN));
 #else
