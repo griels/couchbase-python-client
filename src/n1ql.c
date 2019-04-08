@@ -98,8 +98,6 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
             cmd->host = host;
         }
 #endif
-//        PYCBC_TRACECMD_SCOPED_NULL(
-  //              rc, n1ql, self->instance, vres->base.u.nq, context, mres, cmd);
         PYCBC_TRACECMD_SCOPED_NULL(
                 rc, n1ql, self->instance, cmd, vres->base.u.nq, context, mres, cmd);
     }
