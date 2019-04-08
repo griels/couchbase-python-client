@@ -404,11 +404,6 @@ TRACED_FUNCTION_WRAPPER(_stats,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     return cv.ret;
 }
 
-#if PYCBC_LCB_API<0x031000
-#define lcb_cmdping_create(CMD) lcb_CMDPING cmd_real={0}; *(CMD)=&cmd_real;
-#define lcb_cmdping_destroy(CMD)
-#endif
-
 TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
 {
     int rv;
@@ -447,10 +442,6 @@ GT_DONE:
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-#if PYCBC_LCB_API<0x031000
-#define lcb_cmddiag_create(CMD) lcb_CMDDIAG cmd_real={0}; *(CMD)=&cmd_real;
-#define lcb_cmddiag_destroy(CMD)
-#endif
 
 TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
 {
