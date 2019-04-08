@@ -113,12 +113,8 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
     XHTTP(X);
-#if PYCBC_LCB_API>=0x030001
 #undef X
-#define X(b) handler(module, "LCB_" #b, LCB_STORE_##b);
-#endif
-    XSTORAGE(X);
-#undef X
+    XSTORAGE(LCB_STORE_WRAPPER)
 
     ADD_MACRO(LCB_MAX_ERROR);
     ADD_MACRO(PYCBC_CMD_GET);

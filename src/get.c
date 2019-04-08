@@ -33,18 +33,6 @@ struct getcmd_vars_st {
     } u;
 };
 
-#if PYCBC_LCB_API<0x030001
-#define GET_ATTRIBS(X) \
-X(get, lcb_CMDGET*, locktime, lock, int)\
-
-lcb_STATUS lcb_cmdget_key(lcb_CMDBASE* ctx, pycbc_pybuffer* buf) {
-    LCB_CMD_SET_KEY(ctx,buf->buffer, buf->length);
-    return LCB_SUCCESS;
-}
-
-GET_ATTRIBS(PYCBC_DUMMY)
-GET_ATTRIBS(PYCBC_SCOPE_SET)
-#endif
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int,
                 handle_single_key, pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *collection, struct pycbc_common_vars *cv, int optype,
                 PyObject *curkey, PyObject *curval, PyObject *options, pycbc_Item *itm,
