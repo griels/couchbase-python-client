@@ -88,9 +88,11 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             PYCBC_DEBUG_LOG("Encoded delta %llu", my_params.delta)
 #if PYCBC_LCB_API < 0x030001
             cmd->create=my_params.create;
-#endif
+            (cmd)->initial=my_params.initial;
+#else
             PYCBC_DEBUG_LOG_CONTEXT(context, "Encoding initial %d", my_params.initial);
             lcb_cmdcounter_initial(cmd, my_params.initial);
+#endif
             PYCBC_DEBUG_LOG_CONTEXT(context, "Encoding timeout %d", my_params.ttl);
             lcb_cmdcounter_expiration(cmd, my_params.ttl);
             PYCBC_CMD_SET_KEY_SCOPE(counter, cmd, keybuf);
