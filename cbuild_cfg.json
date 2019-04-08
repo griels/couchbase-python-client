@@ -27,6 +27,7 @@
     "src/oputil.h",
     "src/pipeline.c",
     "src/pycbc_http.c",
+    "src/pycbc_subdocops.c",
     "src/result.c",
     "src/store.c",
     "src/typeutil.c",
