@@ -606,6 +606,8 @@ typedef const lcb_RESPGET* pycbc_RESPGET;
 
 #define PYCBC_DUMMY(...)
 
+#define GET_ATTRIBS(X) \
+X(get, lcb_CMDGET*, locktime, lock, int);
 
 #if PYCBC_LCB_API<0x031000
 
@@ -617,11 +619,11 @@ typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
 typedef lcb_CMDVIEWQUERY lcb_CMDVIEW;
 typedef lcb_error_t lcb_STATUS;
 
-#    define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE) \
-        TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx)  \
-        {                                                 \
-            return ctx->ATTRIB;                           \
-        }
+#    define PYCBC_SCOPE_GET_DECL(SCOPE, CTXTYPE, ATTRIB, TYPE) \
+        TYPE pycbc_cmd##SCOPE##_##ATTRIB(const CTXTYPE ctx)
+
+#    define PYCBC_SCOPE_SET_DECL(SCOPE, CTXTYPE, ATTRIB, MEMBER, TYPE)\
+        lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value)
 
 #    define PYCBC_SCOPE_SET(SCOPE, CTXTYPE, ATTRIB, MEMBER, TYPE)     \
         lcb_STATUS lcb_cmd##SCOPE##_##ATTRIB(CTXTYPE ctx, TYPE value) \
@@ -629,6 +631,16 @@ typedef lcb_error_t lcb_STATUS;
             ctx->MEMBER = value;                                      \
             return LCB_SUCCESS;                                       \
         }
+
+#    define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE) \
+        TYPE pycbc_##SCOPE##_##ATTRIB(const CTXTYPE ctx)  \
+        {                                                 \
+            return ctx->ATTRIB;                           \
+        }
+
+struct pycbc_pybuffer_real;
+lcb_STATUS lcb_cmdget_key(lcb_CMDBASE* ctx, struct pycbc_pybuffer_real* buf);
+GET_ATTRIBS(PYCBC_SCOPE_SET_DECL)
 
 #else // PYCBC_LCB_API<0x030001
 #    define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)      \
@@ -641,7 +653,20 @@ typedef lcb_error_t lcb_STATUS;
 
 #endif // PYCBC_LCB_API < 0x030001
 
+
+# if PYCBC_LCB_API <0x030001
+#define LCB_STORE_WRAPPER(b) ADD_MACRO(LCB_STORE_##b);
+#else
+#define LCB_STORE_WRAPPER(b) handler(module, "LCB_" #b, LCB_STORE_##b);
+#endif
+
+
 #    if PYCBC_LCB_API < 0x031000
+#define lcb_cmdping_create(CMD) lcb_CMDPING cmd_real={0}; *(CMD)=&cmd_real;
+#define lcb_cmdping_destroy(CMD)
+#define lcb_cmddiag_create(CMD) lcb_CMDDIAG cmd_real={0}; *(CMD)=&cmd_real;
+#define lcb_cmddiag_destroy(CMD)
+
 enum {
 #        define PYCBC_BACKPORT_STORE(X) LCB_STORE_##X = LCB_##X
 #        define ALL_ENUMS(X) X(APPEND), X(PREPEND), X(SET), X(ADD), X(REPLACE)
@@ -887,7 +912,8 @@ lcb_STATUS pycbc_logging_monad_verb(const char *FILE,
     X(REMOVE, remove)    \
     X(STORE, store)      \
     X(HTTP, http)        \
-    X(PING, ping)
+    X(PING, ping)        \
+    X(SUBDOC, subdoc)
 
 PYCBC_X_VERBS(PYCBC_CMD_PROXY_DECL)
 
@@ -995,7 +1021,7 @@ enum replica_legacy{
 #define lcb_cmdtouch_timeout(cmd,time) cmd->exptime=time;
 #define lcb_cmdrget_expiration(cmd,time) cmd->exptime=time;
 #define lcb_cmdcounter_delta(cmd, x) (cmd)->delta=x;
-#define lcb_cmdcounter_initial(cmd, x) (cmd)->initial=x;
+#define lcb_cmdcounter_initial(cmd, x) (cmd)->initial=x; (cmd)->create=1;
 #define lcb_cmdcounter_timeout(cmd, x) (cmd)->exptime=x;
 #define lcb_cmdcounter_expiration(cmd, x) (cmd)->exptime=x
 #define lcb_cmdstore_flags(CMD, VAL) cmd->flags=VAL;
@@ -1841,7 +1867,7 @@ pycbc_stack_context_handle pycbc_wrap_setup(const char *CATEGORY,
 void pycbc_wrap_teardown(pycbc_stack_context_handle sub_context,
                          pycbc_Bucket *self,
                          const char *NAME,
-                         void *RV);
+                         PyObject **RV);
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(                                    \
         RV, CATEGORY, NAME, TRACER, STRINGNAME, ...)                           \
@@ -1849,7 +1875,7 @@ void pycbc_wrap_teardown(pycbc_stack_context_handle sub_context,
         pycbc_stack_context_handle sub_context =                               \
                 pycbc_wrap_setup(CATEGORY, #NAME, TRACER, STRINGNAME, kwargs); \
         RV = NAME(__VA_ARGS__, sub_context);                                   \
-        pycbc_wrap_teardown(sub_context, self, #NAME, RV);                     \
+        pycbc_wrap_teardown(sub_context, self, #NAME, &RV);                     \
     }
 
 typedef struct pycbc_common_vars pycbc_common_vars_t;
@@ -2654,7 +2680,7 @@ PyObject *pycbc_exc_mktuple(void);
 #define PYCBC_EXCTHROW_EMPTYKEY() PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, \
         "Empty key (i.e. '', empty string) passed")
 
-typedef struct {
+typedef struct pycbc_pybuffer_real {
     PyObject *pyobj;
     const void *buffer;
     size_t length;
