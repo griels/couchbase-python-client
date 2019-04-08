@@ -1245,12 +1245,16 @@ pycbc_stack_context_handle pycbc_wrap_setup(const char *CATEGORY,
 void pycbc_wrap_teardown(pycbc_stack_context_handle sub_context,
                          pycbc_Bucket *self,
                          const char *NAME,
-                         void *RV)
+                         PyObject **RV)
 {
     PYCBC_DEBUG_LOG_CONTEXT(
-            sub_context, "Ended call to %s, return value %p", NAME, (void *)RV)
+            sub_context, "Ended call to %s, return value %p", NAME, (void *)(RV?(*RV):NULL))
     PYCBC_CONTEXT_DEREF(sub_context, !pycbc_is_async_or_pipeline(self));
     PYCBC_EXCEPTION_LOG_NOCLEAR
+    if (PyErr_Occurred())
+    {
+        *RV=NULL;
+    }
     PYCBC_DEBUG_LOG("Finalised call to %s", NAME)
 }
 
@@ -1714,9 +1718,9 @@ void pycbc_MultiResult_init_context(pycbc_MultiResult *self, PyObject *curkey,
                                  curkey);
     PYCBC_EXCEPTION_LOG_NOCLEAR;
     PYCBC_DEBUG_PYFORMAT_CONTEXT(context, "After insertion:[%R]", mres_dict);
+    PYCBC_XDECREF(curkey);
 DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
-    PYCBC_XDECREF(curkey);
 }
 
 int pycbc_is_async_or_pipeline(const pycbc_Bucket *self) { return self->flags & PYCBC_CONN_F_ASYNC || self->pipeline_queue; }
