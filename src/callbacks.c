@@ -458,6 +458,7 @@ static int get_common_objects(const lcb_RESPBASE *resp,
         *res = (pycbc_Result *) PyDict_GetItem(mrdict, hkey);
 
 #ifdef PYCBC_TRACING
+        PYCBC_INCREF(hkey);
         parent_context = PYCBC_MULTIRESULT_EXTRACT_CONTEXT((pycbc_MultiResult*)*mres, hkey, res);
         if (parent_context) {
             decoding_context =
@@ -993,11 +994,11 @@ int pycbc_sdresult_next(const lcb_RESPSUBDOC *resp, pycbc_SDENTRY *dest, size_t 
 #if PYCBC_LCB_API<0x031000
     return lcb_sdresult_next(resp, dest, index);
 #else
-    if (((*index)+1)>=lcb_respsubdoc_result_size(resp)){
+    if (((*index)+1)>lcb_respsubdoc_result_size(resp)){
         return 0;
     }
-    ++index;
     *dest=(pycbc_SDENTRY){.resp=resp,.index=*index};
+    ++(*index);
 #endif
     return 1;
 }
