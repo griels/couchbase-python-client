@@ -1841,7 +1841,7 @@ pycbc_stack_context_handle pycbc_wrap_setup(const char *CATEGORY,
 void pycbc_wrap_teardown(pycbc_stack_context_handle sub_context,
                          pycbc_Bucket *self,
                          const char *NAME,
-                         void *RV);
+                         PyObject **RV);
 
 #define PYCBC_TRACE_WRAP_TOPLEVEL_WITHNAME(                                    \
         RV, CATEGORY, NAME, TRACER, STRINGNAME, ...)                           \
@@ -1849,7 +1849,7 @@ void pycbc_wrap_teardown(pycbc_stack_context_handle sub_context,
         pycbc_stack_context_handle sub_context =                               \
                 pycbc_wrap_setup(CATEGORY, #NAME, TRACER, STRINGNAME, kwargs); \
         RV = NAME(__VA_ARGS__, sub_context);                                   \
-        pycbc_wrap_teardown(sub_context, self, #NAME, RV);                     \
+        pycbc_wrap_teardown(sub_context, self, #NAME, &RV);                     \
     }
 
 typedef struct pycbc_common_vars pycbc_common_vars_t;
