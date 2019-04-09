@@ -1,16 +1,45 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.1)
 project(couchbase_python_client)
-set(THIRDPARTY_LCB_ROOT libcouchbase-prefix)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(THIRDPARTY_LCB_ROOT libcouchbase_src-prefix)
 set(LCBCXX_ROOT libcouchbase-cxx-prefix/src/libcouchbase-cxx)
-set(LCB_ROOT ${THIRDPARTY_LCB_ROOT}/src/libcouchbase)
+set(LCB_ROOT ${THIRDPARTY_LCB_ROOT}/src/libcouchbase_src)
 set(PYCBC_CMAKE_CPYTHON_WRAPPER 1)
+include(FindPythonInterp)
 include(FindPythonLibs)
-cmake_policy(SET CMP0054 NEW)
+#set(Python_ADDITIONAL_VERSIONS 3.6)
+#set(REQ_PYTHON 3.6)
+if (PYTHON_LIBDIR)
+    set(PYTHON_LIBDIR_HINT HINTS ${PYTHON_LIBDIR})
+else(PYTHON_LIBDIR)
+    set(PYTHON_LIBDIR_HINT "")
+endif()
 
+if (PYTHON_VERSION_EXACT)
+    #find_package(PythonInterp ${PYTHON_VERSION_EXACT} EXACT REQUIRED)
+    find_package(PythonLibs ${PYTHON_VERSION_EXACT} EXACT  REQUIRED)
+else(PYTHON_VERSION_EXACT)
+    find_package(PythonInterp REQUIRED)
+    find_package(PythonLibs ${PYTHON_LIBDIR_HINT} REQUIRED)
+endif()
+
+#${REQ_PYTHON} REQUIRED)
+cmake_policy(SET CMP0054 NEW)
+if(WIN32)
+    set(PYCBC_C_MOD_NAME "_libcouchbase.${PYTHONLIBS_VERSION_STRING}")
+    set(PYCBC_C_MOD_SUFFIX ".pyd")
+else()
+    set(PYCBC_C_MOD_NAME "_libcouchbase")
+    set(PYCBC_C_MOD_SUFFIX ".so")
+endif()
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
     set(RELEASE_TYPE Debug)
 else()
     set(RELEASE_TYPE Release)
+endif()
+#set(HYBRID_BUILD TRUE)
+if(HYBRID_BUILD)
+set(PYCBC_C_MOD_NAME "_dummy")
 endif()
 
 macro(use_cxx11)
@@ -23,7 +52,15 @@ set (CMAKE_CXX_STANDARD 11)
 endif ()
 endmacro(use_cxx11)
 
-use_cxx11()
+set (LCB_CFLAGS ${CFLAGS} -fPIC)
+set (LCB_CXXFLAGS ${CFLAGS} -fPIC)
+if (WIN32)
+else(WIN32)
+#set (CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}  -fPIC -fno-strict-aliasing -Wall -Wstrict-prototypes -pthread)
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -fPIC -fno-strict-aliasing -Wall -Wstrict-prototypes -pthread")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-common -dynamic -DNDEBUG -g -fwrapv")
+endif()
+#use_cxx11()
 
 if ("$PYCBC_USE_CONAN")
     # Download automatically, you can also just copy the conan.cmake file
@@ -39,9 +76,7 @@ if ("$PYCBC_USE_CONAN")
 endif()
 
 include(ExternalProject)
-add_definitions(-DLCB_TRACING=TRUE
-        -DPYCBC_TRACING_ENABLE=TRUE
-        )
+
 #set(PYCBC_CXX "true")
 SET(CPP_DEPS "")
 if ("${PYCBC_CXX}")
@@ -68,56 +103,87 @@ else(LCB_REPO_USERNAME)
     set(LCB_REPO_AT "")
 endif()
 
-set(LCB_COLLECTIONS_REF refs/changes/81/100581/15)
-set(LCB_COLLECTIONS_TAG 48d1ba0010e5b408ddcf54994c41c766a607f4d7)
+if (PYCBC_LCB_API)
+else()
+set(PYCBC_LCB_API 0x030000)
+endif()
+if ((PYCBC_LCB_API GREATER 0x032000) OR(PYCBC_LCB_API EQUAL 0x032000))
+    set(LCB_COLLECTIONS_REF refs/changes/22/104322/43)
+else()
+    if ((PYCBC_LCB_API GREATER 0x031000) OR(PYCBC_LCB_API EQUAL 0x031000))
+        set(LCB_COLLECTIONS_REF refs/changes/22/104322/35)
+    else()
+        if ((PYCBC_LCB_API GREATER 0x030001) OR(PYCBC_LCB_API EQUAL 0x030001))
+            set(LCB_COLLECTIONS_REF refs/changes/22/104322/24)
+            #set(LCB_COLLECTIONS_REF refs/changes/22/104322/22)
+        else()
+            #    set(LCB_COLLECTIONS_REF refs/changes/05/104205/2)
+            set(LCB_COLLECTIONS_REF refs/changes/84/102984/11)
+            #set(LCB_COLLECTIONS_REF refs/changes/81/100581/15)
+        endif()
+    endif()
+endif()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPYCBC_LCB_API=${PYCBC_LCB_API}")
+#set(LCB_COLLECTIONS_TAG 48d1ba0010e5b408ddcf54994c41c766a607f4d7)
 set(LCB_REPO ${LCB_REPO_PROTOCOL}://${LCB_REPO_AT}${LCB_REPO_USERNAME}review.couchbase.org/libcouchbase)
 #set(LCB_TAG ${LCB_COLLECTIONS_TAG})
 function(make_dir path)
     file(MAKE_DIRECTORY ${path})
 endfunction(make_dir)
 
+if (MAKE)
+else()
+set(MAKE make)
+endif()
+
 set(LCB_SRC TRUE)
 if (LCB_SRC)
-if (WIN32)
+    SET(LCB_BUILD_DIR "${CMAKE_BINARY_DIR}/Release/lcb_build")
+    SET(LCB_DBGBUILD_DIR "${CMAKE_BINARY_DIR}/Release/lcb_dbgbuild")
+    SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.lib")
+    SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase_d.lib")
+    SET(LIBCOUCHBASE_STATIC_LIBRARY_NAME "libcouchbase_d.lib")
+    SET(LCB_CMAKE_ARGS -DLCB_NO_TOOLS=1 -DLCB_NO_TESTS=1)
+#-DLCB_BUILD_EXAMPLES=1)
+    if (WIN32)
+    set(LCB_CMAKE_ARGS ${LCB_CMAKE_ARGS} -DLCB_NO_SSL=1 -DLCB_NO_MOCK=1)
     ExternalProject_Add(libcouchbase_src
-            SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.lib")
-            SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase_d.lib")
-            SET(LIBCOUCHBASE_LIBRARY_FILE "<SOURCE_DIR>/build/lib/Release/${LIBCOUCHBASE_LIBRARY_NAME}")
-            SET(LIBCOUCHBASE_DBG_LIBRARY_FILE "<SOURCE_DIR>/dbgbuild/lib/Debug/${LIBCOUCHBASE_DBG_LIBRARY_NAME}")
-
+            SET(LIBCOUCHBASE_LIBRARY_FILE "${LCB_BUILD_DIR}/lib/Release/${LIBCOUCHBASE_LIBRARY_NAME}")
+            SET(LIBCOUCHBASE_DBG_LIBRARY_FILE "${LCB_DBGBUILD_DIR}/lib/Debug/${LIBCOUCHBASE_DBG_LIBRARY_NAME}")
             #PREFIX thirdparty/libcouchbase
             GIT_REPOSITORY ${LCB_REPO}
             GIT_TAG ${LCB_TAG}
-            CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory <SOURCE_DIR>/build
+            CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory ${LCB_BUILD_DIR}
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/install
             COMMAND git reset --hard
             COMMAND git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
 
-            COMMAND cd <SOURCE_DIR>/build && cmake -DLCB_NO_PLUGINS=1 .. -G "Visual Studio 14 2015 Win64" ${LCB_CMAKE_ARGS}
+            COMMAND cd ${LCB_BUILD_DIR} && cmake -DLCB_NO_PLUGINS=1 <SOURCE_DIR> -G "Visual Studio 14 2015 Win64" ${LCB_CMAKE_ARGS}
 
-            BUILD_COMMAND cd <SOURCE_DIR>/build && cmake --build . --config Release ${LCB_CMAKE_ARGS}
+            BUILD_COMMAND cd ${LCB_BUILD_DIR}/Release/Release && cmake --build <SOURCE_DIR> --config Release
 
             INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/install
             INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/include <INSTALL_DIR>/include
-            COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/build/generated <INSTALL_DIR>/include
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${LCB_BUILD_DIR}/generated <INSTALL_DIR>/include
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/bin/
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/archive/
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/bin/Release
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/build/bin/Release/libcouchbase.dll <INSTALL_DIR>/bin/Release/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_BUILD_DIR}/bin/Release/libcouchbase.dll <INSTALL_DIR>/bin/Release/
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/archive/Release
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/build/lib/Release/libcouchbase.lib <INSTALL_DIR>/archive/Release/
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/build/lib/Release/libcouchbase.exp <INSTALL_DIR>/archive/Release/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_BUILD_DIR}/lib/Release/libcouchbase.lib <INSTALL_DIR>/archive/Release/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_BUILD_DIR}/lib/Release/libcouchbase.exp <INSTALL_DIR>/archive/Release/
 
-            COMMAND ${CMAKE_COMMAND} -E make_directory <SOURCE_DIR>/dbgbuild
-            COMMAND cd <SOURCE_DIR>/dbgbuild && cmake .. -DLCB_NO_PLUGINS=1 ${LCB_CMAKE_ARGS}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${LCB_DBGBUILD_DIR}
+            COMMAND cd ${LCB_DBGBUILD_DIR} && cmake <SOURCE_DIR> -DLCB_NO_PLUGINS=1 ${LCB_CMAKE_ARGS}
 
-            COMMAND cd <SOURCE_DIR>/dbgbuild && cmake --build . --config Debug ${LCB_CMAKE_ARGS}
+            COMMAND cd ${LCB_DBGBUILD_DIR} && cmake --build <SOURCE_DIR> --config Debug
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${LCB_DBGBUILD_DIR}/generated <INSTALL_DIR>/include
 
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/bin/Debug
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/dbgbuild/bin/Debug/libcouchbase_d.dll <INSTALL_DIR>/bin/Debug/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_DBGBUILD_DIR}/bin/Debug/libcouchbase_d.dll <INSTALL_DIR>/bin/Debug/
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/archive/Debug
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/dbgbuild/lib/Debug/libcouchbase_d.lib <INSTALL_DIR>/archive/Debug/
-            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/dbgbuild/lib/Debug/libcouchbase_d.exp <INSTALL_DIR>/archive/Debug/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_DBGBUILD_DIR}/lib/Debug/libcouchbase_d.lib <INSTALL_DIR>/archive/Debug/
+            COMMAND ${CMAKE_COMMAND} -E copy ${LCB_DBGBUILD_DIR}/lib/Debug/libcouchbase_d.exp <INSTALL_DIR>/archive/Debug/
 
 
             #COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists_package.txt <INSTALL_DIR>/CMakeLists.txt
@@ -128,74 +194,87 @@ else (WIN32)
     if (APPLE)
         SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.dylib")
         SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase.dylib")
+        SET(LIBCOUCHBASE_STATIC_LIBRARY_NAME "libcouchbaseS.a")
 
     else (APPLE)
         SET(LIBCOUCHBASE_LIBRARY_NAME "libcouchbase.so")
         SET(LIBCOUCHBASE_DBG_LIBRARY_NAME "libcouchbase.so")
     endif (APPLE)
-    SET(LIBCOUCHBASE_LIBRARY_FILE "<SOURCE_DIR>/build/lib/${LIBCOUCHBASE_LIBRARY_NAME}")
-    SET(LIBCOUCHBASE_DBG_LIBRARY_FILE "<SOURCE_DIR>/dbgbuild/lib/${LIBCOUCHBASE_DBG_LIBRARY_NAME}")
 
-
+    set(LCB_CMAKE_ARGS ${LCB_CMAKE_ARGS} -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF)
     SET(_parallelism 4)
+    if (LCB_COLLECTIONS_REF)
+        set (REF_CMDS git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
+                && git reset --hard
+                && git clean -f
+                && git checkout FETCH_HEAD)
+            endif()
     ExternalProject_Add(libcouchbase_src
             #PREFIX thirdparty/libcouchbase
             GIT_REPOSITORY ${LCB_REPO}
             GIT_TAG ${LCB_TAG}
             UPDATE_COMMAND ""
-            CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory <SOURCE_DIR>/build
-            make_dir <SOURCE_DIR>/dbgbuild
+            CONFIGURE_COMMAND ${CMAKE_COMMAND} -E make_directory "${LCB_BUILD_DIR}"
+            make_dir ${LCB_DBGBUILD_DIR}
+
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/install
-            COMMAND git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
-            COMMAND git reset --hard
-            COMMAND git clean -f
-            COMMAND git checkout FETCH_HEAD
-            COMMAND cd <SOURCE_DIR>/build && cmake .. -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Release ${LCB_CMAKE_ARGS}
-            COMMAND cd <SOURCE_DIR>/dbgbuild && cmake .. -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Debug ${LCB_CMAKE_ARGS}
+
+            COMMAND ${REF_CMDS}
+            #COMMAND git fetch http://review.couchbase.org/libcouchbase ${LCB_COLLECTIONS_REF}
+            #COMMAND git reset --hard
+            #COMMAND git clean -f
+            #COMMAND git checkout FETCH_HEAD
+            #COMMAND cd ${LCB_BUILD_DIR} && cmake <SOURCE_DIR> -DLCB_NO_MOCK=1 -DLCB_NO_PLUGINS=1 -DLCB_BUILD_DTRACE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Release ${LCB_CMAKE_ARGS}
+            COMMAND cd ${LCB_DBGBUILD_DIR} && cmake -E env CXXFLAGS=${LCB_CXXFLAGS}  env CFLAGS=${LCB_CFLAGS} cmake <SOURCE_DIR> ${LCB_CMAKE_ARGS}  -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>/Debug
 
             BUILD_IN_SOURCE 1
-            BUILD_COMMAND $(MAKE) -j${_parallelism} all install -C build
-            COMMAND $(MAKE) -j${_parallelism} all install -C dbgbuild
+            BUILD_COMMAND ${MAKE} -j${_parallelism} all install -C ${LCB_DBGBUILD_DIR}
+            #COMMAND ${MAKE} -j${_parallelism} all install -C ${LCB_BUILD_DIR}
 
             INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/install
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E rename <INSTALL_DIR>/Release/include <INSTALL_DIR>/include
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E rename <INSTALL_DIR>/Debug/include <INSTALL_DIR>/include
             COMMAND ${CMAKE_COMMAND} -E make_directory <INSTALL_DIR>/lib
-            COMMAND ${CMAKE_COMMAND} -E rename <INSTALL_DIR>/Release/lib <INSTALL_DIR>/lib/Release
+            #COMMAND ${CMAKE_COMMAND} -E rename <INSTALL_DIR>/Release/lib <INSTALL_DIR>/lib/Release
             COMMAND ${CMAKE_COMMAND} -E rename <INSTALL_DIR>/Debug/lib <INSTALL_DIR>/lib/Debug
             COMMAND ${CMAKE_COMMAND} -E remove_directory <INSTALL_DIR>/Debug
-            COMMAND ${CMAKE_COMMAND} -E remove_directory <INSTALL_DIR>/Release
+            #COMMAND ${CMAKE_COMMAND} -E remove_directory <INSTALL_DIR>/Release
             #COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists_package.txt <INSTALL_DIR>/CMakeLists.txt
             )
+    SET(LIBCOUCHBASE_LIBRARY_FILE "${LCB_BUILD_DIR}/lib/${LIBCOUCHBASE_LIBRARY_NAME}")
+    SET(LIBCOUCHBASE_DBG_LIBRARY_FILE "${LCB_DBGBUILD_DIR}/lib/${LIBCOUCHBASE_DBG_LIBRARY_NAME}")
 
     # OS X-only: Custom post-build step to set the shared library install name.
     if (APPLE)
         ExternalProject_Add_Step(libcouchbase_src install_name
-                COMMAND install_name_tool -id @rpath/libcouchbase.dylib ${LIBCOUCHBASE_LIBRARY_FILE}
+                #COMMAND install_name_tool -id @rpath/libcouchbase.dylib ${LIBCOUCHBASE_LIBRARY_FILE}
                 COMMAND install_name_tool -id @rpath/libcouchbase.dylib ${LIBCOUCHBASE_DBG_LIBRARY_FILE}
+                COMMAND install_name_tool -id @rpath/libcouchbase.2.dylib ${LCB_DBGBUILD_DIR}/lib/libcouchbase.2.dylib
                 DEPENDEES build
                 DEPENDERS install
                 )
     endif (APPLE)
 endif (WIN32)
 endif (LCB_SRC)
-#set(LCBCXX_ROOT_PATH ${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
-set(LCBCXX_ROOT_PATH /Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/libcouchbase-cxx-prefix/src/libcouchbase-cxx)
-if("${PYCBC_ADD_INLINE}")
-    #add_subdirectory(${CMAKE_BINARY_DIR}/${LCB_ROOT})
-    #add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
-endif()
+set(LCBCXX_ROOT_PATH ${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
 
 
 
-set(LCB_INSTALL /Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/cmake-build-release/install/lib/Debug/libcouchbase.dylib)
+set(libcouchbase_src ${CMAKE_BINARY_DIR}/${LCB_ROOT})
+set(install_dir ${CMAKE_BINARY_DIR}/install)
 if (LCB_SRC)
     ExternalProject_Get_Property(libcouchbase_src install_dir)
     ExternalProject_Get_Property(libcouchbase_src source_dir)
     set(CPP_DEPS ${CPP_DEPS} libcouchbase_src)
 else (LCB_SRC)
-    find_library(LCB_ROOT_FND libcouchbase)
+#    find_library(libcouchbase_src libcouchbase)
 endif(LCB_SRC)
 
+if("${PYCBC_ADD_INLINE}")
+    add_subdirectory(${libcouchbase_src})
+    if (PYCBC_CXX)
+        add_subdirectory(${CMAKE_BINARY_DIR}/${LCBCXX_ROOT})
+    endif()
+endif()
 
 cmake_policy(SET CMP0015 NEW)
 
@@ -217,6 +296,8 @@ else()
     set(BOOST_SOURCES )
 endif(USE_BOOST)
 include_directories(
+        ${PYTHON_INCLUDE_DIRS}
+        ${PYTHON_INCLUDE_PATH}
         #${Boost_INCLUDE_DIR}
         /usr/local/include
         ${LCBCXX_ROOT_PATH}/include
@@ -224,12 +305,34 @@ include_directories(
         ${install_dir}/include
         ${source_dir} ${source_dir}/src/*
         ${source_dir}
-        ${PYTHON_INCLUDE_DIRS}
-        ${PYTHON_INCLUDE_PATH}
-        cmake-build-release/install/include
+        #cmake-build-release/install/include
 )
 
-aux_source_directory(LIBCOUCHBASE ${CMAKE_BINARY_DIR}/${source_dir})
+#aux_source_directory(LIBCOUCHBASE ${CMAKE_BINARY_DIR}/${source_dir})
+set(LIBCOUCHBASE_DBG_DIRPATH ${install_dir}/lib/Debug)
+#set(LCB_STATIC TRUE)
+if (LCB_STATIC)
+    set(LIBCOUCHBASE_DBG_PATH ${LCB_DBGBUILD_DIR}/lib/${LIBCOUCHBASE_STATIC_LIBRARY_NAME})
+else()
+    set(LIBCOUCHBASE_DBG_PATH ${LIBCOUCHBASE_DBG_DIRPATH}/${LIBCOUCHBASE_DBG_LIBRARY_NAME})
+endif()
+
+set(PYCBC_SRC )
+if(HYBRID_BUILD)
+    set(ENABLE_HYBRID_BUILD)
+endif()
+if(ENABLE_HYBRID_BUILD)
+    else()
+    include(cmake/json-cmake/JSONParser.cmake)
+    file(READ src.json SRCES)
+    sbeParseJson(srces_real SRCES)
+    foreach(var ${srces_real})
+        if ("${${var}}" MATCHES ".*\.c(xx|pp|c)?")
+            message("${var} = ${${var}}")
+            set(PYCBC_SRC ${PYCBC_SRC} ${${var}})
+        endif()
+    endforeach()
+endif()
 add_library(couchbase_python_client SHARED
         acouchbase/tests/asyncio_tests.py
         acouchbase/tests/fixtures.py
@@ -365,48 +468,48 @@ add_library(couchbase_python_client SHARED
         couchbase_version.py
         setup.py
 
-        src/bucket.c
-        src/callbacks.c
-        src/cntl.c
-        src/connevents.c
-        src/constants.c
-        src/convert.c
-        src/crypto.c
-        src/counter.c
-        src/ctranscoder.c
-        src/exceptions.c
-        src/ext.c
-        src/fts.c
-        src/get.c
-        src/htresult.c
-        src/http.c
-        src/iops.c
-        src/iops.h
-        src/ixmgmt.c
-        src/miscops.c
-        src/mresdict.h
-        src/multiresult.c
-        src/n1ql.c
-        src/observe.c
-        src/opresult.c
-        src/oputil.c
-        src/oputil.h
-        src/pipeline.c
-        src/pycbc.h
-        src/result.c
-        src/store.c
-        src/typeutil.c
-        src/views.c
+        ${PYCBC_SRC}
         ${BOOST_SOURCES}
 
         )
-add_dependencies(couchbase_python_client ${CPP_DEPS})
-
-link_directories(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE} /usr/local/lib)
-#link_libraries(/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-mainline/build/cmake/install/lib/Debug/libcouchbase.2.dylib)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-    link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_DBG_LIBRARY_NAME})
+#    link_libraries(${LIBCOUCHBASE_DBG_PATH} ${PYTHONLIB})
 else()
-    link_libraries(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE}/${LIBCOUCHBASE_LIBRARY_NAME})
+#    link_libraries(${LIBCOUCHBASE_DBG_PATH} ${PYTHONLIB})
 endif()
-target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES} couchbase)
+if (PYTHON_LIBDIR)
+else()
+    set(PYTHON_LIBDIR ${PYTHON_LIBRARIES})
+endif()
+link_directories(${CMAKE_BINARY_DIR}/${install}/lib/${RELEASE_TYPE} ${PYTHON_LIBDIR})
+add_dependencies(couchbase_python_client ${CPP_DEPS})
+target_include_directories(couchbase_python_client PUBLIC  ${install_dir}/include)
+
+#if( ${_dynamic_lookup} )
+#    message( STATUS "Not linking target ${_name} against libpython" )
+#        set(PROPS LINK_FLAGS "-undefined dynamic_lookup") #-dynamic
+#endif()
+
+#target_link_directories(couchbase_python_client PUBLIC ${PYTHON_LIBDIR})
+if (PYTHON_LIBFILE)
+else()
+    set(PYTHON_LIBFILE python)
+endif()
+
+# required rpaths
+# OSX: loader_path
+# Linux: $ORIGIN
+
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+target_link_libraries(couchbase_python_client ${Boost_LIBRARIES}   ${LIBCOUCHBASE_DBG_PATH}  ${PYTHON_LIBRARIES} -Wl,-rpath,${LIBCOUCHBASE_DBG_DIRPATH})
+#${PYTHON_LIBFILE})
+set_target_properties(
+        couchbase_python_client
+        PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}"
+        INSTALL_RPATH "${LIBCOUCHBASE_DBG_DIRPATH};${INSTALL_RPATH}"
+        PREFIX ""
+        OUTPUT_NAME ${PYCBC_C_MOD_NAME}
+        LINKER_LANGUAGE C
+        SUFFIX ${PYCBC_C_MOD_SUFFIX}
+)
+

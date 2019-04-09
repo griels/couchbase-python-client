@@ -2,41 +2,24 @@ from setuptools import setup, Extension
 import platform
 import warnings
 import os.path
-module=None
+import json
+
+CPP_BUILD = os.getenv("PYCBC_CPP")
+
+module = None
 extoptions = {}
-SOURCEMODS = [
-    'exceptions',
-    'ext',
-    'result',
-    'opresult',
-    'callbacks',
-    'cntl',
-    'convert',
-    'bucket',
-    'store',
-    'constants',
-    'multiresult',
-    'miscops',
-    'typeutil',
-    'oputil',
-    'get',
-    'counter',
-    'http',
-    'htresult',
-    'ctranscoder',
-    'crypto',
-    'observe',
-    'iops',
-    'connevents',
-    'pipeline',
-    'views',
-    'n1ql',
-    'fts',
-    'ixmgmt'
-]
+import re
+
+with open("src.json") as JSONFILE:
+    SOURCEMODS_ROOT = json.load(JSONFILE)
+
+SOURCEMODS = list(filter(re.compile(r'^.*\.c$').match, SOURCEMODS_ROOT.get('source', [])))
+SOURCEMODS_CPP = list(filter(re.compile(r'^.*\.(cpp|cxx|cc)$').match, SOURCEMODS_ROOT.get('source', [])))
 
 if platform.python_implementation() != 'PyPy':
-    extoptions['sources'] = [ os.path.join("src", m + ".c") for m in SOURCEMODS ]
+    extoptions['sources'] = list(map(str, SOURCEMODS))
+    extoptions['sources'] += list(map(str, SOURCEMODS_CPP))
+    print("sources are {}".format(extoptions['sources']))
     module = Extension('couchbase._libcouchbase', **extoptions)
 else:
     warnings.warn('The C extension libary does not work on PyPy. '
