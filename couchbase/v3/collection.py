@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import *
 
 from couchbase import subdocument as SD
@@ -59,29 +60,29 @@ class CollectionOptions(OptionBlock):
     def __init__(self, *args, **kwargs):
         super(Collection.CollectionOptions, self).__init__(*args, **kwargs)
 
+
 class LockOptions(OptionBlock):
     pass
+
 
 import couchbase._libcouchbase as LCB
 class Collection(LCB.Collection):
 
     def __init__(self,
-                 parent,  # type: Bucket
+                 parent,  # type: Scope
                  name=None,  # type: str
                  options=None  # type: CollectionOptions
                  ):
         # type: (...)->None
-        self.parent = parent
-        self._bucket = parent._bucket  # type: _Bucket
+        super(Collection,self).__init__()
+        self.parent = parent  # type: Scope
         self.name = name
 
-    def __getattr__(self, item):
-        return getattr(self.bucket, item)
 
     @property
     def bucket(self):
         # type: (...)->SDK2Bucket
-        return self._bucket
+        return self.parent.bucket._bucket
 
     def do_with_bucket(self,
                        verb  # type: Callable[[Bucket],Any]
@@ -98,7 +99,6 @@ class Collection(LCB.Collection):
     @overload
     def get(self,
             key,  # type:str
-            spec=None,  # type: Optional[GetSpec]
             options=None,  # type: GetOptions
             ):
         # type: (...) -> GetResult
@@ -107,7 +107,7 @@ class Collection(LCB.Collection):
     @overload
     def get(self,
             key,  # type:str
-            spec=None,  # type: Optional[GetSpec]
+            project=None, # type: couchbase.JSON
             timeout=None,  # type: Seconds
             quiet=None,  # type: bool
             replica=False,  # type: bool
@@ -116,14 +116,16 @@ class Collection(LCB.Collection):
         # type: (...) -> GetResult
         pass
 
-    def _get_generic(self, key, spec, options, kwargs):
+    def _get_generic(self, key, options, kwargs):
         options = forward_args(locals(), kwargs)
+        options.pop('key',None)
+        spec=options.pop('spec',[])
         project = options.pop('project', None)
         if project:
             if len(project) < 17:
                 spec = map(SD.get, project)
         bc = self.bucket  # type: SDK2Bucket
-        if not spec:
+        if not project:
             x = bc.get(key, **options)
         else:
             x = bc.lookup_in(key, *spec, **options)
@@ -131,13 +133,12 @@ class Collection(LCB.Collection):
 
     def get(self,
             key,  # type: str
-            spec=None,  # type: Optional[GetSpec]
-            *options,  # type: Any
+            *options,  # type: GetOptions
             **kwargs  # type: Any
             ):
         # type: (...) -> GetResult
 
-        options, x = self._get_generic(key, spec, options, kwargs)
+        options, x = self._get_generic(key, options, kwargs)
         return get_result(options, x)
 
     @overload
@@ -303,9 +304,8 @@ class Collection(LCB.Collection):
         .. seealso:: :meth:`upsert_multi`
         """
 
-        cb = self.bucket._bucket  # type:
-        return cb.upsert(id, value, **forward_args(*args, **kwargs))
-        ret
+
+        return self.bucket.upsert(id, value, **forward_args(kwargs))
 
     def insert(self, id,  # type: str
                value,  # type: Any
@@ -498,28 +498,9 @@ class Collection(LCB.Collection):
         # type: (...)->    IMutateSubResult
         return self.bucket.mutate_in(id, spec, **forward_args(locals(), options))
 
+import copy
 
-class ScopedType(object):
-    def __init__(self, name=None):
-        if name:
-            self.name = name
-        self.record = pyrsistent.PRecord()
-
-    def scope(self, name):
-        result = copy.deepcopy(self)
-        result.name = name
-        return result
-
-    def default_scope(self):
-        result = copy.deepcopy(self)
-        return result
-
-    def __deepcopy__(self, memodict={}):
-        result = copy.copy(self)
-        return result
-
-
-class Scope(type):
+class ScopeType(type):
     name = None  # type: str
 
     def __init__(cls, name, bases, dct):
@@ -536,7 +517,10 @@ class Scope(type):
             proxy_property = property(fget=copy.deepcopy(proxy_get), fset=copy.deepcopy(proxy_set))
             setattr(cls, name, proxy_property)
 
-        cls.__init__ = lambda self, name, *args, **kwargs: Scope.__start__(cls, self, name, *args, **kwargs)
+        for member in inspect.getmembers(ScopeType,inspect.ismethod):
+            print("adding member {} to {}".format(member[0],cls))
+            setattr(cls,*member)
+        #cls.__init__ = lambda self, name, *args, **kwargs: ScopeType.__start__(cls, self, name, *args, **kwargs)
 
     @classmethod
     def scope(mcs, self, name):
@@ -545,7 +529,35 @@ class Scope(type):
         result.name = name
         return result
 
-    def name(cls):
+
+import pyrsistent
+
+class Scope(object):
+    import couchbase.v3.bucket
+    def __init__(self,
+                 parent,  # type: couchbase.v3.bucket.Bucket
+                 name=None  # type: str
+                 ):
+        if name:
+            self._name = name
+        self.record = pyrsistent.PRecord()
+        self.bucket = parent
+
+    # def scope(self, name):
+    #    result = copy.deepcopy(self)
+    #    result.name = name
+    #    return result
+
+    # def default_scope(self):
+    # result = copy.deepcopy(self)
+    # return result
+
+    def __deepcopy__(self, memodict={}):
+        result = copy.copy(self)
+        return result
+
+    @property
+    def name(self):
         # type (...)->str
         """
 
@@ -553,12 +565,15 @@ class Scope(type):
         :except     ScopeNotFoundException
         :except     AuthorizationException
         """
-        pass
+        return self._name
 
-    def collection(cls,
-                   collection_name,  # type: str
-                   options  # type: CollectionOptions
-                   ):
+    def default_collection(self):
+        return Collection(Scope(self.bucket))
+
+    def open_collection(self,
+                        collection_name,  # type: str
+                        *options  # type: CollectionOptions
+                        ):
         """
 
         :param collection_name:
@@ -579,7 +594,9 @@ class Scope(type):
         :param options: collection options
         :return:
         """
-        pass
+        return Collection(self,collection_name,*options)
+
+
 
 
 UpsertOptions = Collection.UpsertOptions
