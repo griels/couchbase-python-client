@@ -2,11 +2,22 @@ import time
 from couchbase.v3.result import *
 
 
-class FiniteDuration(float):
+class FiniteDuration(object):
+    def __init__(self, seconds  # type: Union[float,int]
+                 ):
+        self.value=seconds
     @staticmethod
     def time():
         return FiniteDuration(time.time())
 
+    def __float__(self):
+        return self.value
+
+    def __int__(self):
+        return self.value
+
+    def __add__(self, other):
+        self.value+=other
 
 class Duration(float):
     def __init__(self, seconds  # type: Union[float,int]
