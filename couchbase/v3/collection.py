@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import *
 
 from couchbase import subdocument as SD
@@ -59,15 +60,17 @@ class CollectionOptions(OptionBlock):
     def __init__(self, *args, **kwargs):
         super(Collection.CollectionOptions, self).__init__(*args, **kwargs)
 
+
 class LockOptions(OptionBlock):
     pass
+
 
 import couchbase._libcouchbase as LCB
 class Collection(LCB.Collection):
 
     def __init__(self,
                  parent,  # type: Bucket
-                 name=None,  # type: str
+                 name,  # type: str
                  options=None  # type: CollectionOptions
                  ):
         # type: (...)->None
@@ -498,28 +501,9 @@ class Collection(LCB.Collection):
         # type: (...)->    IMutateSubResult
         return self.bucket.mutate_in(id, spec, **forward_args(locals(), options))
 
+import copy
 
-class ScopedType(object):
-    def __init__(self, name=None):
-        if name:
-            self.name = name
-        self.record = pyrsistent.PRecord()
-
-    def scope(self, name):
-        result = copy.deepcopy(self)
-        result.name = name
-        return result
-
-    def default_scope(self):
-        result = copy.deepcopy(self)
-        return result
-
-    def __deepcopy__(self, memodict={}):
-        result = copy.copy(self)
-        return result
-
-
-class Scope(type):
+class ScopeType(type):
     name = None  # type: str
 
     def __init__(cls, name, bases, dct):
@@ -536,7 +520,10 @@ class Scope(type):
             proxy_property = property(fget=copy.deepcopy(proxy_get), fset=copy.deepcopy(proxy_set))
             setattr(cls, name, proxy_property)
 
-        cls.__init__ = lambda self, name, *args, **kwargs: Scope.__start__(cls, self, name, *args, **kwargs)
+        for member in inspect.getmembers(ScopeType,inspect.ismethod):
+            print("adding member {} to {}".format(member[0],cls))
+            setattr(cls,*member)
+        #cls.__init__ = lambda self, name, *args, **kwargs: ScopeType.__start__(cls, self, name, *args, **kwargs)
 
     @classmethod
     def scope(mcs, self, name):
@@ -545,7 +532,30 @@ class Scope(type):
         result.name = name
         return result
 
-    def name(cls):
+import pyrsistent
+class Scope(object):
+    def __init__(self, parent, name=None):
+        if name:
+            self._name = name
+        self.record = pyrsistent.PRecord()
+        self.bucket=parent
+    #def scope(self, name):
+    #    result = copy.deepcopy(self)
+    #    result.name = name
+    #    return result
+
+    #def default_scope(self):
+        #result = copy.deepcopy(self)
+        #return result
+
+
+
+    def __deepcopy__(self, memodict={}):
+        result = copy.copy(self)
+        return result
+
+    @property
+    def name(self):
         # type (...)->str
         """
 
@@ -553,12 +563,15 @@ class Scope(type):
         :except     ScopeNotFoundException
         :except     AuthorizationException
         """
-        pass
+        return self._name
 
-    def collection(cls,
-                   collection_name,  # type: str
-                   options  # type: CollectionOptions
-                   ):
+    def default_collection(self):
+        return Collection(self.bucket)
+
+    def open_collection(self,
+                        collection_name,  # type: str
+                        *options  # type: CollectionOptions
+                        ):
         """
 
         :param collection_name:
@@ -579,7 +592,9 @@ class Scope(type):
         :param options: collection options
         :return:
         """
-        pass
+        return Collection(self.bucket,collection_name,*options)
+
+
 
 
 UpsertOptions = Collection.UpsertOptions

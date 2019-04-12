@@ -17,20 +17,23 @@ class Bucket(object):
     _bucket=None  # type: SDK2Bucket
 
     @overload
-    def __init__(self,name,
+    def __init__(self,
+                 connection_string,  # type: str
+                 name=None,
                  *options  # type: BucketOptions
                  ):
         # type: (...)->None
         pass
 
     def __init__(self,
-                 name,
+                 connection_string,  # type: str
+                 name=None,
                  *args,
                  **kwargs
                 ):
         # type: (...)->None
         self._name=name
-        self._bucket=SDK2Bucket(name,**forward_args(kwargs,args))
+        self._bucket=SDK2Bucket(connection_string,**forward_args(kwargs,args))
 
     @property
     def name(self):
@@ -44,7 +47,7 @@ class Bucket(object):
         # type: (...)->Scope
         from couchbase.v3.collection import Scope
 
-        return Scope(scope_name)
+        return Scope(self, scope_name)
 
     def default_collection(self,
                            options=None  # type: CollectionOptions
