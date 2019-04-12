@@ -1,29 +1,81 @@
-from couchbase.cluster import Cluster as SDK2Cluster
-from couchbase.v3 import OptionBlock, QueryOptions, Bucket
+from abc import abstractproperty
+
+from uuid import UUID
+
+from typing import *
+
+from couchbase.v3 import OptionBlock, Bucket, forward_args, OptionBlockDeriv
 from couchbase.v3.bucket import BucketOptions
+from couchbase.cluster import Cluster as SDK2Cluster, Authenticator as SDK2Authenticator
+import couchbase.v3.options
 
 
-class ClusterOptions(OptionBlock):
+T=TypeVar('T')
+
+
+class QueryMetrics(object):
     pass
 
-class Cluster(SDK2Cluster):
-    def __init__(self,
-                 conn,  # type: str
-                 options  # type: ClusterOptions
-                 ):
-        pass
-    def bucket(self,
-               name,  # type: str,
-               options=None  # type: BucketOptions
-               ):
-        # type: (...)->Bucket
+
+class IQueryResult:
+    def request_id(self):
+        # type: (...) ->UUID
         pass
 
-    def query(self,
-              statement,  # type: str,
-              options=None  # type: QueryOptions
-              ):
-        # type: (...)->IQueryResult
+    def client_context_id(self):
+        # type: (...)->str
+        pass
+
+    def signature(self):
+        # type: (...)->Any
+        pass
+
+    def rows(self):
+        # type: (...)->List[T]
+        pass
+
+    def warnings(self):
+        # type: (...)->List[Warning]
+        pass
+
+    def metrics(self):
+        # type: (...)->QueryMetrics
+        pass
+
+
+CallableOnOptionBlock = Callable[[OptionBlockDeriv, Any], Any]
+
+
+def options_to_func(orig,  # type: U
+                    verb  # type: CallableOnOptionBlock
+                    ):
+    class invocation:
+        # type: (...)->Callable[[T,Tuple[OptionBlockDeriv,...],Any],Any]
+        def __init__(self,  # type: T
+                       *options,  # type: OptionBlockDeriv
+                       **kwargs  # type: Any
+                       ):
+            # type: (...)->None
+            self.orig=orig
+            self.options=options
+            self.kwargs=kwargs
+
+        def __call__(self, *args, **kwargs):
+            # type: (...)->Callable[[T,Tuple[OptionBlockDeriv,...],Any],Any]
+            def invocator(self, *options, **kwargs):
+                return verb(self, forward_args(kwargs, options))
+            return invocator
+
+    return invocation(orig)
+
+
+class QueryOptions(OptionBlock, IQueryResult):
+    @abstractproperty
+    def is_live(self):
+        return False
+
+    def __init__(self, statement = None, parameters=None, timeout = None):
+
         """
         Executes a N1QL query against the remote cluster returning a IQueryResult with the results of the query.
         :param statement: N1QL query
@@ -33,7 +85,67 @@ class Cluster(SDK2Cluster):
         :except ServiceNotFoundException - service does not exist or cannot be located.
 
         """
+        super(Cluster.QueryOptions, self).__init__(statement=statement, parameters=parameters, timeout=timeout)
+
+
+class Cluster:
+    class ClusterOptions(OptionBlock):
         pass
+
+    def __init__(self,
+                 connection_string=None,  # type: str
+                 *options  # type: ClusterOptions
+                 ):
+        self._cluster = SDK2Cluster(connection_string, **couchbase.v3.forward_args(None,*options))
+        self.outerself=self  # type: Cluster
+
+    def authenticate(self,
+                     authenticator=None,  # type: SDK2Authenticator
+                     username=None,  # type: str
+                     password=None  # type: str
+                     ):
+        self._cluster.authenticate(authenticator, username, password)
+
+    def bucket(self,
+               name,  # type: str,
+               options=None,  # type: BucketOptions
+               **kwargs
+               ):
+        # type: (...)->Bucket
+        return Bucket(name,options,**kwargs)
+
+    class QueryParameters(OptionBlock):
+        def __init__(self, *args, **kwargs):
+            super(Cluster.QueryParameters, self).__init__(*args, **kwargs)
+
+
+
+    @overload
+    def query(self,
+              statement,
+              parameters=None,
+              timeout=None):
+        pass
+
+    @overload
+    def query(self,
+              statement,  # type: str,
+              *options  # type: Cluster.QueryOptions
+              ):
+        # type: (...)->IQueryResult
+        pass
+
+    def query_real(self,
+              statement,
+              *args, **kwargs):
+        # type: (str, Any, Any) -> IQueryResult
+        result=self._cluster.n1ql_query(statement, forward_args(kwargs, args))
+        return result
+
+    @options_to_func(QueryOptions,query_real)
+    class query:
+        __doc__ = QueryOptions.__doc__
+
 
     def analytics_query(self,
                         statement,  # type: str,
@@ -126,3 +238,7 @@ class Cluster(SDK2Cluster):
         :return:
         """
         pass
+
+
+QueryParameters = Cluster.QueryParameters
+ClusterOptions = Cluster.ClusterOptions

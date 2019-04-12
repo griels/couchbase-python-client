@@ -1309,27 +1309,28 @@ class Bucket(_Base):
         """Multi-variant of :meth:`observe`"""
         return _Base.observe_multi(self, keys, master_only=master_only)
 
-    def endure_multi(self, keys, persist_to=-1, replicate_to=-1,
-                     timeout=5.0, interval=0.010, check_removed=False):
-        """Check durability requirements for multiple keys
+    if _LCB.PYCBC_ENDURE:
+        def endure_multi(self, keys, persist_to=-1, replicate_to=-1,
+                         timeout=5.0, interval=0.010, check_removed=False):
+            """Check durability requirements for multiple keys
 
-        :param keys: The keys to check
+            :param keys: The keys to check
 
-        The type of keys may be one of the following:
-            * Sequence of keys
-            * A :class:`~couchbase.result.MultiResult` object
-            * A ``dict`` with CAS values as the dictionary value
-            * A sequence of :class:`~couchbase.result.Result` objects
+            The type of keys may be one of the following:
+                * Sequence of keys
+                * A :class:`~couchbase.result.MultiResult` object
+                * A ``dict`` with CAS values as the dictionary value
+                * A sequence of :class:`~couchbase.result.Result` objects
 
-        :return: A :class:`~.MultiResult` object
-            of :class:`~.OperationResult` items.
+            :return: A :class:`~.MultiResult` object
+                of :class:`~.OperationResult` items.
 
-        .. seealso:: :meth:`endure`
-        """
-        return _Base.endure_multi(self, keys, persist_to=persist_to,
-                                  replicate_to=replicate_to,
-                                  timeout=timeout, interval=interval,
-                                  check_removed=check_removed)
+            .. seealso:: :meth:`endure`
+            """
+            return _Base.endure_multi(self, keys, persist_to=persist_to,
+                                      replicate_to=replicate_to,
+                                      timeout=timeout, interval=interval,
+                                      check_removed=check_removed)
 
     def remove_multi(self, kvs, quiet=None):
         """Remove multiple items from the cluster

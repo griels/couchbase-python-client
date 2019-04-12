@@ -5,6 +5,8 @@ from typing import *
 class MutateInSpecItemBase(object):
     def __init__(self,
                  path,  # type: str
+                 xattr=None,
+                 createParents=None,
                  options=None  # type: MutateOptions
                  ):
         # type: (...)->None
