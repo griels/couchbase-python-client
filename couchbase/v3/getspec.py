@@ -1,6 +1,7 @@
 import copy
 
-from couchbase.v3 import GetFullDocumentOperation, GetOperation, GetStringOperation, GetIntOperation, ExistsOperation
+from couchbase.v3 import GetFullDocumentOperation, GetOperation, ExistsOperation
+    #, GetStringOperation, GetIntOperation, ExistsOperation
 
 
 class GetSpec(list):
@@ -25,19 +26,19 @@ class GetSpec(list):
         # type (...) -> ReadSpec
         result = copy.deepcopy(self)
         result.append(GetOperation(path, xattr))
-
-    def get_str(self, path,  # type: str
-                xattr=False  # type: bool
-                ):
-        result = copy.deepcopy(self)
-        result.append(GetStringOperation(path, xattr))
-
-    def get_int(self, path,  # type: str
-                xattr=False  # type: bool
-                ):
-        result = copy.deepcopy(self)
-        result.append(GetIntOperation(path, xattr))
-
+    #
+    # def get_str(self, path,  # type: str
+    #             xattr=False  # type: bool
+    #             ):
+    #     result = copy.deepcopy(self)
+    #     result.append(GetStringOperation(path, xattr))
+    #
+    # def get_int(self, path,  # type: str
+    #             xattr=False  # type: bool
+    #             ):
+    #     result = copy.deepcopy(self)
+    #     result.append(GetIntOperation(path, xattr))
+    #
     def exists(self, path,  # type: str
                xattr=False  # type: bool
                ):
