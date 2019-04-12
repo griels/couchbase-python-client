@@ -69,22 +69,20 @@ import couchbase._libcouchbase as LCB
 class Collection(LCB.Collection):
 
     def __init__(self,
-                 parent,  # type: Bucket
-                 name,  # type: str
+                 parent,  # type: Scope
+                 name=None,  # type: str
                  options=None  # type: CollectionOptions
                  ):
         # type: (...)->None
-        self.parent = parent
-        self._bucket = parent._bucket  # type: _Bucket
+        super(Collection,self).__init__()
+        self.parent = parent  # type: Scope
         self.name = name
 
-    def __getattr__(self, item):
-        return getattr(self.bucket, item)
 
     @property
     def bucket(self):
         # type: (...)->SDK2Bucket
-        return self._bucket
+        return self.parent.bucket._bucket
 
     def do_with_bucket(self,
                        verb  # type: Callable[[Bucket],Any]
@@ -121,6 +119,8 @@ class Collection(LCB.Collection):
 
     def _get_generic(self, key, spec, options, kwargs):
         options = forward_args(locals(), kwargs)
+        options.pop('key',None)
+        options.pop('spec',None)
         project = options.pop('project', None)
         if project:
             if len(project) < 17:
@@ -308,7 +308,6 @@ class Collection(LCB.Collection):
 
         cb = self.bucket._bucket  # type:
         return cb.upsert(id, value, **forward_args(*args, **kwargs))
-        ret
 
     def insert(self, id,  # type: str
                value,  # type: Any
@@ -532,23 +531,28 @@ class ScopeType(type):
         result.name = name
         return result
 
+
 import pyrsistent
+
 class Scope(object):
-    def __init__(self, parent, name=None):
+    import couchbase.v3.bucket
+    def __init__(self,
+                 parent,  # type: couchbase.v3.bucket.Bucket
+                 name=None  # type: str
+                 ):
         if name:
             self._name = name
         self.record = pyrsistent.PRecord()
-        self.bucket=parent
-    #def scope(self, name):
+        self.bucket = parent
+
+    # def scope(self, name):
     #    result = copy.deepcopy(self)
     #    result.name = name
     #    return result
 
-    #def default_scope(self):
-        #result = copy.deepcopy(self)
-        #return result
-
-
+    # def default_scope(self):
+    # result = copy.deepcopy(self)
+    # return result
 
     def __deepcopy__(self, memodict={}):
         result = copy.copy(self)
@@ -566,7 +570,7 @@ class Scope(object):
         return self._name
 
     def default_collection(self):
-        return Collection(self.bucket)
+        return Collection(Scope(self.bucket))
 
     def open_collection(self,
                         collection_name,  # type: str
@@ -592,7 +596,7 @@ class Scope(object):
         :param options: collection options
         :return:
         """
-        return Collection(self.bucket,collection_name,*options)
+        return Collection(self,collection_name,*options)
 
 
 

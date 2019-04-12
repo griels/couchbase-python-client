@@ -30,7 +30,7 @@ import logging
 import couchbase.exceptions
 from couchbase.v3 import *
 from couchbase.v3.mutate_in import MutateInSpecItem as MI
-from couchbase.v3.collection import Collection
+from couchbase.v3.collection import Collection, GetOptions
 from couchbase.v3.bucket import Bucket
 
 

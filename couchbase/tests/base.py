@@ -426,6 +426,9 @@ class CouchbaseTestCase(ResourcedTestCase):
             self.cls_ObserveInfo = ObserveInfo
             self.should_check_refcount = True
             warnings.warn('Using fallback (couchbase module) defaults')
+        else:
+            self.should_check_refcount = False
+
 
     def skipLcbMin(self, vstr):
         """
