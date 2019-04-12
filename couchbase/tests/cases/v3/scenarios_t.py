@@ -46,7 +46,11 @@ class Scenarios(ConnectionTestCase):
 
         # prepare:
         # 1) Connect to a Cluster
-        self.cluster = Cluster()
+        connargs=self.cluster_info.make_connargs()
+        import couchbase.connstr
+        connstr_abstract=couchbase.connstr.ConnectionString.parse(connargs['connection_string'])
+        connstr_abstract.bucket=None
+        self.cluster = Cluster(connstr_abstract)
         self.bucket = self.cb
         self.scope = self.bucket.scope("scope")
         # 2) Open a Collection
