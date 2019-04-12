@@ -426,6 +426,9 @@ class CouchbaseTestCase(ResourcedTestCase):
             self.cls_ObserveInfo = ObserveInfo
             self.should_check_refcount = True
             warnings.warn('Using fallback (couchbase module) defaults')
+        else:
+            self.should_check_refcount = False
+
 
     def skipLcbMin(self, vstr):
         """
@@ -512,6 +515,9 @@ class CouchbaseTestCase(ResourcedTestCase):
         super(CouchbaseTestCase,self).assertRaisesRegexp(*args,**kwargs)
 
 class ConnectionTestCaseBase(CouchbaseTestCase):
+    def __init__(self, *args, **kwargs):
+        self.cb =None # type: self.factory
+        super(ConnectionTestCaseBase,self).__init__(*args,**kwargs)
     def checkCbRefcount(self):
         if not self.should_check_refcount:
             return
