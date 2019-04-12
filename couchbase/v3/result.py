@@ -44,7 +44,7 @@ class IMutationResult(IResult):
                  cas,  # type: int
                  mutation_token=None  # type: MutationToken
                  ):
-        super(IMutationResult, self).__init__(cas)
+        super(IMutationResult, self).__init__(cas,None)
         self.mutationToken = mutation_token
 
     def mutation_token(self):
