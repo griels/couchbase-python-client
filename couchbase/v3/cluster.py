@@ -108,10 +108,11 @@ class Cluster:
 
     def bucket(self,
                name,  # type: str,
-               options=None  # type: BucketOptions
+               options=None,  # type: BucketOptions
+               **kwargs
                ):
         # type: (...)->Bucket
-        return Bucket(name,options)
+        return Bucket(name,options,**kwargs)
 
     class QueryParameters(OptionBlock):
         def __init__(self, *args, **kwargs):
