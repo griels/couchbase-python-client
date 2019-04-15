@@ -88,7 +88,10 @@ typedef void *(*pycbc_constant_handler)(PyObject *,
 
 static void setup_compression_map(PyObject *module, PyObject* public_constants,
                                   pycbc_constant_handler handler);
+
+#ifdef PYCBC_TRACING
 static void setup_tracing_map(PyObject *module, pycbc_constant_handler handler);
+#endif
 
 static void setup_crypto_exceptions(PyObject *module,
                                     pycbc_constant_handler handler);
@@ -259,6 +262,7 @@ static void setup_crypto_exceptions(PyObject *module,
 #undef X
 }
 
+#ifdef PYCBC_TRACING
 static void setup_tracing_map(PyObject *module,
                                        pycbc_constant_handler handler) {
 #define LCB_CNTL_CONSTANT(postfix, ...) ADD_CONSTANT(#postfix, LCB_CNTL_##postfix)
@@ -342,6 +346,8 @@ LCB_FOR_EACH_THRESHOLD_PARAM(X, ; );
     PyModule_AddObject(module, "TRACING", result);
 #undef LCB_FOR_EACH_THRESHOLD_PARAM
 }
+
+#endif
 
 static void setup_compression_map(PyObject *module, PyObject* public_constants,
                                   pycbc_constant_handler handler)
