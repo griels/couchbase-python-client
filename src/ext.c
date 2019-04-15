@@ -637,6 +637,7 @@ void print_current_time_with_ms (uint64_t start_time)
                         (long long unsigned)(now-start_time));
 }
 
+#ifdef PYCBC_TRACING
 void pycbc_debug_log_prefix(const char *FILE,
                             const char *FUNC,
                             int LINE,
@@ -679,7 +680,6 @@ void pycbc_debug_log_prefix(const char *FILE,
                         (CONTEXT) ? (CONTEXT->is_stub) : 9,
                         "");
 }
-
 void pycbc_debug_log(const char *FILE,
                             const char *FUNC,
                             int LINE,
@@ -692,7 +692,7 @@ void pycbc_debug_log(const char *FILE,
     fprintf(stderr,"\n");
     PYCBC_DEBUG_FLUSH
 }
-
+#endif
 void pycbc_debug_log_prefix_nocontext(const char *FILE,
                                       const char *FUNC,
                                       int LINE)
