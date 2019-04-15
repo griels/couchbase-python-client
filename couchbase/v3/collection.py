@@ -62,7 +62,8 @@ class CollectionOptions(OptionBlock):
 class LockOptions(OptionBlock):
     pass
 
-class Collection(object):
+import couchbase._libcouchbase as LCB
+class Collection(LCB.Collection):
 
     def __init__(self,
                  parent,  # type: Bucket
