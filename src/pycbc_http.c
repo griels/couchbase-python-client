@@ -182,7 +182,7 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     PYCBC_CONN_THR_END(bucket);
 
     htres = (pycbc_HttpResult*)PyDict_GetItem((PyObject*)mres, Py_None);
-    PYCBC_DEBUG_LOG_CONTEXT(htres ? htres->tracing_context : NULL,
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(htres),
                             "HTTP callback")
     {
         pycbc_strn_base_const body={0};

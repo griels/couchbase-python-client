@@ -99,6 +99,7 @@ maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err, in
     }
 
     mres->errop = (PyObject*)res;
+#ifdef PYCBC_TRACING
     if (pycbc_debug_info_is_valid(&debug_info))
     {
         PyObject* py_debug_info=NULL;
@@ -120,6 +121,7 @@ maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err, in
             PYCBC_DECREF(py_debug_info);
         };
     }
+#endif
     Py_INCREF(mres->errop);
     return 1;
 }
@@ -713,7 +715,7 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     if (rv < 0) {
         goto GT_DONE;
     }
-    PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(res),
                             "Value callback continues")
 
     if (handler.rc == LCB_SUCCESS) {
@@ -1000,6 +1002,7 @@ int pycbc_sdresult_next(const lcb_RESPSUBDOC *resp, pycbc_SDENTRY *dest, size_t 
     *dest=(pycbc_SDENTRY){.resp=resp,.index=*index};
     ++(*index);
 #endif
+
     return 1;
 }
 
@@ -1023,7 +1026,7 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
         goto GT_ERROR;
     }
 
-    PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(res),
                             "Subdoc callback continues")
     if (handler.rc == LCB_SUCCESS || handler.rc == LCB_SUBDOC_MULTI_FAILURE) {
         res->cas = handler.cas;
@@ -1090,7 +1093,7 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
 #endif
     PYCBC_DEBUG_LOG("Keyop callback")
     rv = get_common_objects(resp, &conn, (pycbc_Result **) &res, optflags, &mres, &handler);
-    PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(res),
                             "Keyop callback continues")
 
     if (rv == 0) {
@@ -1201,7 +1204,7 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         goto GT_DONE;
     }
 
-    PYCBC_DEBUG_LOG_CONTEXT(vres ? vres->tracing_context : NULL,
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(vres),
                             "observe callback continues")
 
 
@@ -1478,8 +1481,7 @@ void pycbc_generic_cb(lcb_t instance,
                             (pycbc_Result **) &res,
                             optflags,
                             &mres, &handler);
-    PYCBC_DEBUG_LOG_CONTEXT(
-            res ? res->tracing_context : NULL, "%s callback continues", NAME)
+    PYCBC_DEBUG_LOG_CONTEXT(PYCBC_RES_CONTEXT(res), "%s callback continues", NAME)
 
     if (rv == 0) {
         res->rc = lcb_respcounter_status(resp);
