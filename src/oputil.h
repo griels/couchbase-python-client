@@ -132,7 +132,7 @@ typedef int(*pycbc_oputil_keyhandler_raw_Collection)(pycbc_oputil_keyhandler_raw
 PYCBC_UNITS(PYCBC_OPUTIL_KEYHANDLER_RAW)
 #endif
 
-#ifdef PYCBC_TRACING
+//#ifdef PYCBC_TRACING
 #define PYCBC_OPUTIL_EXTRA_Bucket
 #define PYCBC_OPUTIL_EXTRA_Collection const pycbc_oputil_keyhandler_raw_Bucket* original;
 #define PYCBC_OPUTIL_KEYHANDLER(UNIT)\
@@ -159,9 +159,9 @@ typedef struct {
 PYCBC_UNITS(PYCBC_OPUTIL_KEYHANDLER)
 #endif
 
-#else
-typedef  pycbc_oputil_keyhandler_raw pycbc_oputil_keyhandler;
-#endif
+//#else
+//typedef  pycbc_oputil_keyhandler_raw pycbc_oputil_keyhandler;
+//#endif
 
 /**
  * Examine the 'quiet' parameter and see if we should set the MultiResult's
@@ -256,7 +256,7 @@ int pycbc_common_vars_init(struct pycbc_common_vars *cv,
                            int argopts,
                            Py_ssize_t ncmds,
                            int want_vals);
-#ifdef PYCBC_TRACING
+
 #define PYCBC_OPUTIL_KEYHANDLER_BUILD_DECL(UNIT)\
 pycbc_oputil_keyhandler_##UNIT pycbc_oputil_keyhandler_build_##UNIT(pycbc_oputil_keyhandler_raw_##UNIT cb, const char* category, const char* name);
 
@@ -270,11 +270,6 @@ PYCBC_UNITS(PYCBC_OPUTIL_KEYHANDLER_BUILD_DECL)
     pycbc_oputil_iter_multi_##UNIT(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER_BUILD(UNIT,HANDLER),CONTEXT,__VA_ARGS__)
 #define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,CONTEXT,...)\
     PYCBC_OPUTIL_ITER_MULTI_BASE(Bucket,SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,CONTEXT,__VA_ARGS__)
-#else
-#define PYCBC_OPUTIL_KEYHANDLER(NAME) NAME
-#define PYCBC_OPUTIL_ITER_MULTI(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,HANDLER,CONTEXT,...)\
-    pycbc_oputil_iter_multi(SELF,SEQTYPE,COLLECTION,CV,OPTYPE,PYCBC_OPUTIL_KEYHANDLER(HANDLER),CONTEXT,__VA_ARGS__)
-#endif
 
 /**
  * Iterate over a sequence of command objects
