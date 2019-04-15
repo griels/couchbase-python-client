@@ -20,6 +20,9 @@
 #include "oputil.h"
 #include "iops.h"
 #include <libcouchbase/vbucket.h>
+#ifdef PYCBC_BACKPORT_CRYPTO
+#include <libcouchbase/../../../libcouchbase_src-prefix/src/libcouchbase_src/src/internal.h>
+#endif
 
 PyObject *pycbc_DummyTuple;
 PyObject *pycbc_DummyKeywords;
