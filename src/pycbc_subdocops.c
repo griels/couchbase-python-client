@@ -115,9 +115,9 @@ pycbc_sdspec pycbc_build_spec(lcb_SUBDOCOPS *subdocops,
                        PYCBC_BUILDSPEC_SDCMD_CASE_VAL,
                        PYCBC_BUILDSPEC_SDCMD_CASE_MVAL,
                        PYCBC_BUILDSPEC_SDCMD_CASE_COUNTER)
-        case LCB_SDCMD_MAX:
-            result.err = LCB_EINVAL;
-            break;
+        //case LCB_SDCMD_MAX:
+        //    result.err = LCB_EINVAL;
+        //    break;
         default:
             result.err = LCB_SUBDOC_PATH_EINVAL;
             break;
