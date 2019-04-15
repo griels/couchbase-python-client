@@ -1038,8 +1038,8 @@ int pycbc_CollectionType_init(PyObject** ptr)
     p->tp_basicsize = sizeof(pycbc_Collection);
 
     p->tp_methods = Collection_TABLE_methods;
-    p->tp_members = Bucket_TABLE_members;
-    p->tp_getset = Bucket_TABLE_getset;
+    p->tp_members = Collection_TABLE_members;
+    p->tp_getset = Collection_TABLE_getset;
 
     pycbc_DummyTuple = PyTuple_New(0);
     pycbc_DummyKeywords = PyDict_New();
