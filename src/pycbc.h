@@ -2565,6 +2565,11 @@ int pycbc_AsyncResultType_init(PyObject **ptr);
 int pycbc_IOPSWrapperType_init(PyObject **ptr);
 int pycbc_ViewResultType_init(PyObject **ptr);
 
+#define PYCBC_COLLECTIONS_PROPER
+#ifdef PYCBC_COLLECTIONS_PROPER
+int pycbc_CollectionType_init(PyObject** ptr);
+#endif
+
 #define PYCBC_TYPE_INIT_DECL(TYPENAME, TYPE_DOC, ...) \
     int pycbc_##TYPENAME##Type_init(PyObject **ptr);
 
