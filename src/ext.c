@@ -3047,16 +3047,18 @@ int pycbc_TracerType_init(PyObject **ptr) {
 }
 
 #endif
-uint64_t pycbc_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken) {
-#if PYCBC_LCB_API<0x030001
+uint64_t pycbc_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken)
+{
+#if PYCBC_LCB_API < 0x030001
     return LCB_MUTATION_TOKEN_SEQ(pToken);
 #else
     return pToken->seqno_;
 #endif
 }
 
-uint64_t pycbc_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
-#if PYCBC_LCB_API<0x030001
+uint64_t pycbc_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken)
+{
+#if PYCBC_LCB_API < 0x030001
     return LCB_MUTATION_TOKEN_VB(pToken);
 #else
     return pToken->vbid_;
@@ -3064,65 +3066,130 @@ uint64_t pycbc_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
 #endif
 }
 
-uint64_t pycbc_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
-#if PYCBC_LCB_API<0x030001
+uint64_t pycbc_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken)
+{
+#if PYCBC_LCB_API < 0x030001
     return LCB_MUTATION_TOKEN_ID(pToken);
 #else
     return pToken->uuid_;
 #endif
 }
-#if PYCBC_LCB_API<0x030001
-int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN) {
+#if PYCBC_LCB_API < 0x030001
+int lcb_mutation_token_is_valid(const lcb_MUTATION_TOKEN *pTOKEN)
+{
     return LCB_MUTATION_TOKEN_ISVALID(pTOKEN);
 }
 #endif
 
-
-#if PYCBC_LCB_API<0x031000
-void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy) {
-#if PYCBC_LCB_API >0x030000
-    switch (strategy) {
-        case LCB_REPLICA_MODE_ANY:
-            lcb_cmdgetreplica_create_first(pcmd);
-            break;
-        case LCB_REPLICA_MODE_ALL:
-            lcb_cmdgetreplica_create_all(pcmd);
-            break;
-
-        case LCB_REPLICA_MODE_IDX0:
-        case LCB_REPLICA_MODE_IDX1:
-        case LCB_REPLICA_MODE_IDX2:
-        default:
-        lcb_cmdgetreplica_create_select(pcmd, strategy - LCB_REPLICA_MODE_IDX0);
-            break;
-    }
-#else
-    (*pcmd)->strategy = strategy;                 \
-    switch (strategy) {                         \
-    case LCB_REPLICA_MODE_ANY:                  \
-        (*pcmd)->strategy = LCB_REPLICA_FIRST;    \
-        break;                                  \
-    case LCB_REPLICA_MODE_ALL:                  \
-        (*pcmd)->strategy = LCB_REPLICA_ALL;      \
-        break;                                  \
-    case LCB_REPLICA_MODE_IDX0:                 \
-        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
-        (*pcmd)->index = 0;                       \
-        break;                                  \
-    case LCB_REPLICA_MODE_IDX1:                 \
-        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
-        (*pcmd)->index = 1;                       \
-        break;                                  \
-    case LCB_REPLICA_MODE_IDX2:                 \
-        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
-        (*pcmd)->index = 2;                       \
-        break;                                  \
-    default:                                    \
-        break;                                  \
-    }
-
-#endif
+#if PYCBC_LCB_API < 0x031000
+lcb_STATUS lcb_cmdget_key(lcb_CMDBASE *ctx, pycbc_pybuffer *buf)
+{
+    LCB_CMD_SET_KEY(ctx, buf->buffer, buf->length);
+    return LCB_SUCCESS;
 }
+
+GET_ATTRIBS(PYCBC_SCOPE_SET)
+
+void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy)
+{
+#    if PYCBC_LCB_API > 0x030000
+    switch (strategy) {
+    case LCB_REPLICA_MODE_ANY:
+        lcb_cmdgetreplica_create_first(pcmd);
+        break;
+    case LCB_REPLICA_MODE_ALL:
+        lcb_cmdgetreplica_create_all(pcmd);
+        break;
+
+    case LCB_REPLICA_MODE_IDX0:
+    case LCB_REPLICA_MODE_IDX1:
+    case LCB_REPLICA_MODE_IDX2:
+    default:
+        lcb_cmdgetreplica_create_select(pcmd, strategy - LCB_REPLICA_MODE_IDX0);
+        break;
+    }
+#    else
+    (*pcmd)->strategy = strategy;
+    switch (strategy) {
+    case LCB_REPLICA_MODE_ANY:
+        (*pcmd)->strategy = LCB_REPLICA_FIRST;
+        break;
+    case LCB_REPLICA_MODE_ALL:
+        (*pcmd)->strategy = LCB_REPLICA_ALL;
+        break;
+    case LCB_REPLICA_MODE_IDX0:
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;
+        (*pcmd)->index = 0;
+        break;
+    case LCB_REPLICA_MODE_IDX1:
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;
+        (*pcmd)->index = 1;
+        break;
+    case LCB_REPLICA_MODE_IDX2:
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;
+        (*pcmd)->index = 2;
+        break;
+    default:
+        break;
+    }
+
+#    endif
+}
+#include "pycbc_subdocops.h"
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_create(lcb_SUBDOCOPS **operations,
+                                                 size_t capacity)
+{
+    lcb_SUBDOCOPS *res = (lcb_SUBDOCOPS *)calloc(1, sizeof(lcb_SUBDOCOPS));
+    res->nspecs = capacity;
+    res->specs = (lcb_SDSPEC *)calloc(res->nspecs, sizeof(lcb_SDSPEC));
+    *operations = res;
+    return LCB_SUCCESS;
+}
+LIBCOUCHBASE_API lcb_STATUS
+lcb_cmdsubdoc_operations(lcb_CMDSUBDOC *cmd, const lcb_SUBDOCOPS *operations)
+{
+    // cmd->cmdflags |= operations->options;
+    cmd->specs = operations->specs;
+    cmd->nspecs = operations->nspecs;
+    for (size_t i = 0; i < cmd->nspecs; ++i) {
+        //        PYCBC_DEBUG_LOG("Command %d: {.cmd=%d, .options=%d, path=%.*s,
+        //        value=%.*s} ",i, operations->specs[i].sdcmd,
+        //        operations->specs[i].options,
+        //        operations->specs[i].path.contig.nbytes,
+        //        operations->specs[i].path.contig.bytes,
+        //        operations->specs[i].value.u_buf.contig.nbytes,
+        //        operations->specs[i].value.u_buf.contig.bytes)
+    }
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_destroy(lcb_SUBDOCOPS *operations)
+{
+    if (operations) {
+        if (operations->specs) {
+            size_t ii;
+            for (ii = 0; ii < operations->nspecs; ii++) {
+                if (operations->specs[ii].sdcmd == LCB_SDCMD_COUNTER) {
+                    free((void *)operations->specs[ii]
+                            .value.u_buf.contig.bytes);
+                }
+            }
+        }
+        free(operations->specs);
+    }
+    free(operations);
+    return LCB_SUCCESS;
+}
+
+
+PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,
+        PYCBC_SDCMD_CASE_NP,
+        PYCBC_SDCMD_CASE_VAL,
+        PYCBC_SDCMD_CASE_MVAL,
+        PYCBC_SDCMD_CASE_COUNTER,
+        LITERAL, LITERAL)
+
 #endif
+
 PYCBC_X_VERBS(PYCBC_CMD_PROXY)
 
