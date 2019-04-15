@@ -119,6 +119,8 @@ class Collection(LCB.Collection):
 
     def _get_generic(self, key, spec, options, kwargs):
         options = forward_args(locals(), kwargs)
+        options.pop('key',None)
+        options.pop('spec',None)
         project = options.pop('project', None)
         if project:
             if len(project) < 17:

@@ -86,7 +86,7 @@ def forward_args(arg_vars, *options):
     end_options.update(kwargs)
     end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
                             arg_vars.items() if k != "self"))
-
+    end_options.pop('options',None)
     return end_options
 
 
