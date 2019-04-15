@@ -99,7 +99,6 @@ class Collection(LCB.Collection):
     @overload
     def get(self,
             key,  # type:str
-            spec=None,  # type: Optional[GetSpec]
             options=None,  # type: GetOptions
             ):
         # type: (...) -> GetResult
@@ -108,7 +107,7 @@ class Collection(LCB.Collection):
     @overload
     def get(self,
             key,  # type:str
-            spec=None,  # type: Optional[GetSpec]
+            project=None, # type: couchbase.JSON
             timeout=None,  # type: Seconds
             quiet=None,  # type: bool
             replica=False,  # type: bool
@@ -117,16 +116,16 @@ class Collection(LCB.Collection):
         # type: (...) -> GetResult
         pass
 
-    def _get_generic(self, key, spec, options, kwargs):
+    def _get_generic(self, key, options, kwargs):
         options = forward_args(locals(), kwargs)
         options.pop('key',None)
-        options.pop('spec',None)
+        spec=options.pop('spec',[])
         project = options.pop('project', None)
         if project:
             if len(project) < 17:
                 spec = map(SD.get, project)
         bc = self.bucket  # type: SDK2Bucket
-        if not spec:
+        if not project:
             x = bc.get(key, **options)
         else:
             x = bc.lookup_in(key, *spec, **options)
@@ -134,13 +133,12 @@ class Collection(LCB.Collection):
 
     def get(self,
             key,  # type: str
-            spec=None,  # type: Optional[GetSpec]
-            *options,  # type: Any
+            *options,  # type: GetOptions
             **kwargs  # type: Any
             ):
         # type: (...) -> GetResult
 
-        options, x = self._get_generic(key, spec, options, kwargs)
+        options, x = self._get_generic(key, options, kwargs)
         return get_result(options, x)
 
     @overload
@@ -306,8 +304,8 @@ class Collection(LCB.Collection):
         .. seealso:: :meth:`upsert_multi`
         """
 
-        cb = self.bucket._bucket  # type:
-        return cb.upsert(id, value, **forward_args(*args, **kwargs))
+
+        return self.bucket.upsert(id, value, **forward_args(kwargs))
 
     def insert(self, id,  # type: str
                value,  # type: Any

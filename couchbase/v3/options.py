@@ -91,7 +91,7 @@ def forward_args(arg_vars, *options):
 
 
 def get_mutation_result(result):
-    return MutationResult(result.cas, SDK2MutationToken(result.mutinfo))
+    return MutationResult(result.cas, SDK2MutationToken(result._mutinfo) if hasattr(result,'_mutinfo') else None)
 
 
 def mutation_result(func):
