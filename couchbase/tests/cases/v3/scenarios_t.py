@@ -30,7 +30,7 @@ import logging
 import couchbase.exceptions
 from couchbase.v3 import *
 from couchbase.v3.mutate_in import MutateInSpecItem as MI
-from couchbase.v3.collection import Collection, GetOptions
+from couchbase.v3.collection import Collection, GetOptions, RemoveOptions, ReplaceOptions, MutateInOptions
 from couchbase.v3.bucket import Bucket
 
 
@@ -48,13 +48,15 @@ class Scenarios(ConnectionTestCase):
         # 1) Connect to a Cluster
         connargs=self.cluster_info.make_connargs()
         import couchbase.connstr
-        connstr_abstract=couchbase.connstr.ConnectionString.parse(connargs['connection_string'])
+        connstr_abstract=couchbase.connstr.ConnectionString.parse(connargs.pop('connection_string'))
+        bucket_name=connstr_abstract.bucket
         connstr_abstract.bucket=None
         self.cluster = Cluster(connstr_abstract)
-        self.bucket = self.cb
+        self.bucket = self.cb#self.cluster.bucket(bucket_name,**connargs)
         self.scope = self.bucket.scope("scope")
         # 2) Open a Collection
         self.coll = self.scope.open_collection("people")  # type: Collection
+        self.coll.upsert("id","fish")
 
     def test_scenario_A(self):
         # 1) fetch a full document that is a json document
