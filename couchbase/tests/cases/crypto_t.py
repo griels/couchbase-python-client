@@ -89,6 +89,10 @@ class ROT13PythonCryptoProvider(PythonCryptoProvider):
 
 
 class FieldEncryptionTests(ConnectionTestCase):
+    def setUp(self, **kwargs):
+        if _LCB.PYCBC_CRYPTO_VERSION>1:
+            raise SkipTest("Crypto not supported in V4 yet")
+        super(FieldEncryptionTests,self).setUp(**kwargs)
 
     def test_keystore_returns_correct_value(self):
         keystore = InMemoryKeyStore()

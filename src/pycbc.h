@@ -213,12 +213,16 @@ int pycbc_free_debug(const char* FILE, const char* FUNC, int line, void* X);
 #define PYCBC_COLLECTIONS
 
 #if PYCBC_LCB_API>0x030000
+#ifdef PYCBC_BACKPORT_CRYPTO
+#include <libcouchbase/../../../libcouchbase_src-prefix/src/libcouchbase_src/src/internalstructs.h>
+#endif
 #define PYCBC_V4
 #endif
 #if PYCBC_LCB_API<0x031000
-#define PYCBC_ENDURE
+#define PYCBC_ENDURE 1
 #include <libcouchbase/api3.h>
 #else
+#define PYCBC_ENDURE 0
 #include <libcouchbase/utils.h>
 #ifdef PYCBC_V4_EXPLICIT
 #include <libcouchbase/api4.h>
@@ -726,9 +730,6 @@ typedef lcb_error_t lcb_STATUS;
                              #VERB,                              \
                              lcb_##VERB##POSTFIX(INSTANCE, COOKIE, CMD))
 
-#if PYCBC_LCB_API < 0x030001
-#    define PYCBC_ENDURE
-#endif
 
 #if PYCBC_LCB_API < 0x031000
 #    define PYCBC_OBSERVE_STANDALONE
@@ -757,7 +758,7 @@ typedef lcb_error_t lcb_STATUS;
 #define PYCBC_NOKEY_ACCESSORS_POSTFIX(POSTFIX, UC, LC) \
     PYCBC_NOKEY_ACCESSORS##POSTFIX(UC, LC)
 
-#ifdef PYCBC_ENDURE
+#if PYCBC_ENDURE
 #    define PYCBC_ENDURE_ACCESSORS_POSTFIX(POSTFIX, UC, LC) \
         PYCBC_ENDURE_ACCESSORS##POSTFIX(UC, LC)
 
@@ -948,11 +949,13 @@ PYCBC_X_VERBS(PYCBC_CMD_PROXY_DECL)
     lcb_cmd##TYPE##_key((CMD),((const char*)BUF),(LEN))
 #define PYCBC_CMD_SET_VALUE(TYPE, CMD, BUF, LEN)\
     lcb_cmd##TYPE##_value((CMD),((const char*)BUF),(LEN))
+#ifndef LIBCOUCHBASE_couchbase_internalstructs_h__
 enum replica_legacy{
     LCB_REPLICA_FIRST,
     LCB_REPLICA_SELECT,
     LCB_REPLICA_ALL
 };
+#endif
 
 #define lcb_cmdgetreplica_expiration(CMD, TTL)
 #define lcb_cmdendure_cas(CMD, CAS) (CMD)->cas=CAS
@@ -1050,6 +1053,7 @@ enum replica_legacy{
 #endif // PYCBC_LCB_API>0x030000
 
 #if PYCBC_LCB_API>0x030001
+#ifndef LIBCOUCHBASE_couchbase_internalstructs_h__
 typedef lcb_SUBDOCOPS pycbc_SDSPEC;
 
 /**@ingroup lcb-public-api
@@ -1191,6 +1195,33 @@ typedef enum {
 
     LCB_SDCMD_MAX
 } lcb_SUBDOCOP;
+#else
+
+/**
+ * Retrieve the entire document
+ */
+#define LCB_SDCMD_FULLDOC_GET (LCB_SDCMD_GET_COUNT+1)
+
+/**
+ * Add the entire document
+ */
+#define LCB_SDCMD_FULLDOC_ADD (LCB_SDCMD_GET_COUNT+2)
+
+/**
+ * Upsert the entire document
+ */
+#define LCB_SDCMD_FULLDOC_UPSERT (LCB_SDCMD_GET_COUNT+3)
+/**
+ * Replace the entire document
+ */
+#define LCB_SDCMD_FULLDOC_REPLACE (LCB_SDCMD_GET_COUNT+4)
+
+/**
+ * Remove the entire document
+ */
+#define LCB_SDCMD_FULLDOC_REMOVE (LCB_SDCMD_GET_COUNT+5)
+
+#endif
 #define CMDSUBDOC_F_UPSERT_DOC (1 << 16)
 #define    CMDSUBDOC_F_INSERT_DOC (1 << 17)
 #define     CMDSUBDOC_F_ACCESS_DELETED (1 << 18)
@@ -2879,7 +2910,11 @@ PyObject *pycbc_gen_crypto_exception_map(void);
 
 #ifndef PYCBC_CRYPTO_VERSION
 #if PYCBC_LCB_API>0x030000
+#ifdef PYCBC_BACKPORT_CRYPTO
+#define PYCBC_CRYPTO_VERSION 1
+#else
 #define PYCBC_CRYPTO_VERSION 2
+#endif
 #else
 #if LCB_VERSION > 0x020807
 #define PYCBC_CRYPTO_VERSION 1
