@@ -3220,6 +3220,20 @@ PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,
                LITERAL,
                LITERAL)
 
+LIBCOUCHBASE_API lcb_STATUS
+lcb_cmdstore_durability(lcb_CMDSTORE *cmd, pycbc_DURABILITY_LEVEL level)
+{
+    cmd->dur_level = level;
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS
+lcb_cmdremove_durability(lcb_CMDREMOVE *cmd, pycbc_DURABILITY_LEVEL level)
+{
+    cmd->dur_level = level;
+    return LCB_SUCCESS;
+}
+
 #endif
 void pycbc_dict_add_text_kv_strn(PyObject *dict,
                                  pycbc_strn_base_const strn_key,

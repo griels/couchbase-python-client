@@ -513,6 +513,73 @@ enum {
     PYCBC_CONN_F_ASYNC_DTOR = 1 << 5
 };
 
+#if PYCBC_LCB_API < 0x030001
+typedef lcb_DURABILITYLEVEL pycbc_DURABILITY_LEVEL;
+typedef lcb_RESPVIEWQUERY lcb_RESPVIEW;
+
+typedef lcb_error_t lcb_STATUS;
+#    define lcb_cmdremove_durability_observe(...) LCB_EINTERNAL
+#    define lcb_cmdstore_durability_observe(...) LCB_EINTERNAL
+LIBCOUCHBASE_API lcb_STATUS
+lcb_cmdremove_durability(lcb_CMDREMOVE *cmd, pycbc_DURABILITY_LEVEL level);
+
+#else
+typedef lcb_DURABILITY_LEVEL pycbc_DURABILITY_LEVEL;
+#    define lcb_cmdremove_durability_observe(...) LCB_EINTERNAL
+#endif
+#define PYCBX_X_SYNCREPERR(X)                                                 \
+    X(LCB_DURABILITY_INVALID_LEVEL,                                           \
+      0x63,                                                                   \
+      LCB_ERRTYPE_DURABILITY | LCB_ERRTYPE_INPUT | LCB_ERRTYPE_SRVGEN,        \
+      "Invalid durability level was specified")                               \
+    /** Valid request, but given durability requirements are impossible to    \
+     * achieve - because insufficient configured replicas are connected.      \
+     * Assuming level=majority and C=number of configured nodes, durability   \
+     * becomes impossible if floor((C + 1) / 2) nodes or greater are offline. \
+     */                                                                       \
+    X(LCB_DURABILITY_IMPOSSIBLE,                                              \
+      0x64,                                                                   \
+      LCB_ERRTYPE_DURABILITY | LCB_ERRTYPE_SRVGEN,                            \
+      "Given durability requirements are impossible to achieve")              \
+    /** Returned if an attempt is made to mutate a key which already has a    \
+     * SyncWrite pending. Client would typically retry (possibly with         \
+     * backoff). Similar to ELOCKED */                                                        \
+    X(LCB_DURABILITY_SYNC_WRITE_IN_PROGRESS,                                  \
+      0x65,                                                                   \
+      LCB_ERRTYPE_DURABILITY | LCB_ERRTYPE_SRVGEN | LCB_ERRTYPE_TRANSIENT,    \
+      "There is a synchronous mutation pending for given key")                \
+    /** The SyncWrite request has not completed in the specified time and has \
+     * ambiguous result - it may Succeed or Fail; but the final value is not  \
+     * yet known */                                                           \
+    X(LCB_DURABILITY_SYNC_WRITE_AMBIGUOUS,                                    \
+      0x66,                                                                   \
+      LCB_ERRTYPE_DURABILITY | LCB_ERRTYPE_SRVGEN,                            \
+      "Synchronous mutation has not completed in the specified time and has " \
+      "ambiguous result")
+
+#define PYCBC_X_DURLEVEL(X)           \
+    X(NONE)                           \
+    X(MAJORITY)                       \
+    X(MAJORITY_AND_PERSIST_ON_MASTER) \
+    X(PERSIST_TO_MAJORITY)
+
+#ifndef PYCBC_DUR_DISABLED
+#define PYCBC_DUR_ENABLED
+#endif
+
+#ifdef PYCBC_DUR_ENABLED
+#    define PYCBC_DUR_INIT(ERR, CMD, TYPE, DUR)                            \
+        if ((DUR).durability_level) {                                      \
+            ERR = lcb_cmd##TYPE##_durability(CMD, (DUR).durability_level); \
+            assert(!((DUR).persist_to || (DUR).replicate_to));             \
+        }                                                                  \
+        if ((DUR).persist_to || (DUR).replicate_to) {                      \
+            ERR = lcb_cmd##TYPE##_durability_observe(                      \
+                    CMD, (DUR).persist_to, (DUR).replicate_to);            \
+        }
+#else
+#    define PYCBC_DUR_INIT(ERR, CMD, TYPE, DUR)
+#endif
 
 typedef struct {
     char persist_to;

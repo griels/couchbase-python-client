@@ -1,5 +1,5 @@
 from couchbase.v3.options import OptionBlock
-
+import couchbase._libcouchbase as _LCB
 
 class Value(int):
     pass
@@ -30,6 +30,10 @@ class PersistTo(Cardinal):
 
 
 class Durability(object):
-    MajorityAndPersistActive = None
+    MAJORITY_AND_PERSIST_ACTIVE = _LCB.LCB_DURABILITYLEVEL_MAJORITY_AND_PERSIST_ON_MASTER
+    NONE = _LCB.LCB_DURABILITYLEVEL_NONE
+    MAJORITY = _LCB.LCB_DURABILITYLEVEL_MAJORITY
+    PERSIST_TO_MAJORITY = _LCB.LCB_DURABILITYLEVEL_PERSIST_TO_MAJORITY
+
 
 

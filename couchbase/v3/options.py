@@ -22,6 +22,12 @@ class FiniteDuration(object):
         result.value+=other
         return result
 
+    def __lt__(self, other):
+        return self.value<other.value
+
+    def __gt__(self, other):
+        return self.value>other.value
+
 class Duration(float):
     def __init__(self, seconds  # type: Union[float,int]
                  ):

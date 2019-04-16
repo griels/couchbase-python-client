@@ -328,7 +328,8 @@ class Bucket(_Base):
     # like. we might move this directly into C some day
 
     def upsert(self, key, value, cas=0, ttl=0, format=None,
-               persist_to=0, replicate_to=0, durability_level=0):
+               persist_to=0, replicate_to=0,
+               durability_level=_LCB.LCB_DURABILITYLEVEL_NONE):
         # type: (Union[str, bytes], Any, int, int, int, int, int, int) -> Result
         """Unconditionally store the object in Couchbase.
 
@@ -415,7 +416,9 @@ class Bucket(_Base):
     def upsert(self, key, value, *args, **kwargs):
         return _Base.upsert(self, key, value, *args, **kwargs)
 
-    def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
+    @overload
+    def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0,
+               durability_level=_LCB.LCB_DURABILITYLEVEL_NONE):
         """Store an object in Couchbase unless it already exists.
 
         Follows the same conventions as :meth:`upsert` but the value is
@@ -430,11 +433,15 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`upsert`, :meth:`insert_multi`
         """
-        return _Base.insert(self, key, value, ttl=ttl, format=format,
-                            persist_to=persist_to, replicate_to=replicate_to)
+        pass
 
+    def insert(self, key, value, *args, **kwargs):
+        return _Base.insert(self, key, value, *args, **kwargs)
+
+    @overload
     def replace(self, key, value, cas=0, ttl=0, format=None,
-                persist_to=0, replicate_to=0):
+                persist_to=0, replicate_to=0,
+                durability_level=_LCB.LCB_DURABILITYLEVEL_NONE):
         """Store an object in Couchbase only if it already exists.
 
         Follows the same conventions as :meth:`upsert`, but the value is
@@ -444,8 +451,10 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`upsert`, :meth:`replace_multi`
         """
-        return _Base.replace(self, key, value, ttl=ttl, cas=cas, format=format,
-                             persist_to=persist_to, replicate_to=replicate_to)
+        pass
+
+    def replace(self, key, value, *args, **kwargs):
+        return _Base.replace(self, key, value, *args, **kwargs)
 
     def append(self,
                key,  # type: str
@@ -453,7 +462,8 @@ class Bucket(_Base):
                cas=0,  # type: long
                format=None,  # type: long
                persist_to=0,  # type: int
-               replicate_to=0  # type: int
+               replicate_to=0,  # type: int
+               durability_level=_LCB.LCB_DURABILITYLEVEL_NONE
                ):
         # type: (...) -> couchbase.result.Result
         """Append a string to an existing value in Couchbase.
@@ -482,18 +492,23 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`upsert`, :meth:`append_multi`
         """
-        return _Base.append(self, key, value, cas=cas, format=format,
-                            persist_to=persist_to, replicate_to=replicate_to)
+        pass
+
+    def append(self, key, value, *args, **kwargs):
+        return _Base.append(self, key, value, *args, **kwargs)
 
     def prepend(self, key, value, cas=0, format=None,
-                persist_to=0, replicate_to=0):
+                persist_to=0, replicate_to=0,
+                durability_level=_LCB.LCB_DURABILITYLEVEL_NONE
+                ):
         # type: (...)->Result
         """Prepend a string to an existing value in Couchbase.
 
         .. seealso:: :meth:`append`, :meth:`prepend_multi`
         """
-        return _Base.prepend(self, key, value, cas=cas, format=format,
-                             persist_to=persist_to, replicate_to=replicate_to)
+
+    def prepend(self, key, value, *args, **kwargs):
+        return _Base.prepend(self, key, value, *args, **kwargs)
 
     def get(self,  # type: Bucket
             key,  # type: str

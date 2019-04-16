@@ -1,0 +1,154 @@
+<testsuite errors="7" failures="0" name="nose2-junit" skipped="0" tests="7" time="0.002">
+  <testcase classname="nose2.loader.ModuleImportFailure.gcouchbase.tests" name="test_api" time="0.000205">
+    <error message="test failure">ImportError: Failed to import test module: gcouchbase.tests.test_api
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/gcouchbase/tests/__init__.py", line 1, in &lt;module&gt;
+    from couchbase.tests import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.gcouchbase.tests" name="test_gevent" time="0.000098">
+    <error message="test failure">ImportError: Failed to import test module: gcouchbase.tests.test_gevent
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/gcouchbase/tests/__init__.py", line 1, in &lt;module&gt;
+    from couchbase.tests import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.txcouchbase.tests" name="test_views" time="0.000078">
+    <error message="test failure">ImportError: Failed to import test module: txcouchbase.tests.test_views
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/txcouchbase/tests/__init__.py", line 17, in &lt;module&gt;
+    from couchbase.tests.base import SkipTest
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.txcouchbase.tests" name="test_ops" time="0.000075">
+    <error message="test failure">ImportError: Failed to import test module: txcouchbase.tests.test_ops
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/txcouchbase/tests/__init__.py", line 17, in &lt;module&gt;
+    from couchbase.tests.base import SkipTest
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.txcouchbase.tests" name="test_n1ql" time="0.000081">
+    <error message="test failure">ImportError: Failed to import test module: txcouchbase.tests.test_n1ql
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/txcouchbase/tests/__init__.py", line 17, in &lt;module&gt;
+    from couchbase.tests.base import SkipTest
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.txcouchbase.tests" name="test_txconn" time="0.000074">
+    <error message="test failure">ImportError: Failed to import test module: txcouchbase.tests.test_txconn
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/txcouchbase/tests/__init__.py", line 17, in &lt;module&gt;
+    from couchbase.tests.base import SkipTest
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+  <testcase classname="nose2.loader.ModuleImportFailure.couchbase.tests" name="test_sync" time="0.000072">
+    <error message="test failure">ImportError: Failed to import test module: couchbase.tests.test_sync
+Traceback (most recent call last):
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/plugins/loader/discovery.py", line 201, in _find_tests_in_file
+    module = util.module_from_name(module_name)
+  File "/Users/ellis_breen/.pyenv/versions/3.7.0/lib/python3.7/site-packages/nose2/util.py", line 77, in module_from_name
+    __import__(name)
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/__init__.py", line 28, in &lt;module&gt;
+    from couchbase.user_constants import *
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/user_constants.py", line 21, in &lt;module&gt;
+    import couchbase._bootstrap
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/_bootstrap.py", line 34, in &lt;module&gt;
+    import couchbase.exceptions as E
+  File "/Users/ellis_breen/root/workspaces/couchbase/couchbase-python-client-working-v4-backport-squashed/couchbase/exceptions.py", line 18, in &lt;module&gt;
+    import couchbase._libcouchbase as C
+ModuleNotFoundError: No module named 'couchbase._libcouchbase'
+
+</error>
+    <system-out />
+  </testcase>
+</testsuite>

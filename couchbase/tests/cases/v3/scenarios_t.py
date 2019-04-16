@@ -76,12 +76,12 @@ class Scenarios(ConnectionTestCase):
         # I include type annotations and getOrError above to make things clearer,
         # but it'd be more idiomatic to write this:
         try:
-            self.coll.get("cheese", spec=None, options=GetOptions(replica=True))
-            self.coll.get("cheese", spec=None, replica=True)
+            self.coll.get("cheese", options=GetOptions(replica=True))
+            self.coll.get("cheese", replica=True)
             # invalid syntax:
-            self.coll.get("cheese", spec=None, options=GetOptions(replica=True), replica=True)
+            self.coll.get("cheese", options=GetOptions(replica=True), replica=True)
 
-            result = self.coll.get("id", options=GetOptions().timeout(Seconds(10)), spec=GetSpec())
+            result = self.coll.get("id", options=GetOptions().timeout(Seconds(10)))
             self.coll.replace(result.id,
                               result.content
                               .put("field", "value")
@@ -116,6 +116,8 @@ class Scenarios(ConnectionTestCase):
             MI.replace('some.path', xattr= '_sync'),
             MI.insert('some.other.path', xattr= '_sync', createParents=True),MutateInSpecItem.replace("fish"),MutateInSpecItem.insert("cheese"))
         )
+
+
     def test_scenario_C_clientSideDurability(self):
         """
         Scenario C:
@@ -185,17 +187,17 @@ class Scenarios(ConnectionTestCase):
                 print("Temporary replica failure, retrying with lower durability {}".format(newReplicateTo))
                 replicate_to = newReplicateTo
 
-    def scenario_c_server_side_durability(self):
+    def test_scenario_c_server_side_durability(self):
         # Use a helper wrapper to retry our operation in the face of durability failures
         # remove is idempotent iff the app guarantees that the doc's id won't be reused (e.g. if it's a UUID).  This seems
         # a reasonable restriction.
         self.retry_idempotent_remove_server_side(
-            lambda: self.coll.remove("id", RemoveOptions().durabilityServer(Durability.MajorityAndPersistActive),
+            lambda: self.coll.remove("id", RemoveOptions().durabilityServer(Durability.MAJORITY_AND_PERSIST_ACTIVE),
                                      cas=0))
         
     def retry_idempotent_remove_server_side(self,
                                             callback,  # type: Callable[None],
-                                            until  # type: FiniteDuration
+                                            until=Durations.seconds(10)  # type: FiniteDuration
                                            ):
         """
           * Automatically retries an idempotent operation in the face of durability failures
