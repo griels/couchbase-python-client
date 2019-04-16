@@ -8,6 +8,7 @@ class Value(int):
     #             ):
     #    super(Value, self).__init__(value)
 
+
 class Cardinal(OptionBlock):
     Value = Value
 
