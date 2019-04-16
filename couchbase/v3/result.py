@@ -15,7 +15,8 @@ class ContentProxy:
                     item  # type: Type[Proxy_T]
                     ):
         # type: (...)->Proxy_T
-        return self.content
+        decode_method=getattr(item,'decode',None)
+        return decode_method(self.content) if decode_method else item(self.content)
 
 
 class IResult:
@@ -109,7 +110,7 @@ class GetResult(IGetResult):
 
 
 def get_result(self, x, options=None):
-    options|={}
+    options = options or {}
     return GetResult(x.value, cas=x.cas, expiry=options.pop('timeout', None), id=x.key)
 
 
