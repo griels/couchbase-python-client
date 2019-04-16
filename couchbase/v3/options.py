@@ -1,23 +1,26 @@
 import time
 from couchbase.v3.result import *
-
+import copy
 
 class FiniteDuration(object):
     def __init__(self, seconds  # type: Union[float,int]
                  ):
         self.value=seconds
+
     @staticmethod
     def time():
         return FiniteDuration(time.time())
 
     def __float__(self):
-        return self.value
+        return float(self.value)
 
     def __int__(self):
         return self.value
 
     def __add__(self, other):
-        self.value+=other
+        result=copy.deepcopy(self)
+        result.value+=other
+        return result
 
 class Duration(float):
     def __init__(self, seconds  # type: Union[float,int]
@@ -74,19 +77,26 @@ class OptionBlockMeta(type):
         pass
 
 
-OptionBlockDeriv=TypeVar('U')
+OptionBlockDeriv = TypeVar('U')
 
 
 def forward_args(arg_vars, *options):
     # type: (Optional[Dict[str,Any]],Tuple[OptionBlockDeriv,...])->OptionBlockDeriv[str,Any]
-    arg_vars=arg_vars or {}
-    end_options = options[0] if options and options[0] else OptionBlock()
-    print("got arg_vars {} and options {}, produced end_options {}".format(arg_vars,options,end_options))
-    kwargs=arg_vars.pop('kwargs',{})
-    end_options.update(kwargs)
-    end_options.update(dict((k.replace("timeout", "ttl"), v) for k, v in
-                            arg_vars.items() if k != "self"))
-    end_options.pop('options',None)
+    arg_vars = arg_vars or {}
+    temp_options = options[0] if options and options[0] else OptionBlock()
+    print("got arg_vars {} and options {}, produced end_options {}".format(arg_vars, options, temp_options))
+    kwargs = arg_vars.pop('kwargs', {})
+    temp_options.update(kwargs)
+    temp_options.update(arg_vars)
+    arg_mapping = {'spec':{'specs':lambda x:x},'id':{},'timeout': {'ttl': int}, 'self': {}, 'options': {}}
+    end_options = {}
+    for k, v in temp_options.items():
+        map_item = arg_mapping.get(k, None)
+        if not (map_item is None):
+            for out_k, out_f in map_item.items():
+                end_options[out_k] = out_f(v)
+        else:
+            end_options[k] = v
     return end_options
 
 
