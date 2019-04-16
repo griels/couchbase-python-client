@@ -56,13 +56,13 @@ class Scenarios(ConnectionTestCase):
         self.scope = self.bucket.scope("scope")
         # 2) Open a Collection
         self.coll = self.scope.open_collection("people")  # type: Collection
-        self.coll.upsert("id","fish")
+        self.coll.upsert("id",{"kettle":"fish"})
 
     def test_scenario_A(self):
         # 1) fetch a full document that is a json document
         doc = self.coll.get("id", GetOptions().timeout(Seconds(10)))
         # 2) Make a modification to the content
-        content = doc.content.put("field", "value")
+        content = doc.content_as[JSONDocument].put("field", "value")
         # 3) replace the document on the server
         result = self.coll.replace(doc.id, content, ReplaceOptions().timeout(Seconds(10)), cas=doc.cas)
         result = self.coll.replace(doc.id, content, ReplaceOptions(timeout=Seconds(10), cas=doc.cas))
@@ -135,8 +135,7 @@ class Scenarios(ConnectionTestCase):
                                                  ReplicateTo.TWO, ReplicateTo.TWO, FiniteDuration.time() + 30)
 
     @staticmethod
-    def retry_idempotent_remove_client_side(self,
-                                            callback,  # type: Callable[[ReplicateTo.Value],Any]
+    def retry_idempotent_remove_client_side(callback,  # type: Callable[[ReplicateTo.Value],Any]
                                             replicate_to,  # type: ReplicateTo.Value
                                             original_replicate_to,  # type: ReplicateTo.Value
                                             until  # type: FiniteDuration
@@ -152,7 +151,7 @@ class Scenarios(ConnectionTestCase):
           """
         success = False
         while not success:
-            if time.time() >= until:
+            if time.time() >= float(until):
                 # Depending on the durability requirements, may want to also log this to an external system for human review
                 # and reconciliation
                 raise RuntimeError("Failed to durably write operation")
@@ -235,7 +234,7 @@ class Scenarios(ConnectionTestCase):
             result = self.coll.get("id", timeout=Seconds(10))
             if result:
                 self.coll.replace(result.id,
-                                  result.content
+                                  result.content_as[JSONDocument]
                                   .put("field", "value")
                                   .put("foo", "bar"),
                                   cas=result.cas,
@@ -260,8 +259,9 @@ class Scenarios(ConnectionTestCase):
 
     class UserPartial:
         def __init__(self,
-                     name,  # type: str
-                     age  # type: int
+                     name=None,  # type: str
+                     age=None,  # type: int
+                     **kwargs
                      ):
             self.name = name
             self.age = age
@@ -272,16 +272,27 @@ class Scenarios(ConnectionTestCase):
                 setattr(result, k, v)
             return result
 
+        @classmethod
+        def decode(cls,input):
+            return cls(**input)
+
+        def encode(self):
+            return dict(name=self.name,age=self.age)
+
     class User(UserPartial):
         def __init__(self,
-                     name,  # type: str
-                     age,  # type: int
-                     address,  # type: str
-                     phoneNumber  # type: str
+                     name=None,  # type: str
+                     age=None,  # type: int
+                     address=None,  # type: str
+                     phoneNumber=None  # type: str
                      ):
             super(Scenarios.User,self).__init__(name,age)
             self.address = address
             self.phoneNumber = phoneNumber
+
+        def encode(self):
+            result=super(Scenarios.User,self).encode()
+            result.update(address=self.address,phoneNumber=self.phoneNumber)
 
     def test_scenario_E(self):
         """
@@ -291,7 +302,7 @@ class Scenarios(ConnectionTestCase):
         2) Modify the entity
         3) store it back on the server with a replace
         """
-
+        self.coll.upsert("id",dict(name="fred"))
         result = self.coll.get("id", timeout=Seconds(10))
         if result:
             self.coll.replace(result.id, result.content_as[Scenarios.User].with_attr(age=25), cas=result.cas, timeout=Seconds(10))
