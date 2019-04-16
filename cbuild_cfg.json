@@ -31,5 +31,9 @@
     "src/store.c",
     "src/typeutil.c",
     "src/views.c"
-  ]
+  ],
+  "comp_options": {
+    "PYCBC_LCB_API": "0x030000"
+  }
+
 }
