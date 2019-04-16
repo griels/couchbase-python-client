@@ -27,15 +27,28 @@ imps = []
 testmods = []
 testclasses = []
 
-for name in os.listdir(os.path.join(os.path.dirname(__file__), 'cases')):
-    if name.startswith('__init__'):
-        continue
+cases_root = []
 
-    name, ext = os.path.splitext(name)
-    if ext.lower() != '.py':
-        continue
 
-    imps.append(name)
+def _search_for_tests(base,root):
+    rootdir=os.path.join(*([base]+root))
+    for name in os.listdir(rootdir):
+        if name.startswith('__init__'):
+            continue
+
+        name, ext = os.path.splitext(name)
+        newrootdir=root+[name]
+        if os.path.isdir(os.path.join(*([base]+newrootdir))):
+            _search_for_tests(base,newrootdir)
+            continue
+
+        if ext.lower() != '.py':
+            continue
+
+        imps.append('.'.join(newrootdir))
+
+
+_search_for_tests(os.path.join(os.path.dirname(__file__),'cases'),cases_root)
 
 def _get_packages():
     """
@@ -45,9 +58,17 @@ def _get_packages():
     for modname in imps:
         # print(repr(modname))
 
-        module = __import__('couchbase.tests.cases.'+modname,
+        try:
+            module = __import__('couchbase.tests.cases.'+modname,
                             fromlist=('couchbase', 'tests', 'cases'))
-        ret[modname] = module
+            ret[modname] = module
+        except Exception as e:
+            if not ('v3' in modname):
+                raise
+            import logging
+            import traceback
+            logging.error("Got exception {}".format(e))
+            pass
     return ret
 
 def _get_classes(modules):
