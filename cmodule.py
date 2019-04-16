@@ -10,11 +10,11 @@ module = None
 extoptions = {}
 import re
 
-with open("src.json") as JSONFILE:
-    SOURCEMODS_ROOT = json.load(JSONFILE)
+with open("cbuild_cfg.json") as JSONFILE:
+    BUILD_CFG = json.load(JSONFILE)
 
-SOURCEMODS = list(filter(re.compile(r'^.*\.c$').match, SOURCEMODS_ROOT.get('source', [])))
-SOURCEMODS_CPP = list(filter(re.compile(r'^.*\.(cpp|cxx|cc)$').match, SOURCEMODS_ROOT.get('source', [])))
+SOURCEMODS = list(filter(re.compile(r'^.*\.c$').match, BUILD_CFG.get('source', [])))
+SOURCEMODS_CPP = list(filter(re.compile(r'^.*\.(cpp|cxx|cc)$').match, BUILD_CFG.get('source', [])))
 
 if platform.python_implementation() != 'PyPy':
     extoptions['sources'] = list(map(str, SOURCEMODS))

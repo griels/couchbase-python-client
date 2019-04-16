@@ -92,10 +92,11 @@ class CMakeBuild(build_ext):
             from distutils.sysconfig import get_python_inc
             import distutils.sysconfig as sysconfig
             AUTOBIND = os.environ.get('PYCBC_AUTOBIND', False)
-            pycbc_lcb_api = os.environ.get('PYCBC_LCB_API', '0x030000')
             extdir = os.path.abspath(
                 os.path.dirname(self.get_ext_fullpath(ext.name)))
-            lcb_api_flags = ['-DPYCBC_LCB_API={}'.format(pycbc_lcb_api)]
+            import cmodule
+            pycbc_lcb_api=cmodule.BUILD_CFG.get('comp_options',{}).get('PYCBC_LCB_API',None)
+            lcb_api_flags = ['-DPYCBC_LCB_API={}'.format(pycbc_lcb_api)] if pycbc_lcb_api else []
             cmake_args = lcb_api_flags + ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                                           '-DPYTHON_EXECUTABLE=' + sys.executable]
             cmake_args += ['-DPYTHON_INCLUDE_DIR={}'.format(get_python_inc())]
@@ -212,7 +213,6 @@ class CMakeBuild(build_ext):
                     pass
 
             self.info.pkgdata['couchbase'] = self.info.lcb_pkgs_strlist
-
 
     def copy_test_file(self, src_file):
         '''
