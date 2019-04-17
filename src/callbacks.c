@@ -1004,6 +1004,7 @@ void pycbc_generic_cb(lcb_t instance,
 PYCBC_FOR_EACH_GEN_CALLBACK(PYCBC_CALLBACK_GENERIC)
 #endif
 
+#ifdef PYCBC_COLLECTIONS
 static void getcid_callback(lcb_t* instance, pycbc_coll_res_t* result, const lcb_RESPGETCID *resp)
 {
     result->err=resp->rc;
@@ -1016,12 +1017,14 @@ static void getcid_callback(lcb_t* instance, pycbc_coll_res_t* result, const lcb
                resp->manifest_id, (uint32_t)resp->collection_id);
     }
 }
-
+#endif
 
 void
 pycbc_callbacks_init(lcb_t instance)
 {
+#ifdef PYCBC_COLLECTIONS
     lcb_install_callback3(instance, LCB_CALLBACK_GETCID, (lcb_RESPCALLBACK)getcid_callback);
+#endif
     lcb_install_callback3(instance, LCB_CALLBACK_STORE, durability_chain_common);
     lcb_install_callback3(instance, LCB_CALLBACK_REMOVE, durability_chain_common);
     lcb_install_callback3(instance, LCB_CALLBACK_UNLOCK, keyop_simple_callback);
