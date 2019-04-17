@@ -498,20 +498,62 @@ void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value);
 
 struct pycbc_Tracer;
 
-#ifndef PYCBC_TRACING_DISABLE
-#define PYCBC_TRACING_ENABLE
-#endif
-
-#ifdef LCB_TRACING
-#ifdef PYCBC_TRACING_ENABLE
 #define PYCBC_TRACING
-#endif
-#endif
+
+
+typedef struct {
+    char *buffer;
+    size_t length;
+} pycbc_strn_base;
+
+typedef struct {
+    const char *buffer;
+    size_t length;
+} pycbc_strn_base_const;
+
+typedef pycbc_strn_base pycbc_strn;
+typedef struct {
+    pycbc_strn_base content;
+} pycbc_strn_unmanaged;
+
+extern pycbc_strn pycbc_invalid_strn;
+
+extern const char PYCBC_UNKNOWN[];
+#define sizeof_array(X) sizeof(X) / sizeof(X[0])
+
+const char * pycbc_strn_buf(const pycbc_strn buf);
+int pycbc_strn_valid(const pycbc_strn buf);
+
+size_t pycbc_strn_len(const pycbc_strn buf);
+int pycbc_strn_repr_len(const pycbc_strn buf);
+
+const char *pycbc_strn_repr_buf(const pycbc_strn buf);
+
+pycbc_strn_unmanaged pycbc_strn_ensure_psz_unmanaged(pycbc_strn *input);
+
+pycbc_strn_unmanaged pycbc_strn_ensure_psz(pycbc_strn *input);
+
+pycbc_strn_unmanaged pycbc_strn_from_managed(PyObject* source);
+
+const char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf);
+
+void pycbc_strn_free(pycbc_strn_unmanaged buf);
+
+#define PYCBC_STRN_FREE(BUF)                            \
+    PYCBC_DEBUG_LOG("Freeing string buffer %.*s at %p", \
+                    (int)(BUF).content.length,               \
+                    (BUF).content.buffer,               \
+                    (BUF).content.buffer)               \
+    pycbc_strn_free(BUF);
+
+
 
 #if PYCBC_VERSION>=0x030000
 #define PYCBC_COLLECTIONS
 #endif
 
+
+//#endif
 typedef struct {
     PyObject_HEAD
 
@@ -583,14 +625,19 @@ typedef struct {
 
     pycbc_dur_params dur_global;
     unsigned long dur_timeout;
-#ifdef PYCBC_COLLECTIONS
-    lcb_CMDGETCID get_cid_cmd;
-#endif
 
 } pycbc_Bucket;
 
-#ifdef PYCBC_COLLECTIONS
-typedef pycbc_Bucket pycbc_Collection;
+typedef struct {
+    pycbc_strn_unmanaged collection;
+    pycbc_strn_unmanaged scope;
+} pycbc_Collection_coords;
+
+typedef struct  {
+    PyObject_HEAD
+    pycbc_Bucket* bucket;
+    pycbc_Collection_coords collection;
+} pycbc_Collection;
 
 typedef struct pycbc_coll_res_success{
     lcb_U64 manifest_id;
@@ -602,28 +649,31 @@ typedef struct pycbc_coll_res{
     lcb_error_t err;
 } pycbc_coll_res_t;
 
-lcb_error_t pycbc_Collection_get_cid_async(const pycbc_Collection *bucket, pycbc_coll_res_t *result);
-pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *bucket);
+lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_coll_res_t *result);
+pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *collection);
+
+#ifdef PYCBC_NATIVE_COLLECTIONS
+pycbc_Unit pycbc_Bucket_init_collection(pycbc_Collection* bucket, PyObject* args, PyObject* kwargs){
+    return bucket;
+}
+#else
+pycbc_Collection* pycbc_Bucket_init_collection(pycbc_Bucket* bucket, PyObject* args, PyObject* kwargs);
+
+#define PYCBC_COLLECTION_XARGS(X)\
+    X("collection",&collection,"O")
+#endif
 
 #define PYCBC_CMD_SET_COORDS(cmd, keybuf, keylen) \
         LCB_CMD_SET_KEY(cmd, keybuf, keylen);\
         {\
-            pycbc_coll_res_t result=pycbc_Collection_get_cid(self);\
+            pycbc_coll_res_t result=pycbc_Collection_get_cid(collection);\
             if (!result.err){\
                 (cmd)->cid=result.value.collection_id;\
             }\
         }
 
-
-
-#endif
-
 #ifdef PYCBC_TRACING
-void *pycbc_null_or_capsule_value(PyObject *maybe_capsule,
-                                  const char *capsule_name);
 void *pycbc_capsule_value_or_null(PyObject *capsule, const char *capsule_name);
-
-#define PYCBC_NULL_OR_CAPSULE(NAME) pycbc_null_or_capsule_value(NAME, #NAME)
 
 typedef struct pycbc_Tracer {
     PyObject_HEAD
@@ -663,17 +713,6 @@ typedef struct pycbc_stack_context_decl {
 #endif
 #endif
 } pycbc_stack_context;
-
-typedef struct {
-    char *buffer;
-    size_t length;
-} pycbc_strn;
-
-typedef struct {
-    pycbc_strn content;
-} pycbc_strn_unmanaged;
-
-extern pycbc_strn pycbc_invalid_strn;
 
 pycbc_strn pycbc_get_string_tag_basic(lcbtrace_SPAN *span, const char *tagname);
 PyObject *pycbc_Context_capsule(pycbc_stack_context_handle context);
@@ -1396,9 +1435,14 @@ int pycbc_ResultType_ready(PyTypeObject *p, int flags);
       pycbc_CryptoProvideType_extra_init(ptr))        \
     X(NamedCryptoProvider, "A Named Cryptography Provider for Field Encryption")
 
+#define PYCBC_COLLECTION_TYPES(X)\
+    X(Collection,                                 \
+          "A Couchbase Collection", \
+          pycbc_CryptoProvideType_extra_init(ptr))
 #define PYCBC_AUTODEF_TYPES(X) \
-    PYCBC_CRYPTO_TYPES(X);     \
-    PYCBC_TRACING_TYPES(X);
+    PYCBC_CRYPTO_TYPES(X)     \
+    PYCBC_TRACING_TYPES(X)\
+    PYCBC_COLLECTION_TYPES(X)
 
 /**
  * Extern PyTypeObject declaraions.
