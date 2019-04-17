@@ -1541,7 +1541,7 @@ pycbc_stack_context_handle pycbc_Tracer_start_span_debug(
             FILE,
             FUNCTION,
             LINE,
-            orig_context,
+            context?*context:NULL,
             "NEW SPAN: { optype %s, ref_type %s, component %s",
             operation,
             ref_type == LCBTRACE_REF_FOLLOWS_FROM
@@ -1554,7 +1554,7 @@ pycbc_stack_context_handle pycbc_Tracer_start_span_debug(
             FILE,
             FUNCTION,
             LINE,
-            orig_context,
+            context?*context:NULL,
             "NEW SPAN: } optype %s, ref_type %s, component %s, got %p",
             operation,
             ref_type == LCBTRACE_REF_FOLLOWS_FROM
@@ -1963,14 +1963,14 @@ const char * pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
 
 #ifdef PYCBC_DEBUG
 
-char *pycbc_dupe_string_tag_debug(const char *FILE,
+const char *pycbc_dupe_string_tag_debug(const char *FILE,
                                   const char *FUNC,
                                   int LINE,
                                   const lcbtrace_SPAN *span,
                                   const char *tagname,
                                   char **target_orig)
 {
-    char *result;
+    const char *result;
     PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(
             FILE,
             FUNC,
