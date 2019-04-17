@@ -345,23 +345,71 @@ extract_item_params(struct pycbc_common_vars *cv,
     return 0;
 }
 
-#ifdef PYCBC_TRACING
-pycbc_oputil_keyhandler pycbc_oputil_keyhandler_build(pycbc_oputil_keyhandler_raw cb, const char* category, const char* name) {
-	pycbc_oputil_keyhandler handler;
-	handler.cb = cb;
-	handler.category = category;
-	handler.name = name;
-	return handler;
+#define PYCBC_OPUTIL_KEYHANDLER_BUILD_GEN(NAME)\
+pycbc_oputil_keyhandler_##NAME pycbc_oputil_keyhandler_build_##NAME(pycbc_oputil_keyhandler_raw_##NAME cb, const char* category, const char* name) {\
+	pycbc_oputil_keyhandler_##NAME handler;\
+	handler.cb = cb;\
+	handler.category = category;\
+	handler.name = name;\
+	return handler;\
 }
+#ifndef PYCBC_OPUTIL_GEN
+
+pycbc_oputil_keyhandler_Bucket
+pycbc_oputil_keyhandler_build_Bucket(pycbc_oputil_keyhandler_raw_Bucket cb, const char *category, const char *name) {
+    pycbc_oputil_keyhandler_Bucket handler;
+    handler.cb = cb;
+    handler.category = category;
+    handler.name = name;
+    return handler;
+}
+
+pycbc_oputil_keyhandler_Collection
+pycbc_oputil_keyhandler_build_Collection(pycbc_oputil_keyhandler_raw_Collection cb, const char *category,
+                                         const char *name) {
+    pycbc_oputil_keyhandler_Collection handler;
+    handler.cb = cb;
+    handler.category = category;
+    handler.name = name;
+    return handler;
+}
+#else
+PYCBC_UNITS(PYCBC_OPUTIL_KEYHANDLER_BUILD_GEN)
+
 #endif
 
+int pycbc_wrap_bucket_callback(pycbc_oputil_keyhandler_raw_Bucket* original, pycbc_Collection *self, struct pycbc_common_vars *cv, int optype,
+                               PyObject *key, PyObject *value, PyObject *options,
+                               pycbc_Item *item, void *arg, pycbc_stack_context_handle context)
+{
+    return (*original)(self->bucket,cv,optype,key,value,options,item,arg,context);
+}
+
 int
-pycbc_oputil_iter_multi(pycbc_Bucket *self,
+pycbc_oputil_iter_multi_Bucket(pycbc_Bucket *self,
                         pycbc_seqtype_t seqtype,
                         PyObject *collection,
                         struct pycbc_common_vars *cv,
                         int optype,
-                        pycbc_oputil_keyhandler handler,
+                        pycbc_oputil_keyhandler_Bucket handler,
+                        void *arg,
+                        pycbc_stack_context_handle context)
+{
+    pycbc_oputil_keyhandler_Collection wrapper;
+    wrapper.category=handler.category;
+    wrapper.name=handler.name;
+    wrapper.original=&handler.cb;
+    wrapper.cb=pycbc_wrap_bucket_callback;
+    pycbc_Collection* coll=pycbc_Bucket_init_collection(self,pycbc_DummyTuple,pycbc_DummyKeywords);
+    return pycbc_oputil_iter_multi_Collection(coll, seqtype, collection, cv, optype, wrapper, arg, context);
+}
+int
+pycbc_oputil_iter_multi_Collection(pycbc_Collection *self,
+                        pycbc_seqtype_t seqtype,
+                        PyObject *collection,
+                        struct pycbc_common_vars *cv,
+                        int optype,
+                        pycbc_oputil_keyhandler_Collection handler,
                         void *arg,
                         pycbc_stack_context_handle context)
 {
@@ -397,7 +445,9 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
             arg_k = k;
         }
 
-#ifdef PYCBC_TRACING
+
+        assert(self);
+        assert(handler.cb);
         rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED(&context,
                                              (handler).cb,
                                              (handler).name,
@@ -405,7 +455,8 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                                              NULL,
                                              1,
                                              cv,
-                                             self,
+                                             self->bucket,
+                                             handler.original,
                                              self,
                                              cv,
                                              optype,
@@ -414,10 +465,14 @@ pycbc_oputil_iter_multi(pycbc_Bucket *self,
                                              options,
                                              itm,
                                              arg);
-#else
-        rv = PYCBC_TRACE_WRAP_EXPLICIT_NAMED(handler, "", "", NULL, self, cv, optype, arg_k, v, options, itm, arg);
-#endif
+/*        rv = pycbc_wrap_and_pop_debug("_file_name_", 462, "_function_name_", (handler).name, &context, 1,
+                                      ((handler).cb(NULL, self, cv, optype, arg_k, v, options, itm, arg,
+                                                    pycbc_explicit_named_setup("_file_name_", 462, "_function_name_",
+                                                                               &context, (handler).name,
+                                                                               (handler).category, ((void *) 0),
+                                                                               self->bucket))), cv);
 
+*/
     GT_ITER_DONE:
         Py_XDECREF(k);
         Py_XDECREF(v);
