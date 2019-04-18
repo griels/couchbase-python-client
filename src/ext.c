@@ -582,14 +582,14 @@ pycbc_strn_unmanaged pycbc_strn_ensure_psz(pycbc_strn *input)
 
 pycbc_strn_unmanaged pycbc_strn_from_managed(PyObject* source)
 {
-    size_t length;
-    const char* buffer = PYCBC_CSTRN(source,&length);
+    size_t length = 0;
+    const char* buffer = (source && PyObject_IsTrue(source))?(PYCBC_CSTRN(source,&length)):NULL;
     pycbc_strn original={.buffer=(char*)buffer,.length=length};
 
     return pycbc_strn_ensure_psz_unmanaged(&original);
 }
 
-const char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf)
+char *pycbc_strn_buf_psz(pycbc_strn_unmanaged buf)
 {
     return buf.content.buffer;
 }
@@ -1541,7 +1541,7 @@ pycbc_stack_context_handle pycbc_Tracer_start_span_debug(
             FILE,
             FUNCTION,
             LINE,
-            orig_context,
+            context?*context:NULL,
             "NEW SPAN: { optype %s, ref_type %s, component %s",
             operation,
             ref_type == LCBTRACE_REF_FOLLOWS_FROM
@@ -1554,7 +1554,7 @@ pycbc_stack_context_handle pycbc_Tracer_start_span_debug(
             FILE,
             FUNCTION,
             LINE,
-            orig_context,
+            context?*context:NULL,
             "NEW SPAN: } optype %s, ref_type %s, component %s, got %p",
             operation,
             ref_type == LCBTRACE_REF_FOLLOWS_FROM
@@ -1943,11 +1943,11 @@ pycbc_strn_unmanaged pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *
     return tag_psz;
 }
 
-const char * pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
+char * pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
                                    const char *tagname,
                                    char **target_orig)
 {
-    const char **target = (const char**)target_orig;
+    char **target = target_orig;
     pycbc_strn_unmanaged tag_psz = pycbc_dupe_strn_tag(span, tagname);
 
     {
@@ -1963,14 +1963,14 @@ const char * pycbc_dupe_string_tag(const lcbtrace_SPAN *span,
 
 #ifdef PYCBC_DEBUG
 
-char *pycbc_dupe_string_tag_debug(const char *FILE,
+const char *pycbc_dupe_string_tag_debug(const char *FILE,
                                   const char *FUNC,
                                   int LINE,
                                   const lcbtrace_SPAN *span,
                                   const char *tagname,
                                   char **target_orig)
 {
-    char *result;
+    const char *result;
     PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(
             FILE,
             FUNC,

@@ -107,6 +107,7 @@ Bucket_get_transcoder(pycbc_Bucket *self, void *unused)
 static PyObject*
 Bucket_register_crypto_provider(pycbc_Bucket *self, PyObject *args) {
     char *name = NULL;
+    PyObject* result = Py_None;
     pycbc_CryptoProvider *provider = NULL;
 
     if (!PyArg_ParseTuple(args, "sO", &name, &provider)) {
@@ -132,27 +133,39 @@ Bucket_register_crypto_provider(pycbc_Bucket *self, PyObject *args) {
         PYCBC_XDECREF(ctor_args);
         if (named_provider_proxy && !PyErr_Occurred()) {
             PYCBC_INCREF(named_provider_proxy);
+#ifndef PYCBC_V4
             lcbcrypto_register(
                     self->instance, name, named_provider_proxy->lcb_provider);
+#else
+            result=NULL;
+            PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not supported in V4 yet");
+#endif
         } else {
             PYCBC_EXCEPTION_LOG_NOCLEAR;
             PYCBC_XDECREF(named_provider_proxy);
         }
     }
-    return Py_None;
+    return result;
 }
 
 static PyObject*
 Bucket_unregister_crypto_provider(pycbc_Bucket *self, PyObject *args)
 {
+    PyObject* result = NULL;
     char *name = NULL;
 
     if (!PyArg_ParseTuple(args, "s", &name)) {
         PYCBC_EXCTHROW_ARGS();
         return NULL;
     }
+#ifdef PYCBC_V4
+    PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not available in V4 yet");
+#else
     lcbcrypto_unregister(self->instance, name);
-    return Py_None;
+    result = Py_None;
+#endif
+    PYCBC_XINCREF(result);
+    return result;
 }
 
 const char *pycbc_dict_cstr(PyObject *dp, char *key) {
@@ -217,7 +230,13 @@ Bucket_encrypt_fields(pycbc_Bucket *self, PyObject *args)
     }
     if (!PyErr_Occurred()) {
 #if PYCBC_CRYPTO_VERSION > 0
+#ifdef PYCBC_V4
+        result=NULL;
+        PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not on V4 yet");
+        goto FINISH;
+#else
         res = lcbcrypto_encrypt_fields(self->instance, &cmd);
+#endif
 #else
         res = lcbcrypto_encrypt_document(self->instance, &cmd);
 #endif
@@ -262,8 +281,13 @@ Bucket_decrypt_fields(pycbc_Bucket *self, PyObject *args)
 
     if (!PyErr_Occurred()) {
 #if PYCBC_CRYPTO_VERSION > 0
+#ifdef PYCBC_V4
+        PYCBC_EXC_WRAP(LCB_ERRTYPE_INTERNAL,LCB_ERRTYPE_INTERNAL,"Not on V4 yet")
+        goto FINISH;
+#else
         cmd.nfields = pycbc_populate_fieldspec(&cmd.fields, fieldspec);
         res = lcbcrypto_decrypt_fields(self->instance, &cmd);
+#endif
 #else
         (void)fieldspec;
         res = lcbcrypto_decrypt_document(self->instance, &cmd);
@@ -854,10 +878,12 @@ lcb_error_t pycbc_Collection_init_cid(pycbc_Collection* self, PyObject *collecti
     self->collection.collection=pycbc_strn_from_managed(collection);
     return err;
 }
-
+/*
 lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_coll_res_t *result) {
-    lcb_error_t err;
+#ifndef PYCBC_COLLECTIONS_REAL
     return 0;
+#else
+    lcb_error_t err;
     lcb_sched_enter(collection->bucket->instance);
     lcb_CMDGETCID get_cid_cmd;
     get_cid_cmd.scope=pycbc_strn_buf(collection->collection.scope.content);
@@ -867,27 +893,23 @@ lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection, pycbc_c
     err = lcb_getcid(collection->bucket->instance, result, &get_cid_cmd);
     lcb_sched_leave(collection->bucket->instance);
     return err;
-}
-
+#endif
+}*/
+/*
 pycbc_coll_res_t pycbc_Collection_get_cid(pycbc_Collection *collection) {
     pycbc_coll_res_t result;
     result.err=pycbc_Collection_get_cid_async(collection, &result);
     //lcb_wait(collection->bucket->instance);
     return result;
 }
+*/
 
-
-
+/*
 PyObject* Collection_get_cid(pycbc_Collection* self)
 {
     Py_RETURN_NONE;
 }
-
-static void Collection_dtor(pycbc_Collection* collection)
-{
-    pycbc_strn_free(collection->collection.scope);
-    pycbc_strn_free(collection->collection.collection);
-}
+*/
 
 int pycbc_collection_init_from_fn_args(pycbc_Collection *self, PyObject *args, PyObject *kwargs) {
     int rv;
@@ -919,6 +941,8 @@ int pycbc_collection_init_from_fn_args(pycbc_Collection *self, PyObject *args, P
     return rv;
 }
 
+
+#ifdef PYCBC_NATIVE_COLLECTIONS
 static int
 Collection__init__(pycbc_Collection* self, PyObject *args, PyObject *kwargs)
 {
@@ -932,8 +956,12 @@ Collection__init__(pycbc_Collection* self, PyObject *args, PyObject *kwargs)
     }
     return 0;
 }
+static void Collection_dtor(pycbc_Collection* collection)
+{
+    pycbc_strn_free(collection->collection.scope);
+    pycbc_strn_free(collection->collection.collection);
+}
 
-#ifdef PYCBC_NATIVE_COLLECTIONS
 pycbc_Unit pycbc_Bucket_init_collection(pycbc_Collection* bucket, PyObject* args, PyObject* kwargs){
     return bucket;
 }
@@ -942,13 +970,15 @@ pycbc_Collection* pycbc_Bucket_init_collection(pycbc_Bucket* bucket, PyObject* a
     pycbc_Collection* result;
     result=PYCBC_CALLOC_TYPED(1,pycbc_Collection);
     result->bucket=bucket;
-    PyDict_SetItemString(kwargs, "bucket", (PyObject *) bucket);
-    pycbc_collection_init_from_fn_args(result,args,kwargs);
+    //PyDict_SetItemString(kwargs, "bucket", (PyObject *) bucket);
+    //pycbc_collection_init_from_fn_args(result,args,kwargs);
     PYCBC_EXCEPTION_LOG
     return result;
 //    return (pycbc_Collection *) PYCBC_TYPE_CTOR(&pycbc_CollectionType, args, kwargs);
 }
 #endif
+#ifdef PYCBC_NATIVE_COLLECTIONS
+
 static PyMethodDef Collection_TABLE_methods[] = {
         { NULL, NULL, 0, NULL }
 };
@@ -996,6 +1026,7 @@ int pycbc_CollectionType_init(PyObject** ptr)
     return PyType_Ready(p);
 }
 #endif
+#endif
 
 static int
 Bucket__init__(pycbc_Bucket *self,
@@ -1028,7 +1059,7 @@ Bucket__init__(pycbc_Bucket *self,
     X("lockmode", &self->lockmode, "i")                    \
     X("_flags", &self->flags, "I")                         \
     X("_conntype", &conntype, "i")                         \
-    X("_iops", &iops_O, "O")
+    X("_iops", &iops_O, "O")                               \
 
 #ifdef PYCBC_TRACING
 #define XCTOR_ARGS(X)\

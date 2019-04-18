@@ -158,11 +158,6 @@ PyObject *pycbc_convert_lcbcrypto_SIGV(const lcbcrypto_SIGV *sigv) {
     return pycbc_convert_uint8_t(buf);
 }
 
-PyObject* pycbc_convert_lcbcrypto_KEYTYPE(const lcbcrypto_KEYTYPE type)
-{
-    return PyLong_FromLong(type);
-}
-
 PyObject* pycbc_convert_char_p(const char* string)
 {
     return pycbc_SimpleStringZ(string);
@@ -326,7 +321,6 @@ PYCBC_X_COMMON_CRYPTO_METHODS(X)
 
 #define PYCBC_X_ALL_CRYPTO_FUNCTIONS(X) \
     PYCBC_X_COMMON_CRYPTO_METHODS(X)    \
-    PYCBC_X_V0_ONLY_CRYPTO_METHODS(X)   \
     PYCBC_X_V1_ONLY_CRYPTO_METHODS(X)
 
 #define PYCBC_SIG_METHOD(RTYPE, VERSION, METHOD, PROCESSOR, X_ARGS, ...)       \
@@ -553,73 +547,6 @@ pycbc_crypto_generic_verify_signature(lcbcrypto_PROVIDER *provider, const lcbcry
     return lcb_result;
 }
 
-static lcb_error_t
-pycbc_crypto_v0_load_key(lcbcrypto_PROVIDER *provider, lcbcrypto_KEYTYPE type, const char *keyid, uint8_t **subject,
-                         size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
-    PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "load_key") : ((void *) 0);
-    if (method) {
-        PyObject *keyid_converted = pycbc_convert_char_p(keyid);
-        const char *PYARGS_FMTSTRING = "(" "O" "O" ")";
-        PyObject *args = Py_BuildValue(PYARGS_FMTSTRING, pycbc_convert_lcbcrypto_KEYTYPE(type), keyid_converted);
-        PyObject *result = pycbc_python_proxy(method, args, "load_key");
-        if (result) {
-            lcb_result = pycbc_cstrndup((char **)subject, subject_len, result);
-        }
-        Py_DecRef(result);
-        Py_DecRef(args);
-        Py_DecRef(keyid_converted);
-    }
-    return lcb_result;
-}
-
-static lcb_error_t
-pycbc_crypto_v0_encrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size_t input_len, const uint8_t *key,
-                        size_t key_len, const uint8_t *iv, size_t iv_len, uint8_t **subject, size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
-    PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "encrypt") : ((void *) 0);
-    if (method) {
-        PyObject *input_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(input, (input_len > 0) ? (input_len - 1) : 0));
-        PyObject *key_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(key, key_len));
-        PyObject *iv_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(iv, iv_len));
-        const char *PYARGS_FMTSTRING = "(" "O" "O" "O" ")";
-        PyObject *args = Py_BuildValue(PYARGS_FMTSTRING, input_cstrn, key_cstrn, iv_cstrn);
-        PyObject *result = pycbc_python_proxy(method, args, "encrypt");
-        if (result) {
-            lcb_result = pycbc_cstrndup((char **)subject, subject_len, result);
-        }
-        Py_DecRef(result);
-        Py_DecRef(args);
-        Py_DecRef(input_cstrn);
-        Py_DecRef(key_cstrn);
-        Py_DecRef(iv_cstrn);
-    }
-    return lcb_result;
-}
-
-static lcb_error_t
-pycbc_crypto_v0_decrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size_t input_len, const uint8_t *key,
-                        size_t key_len, const uint8_t *iv, size_t iv_len, uint8_t **subject, size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
-    PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "decrypt") : ((void *) 0);
-    if (method) {
-        PyObject *input_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(input, input_len));
-        PyObject *key_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(key, key_len));
-        PyObject *iv_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(iv, iv_len));
-        const char *PYARGS_FMTSTRING = "(" "O" "O" "O" ")";
-        PyObject *args = Py_BuildValue(PYARGS_FMTSTRING, input_cstrn, key_cstrn, iv_cstrn);
-        PyObject *result = pycbc_python_proxy(method, args, "decrypt");
-        if (result) {
-            lcb_result = pycbc_cstrndup((char **)subject, subject_len, result);
-        }
-        Py_DecRef(result);
-        Py_DecRef(args);
-        Py_DecRef(input_cstrn);
-        Py_DecRef(key_cstrn);
-        Py_DecRef(iv_cstrn);
-    }
-    return lcb_result;
-}
 
 static lcb_error_t
 pycbc_crypto_v1_encrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size_t input_len, const uint8_t *iv,

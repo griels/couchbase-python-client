@@ -356,6 +356,14 @@ invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
     Py_XDECREF(argtuple);
 }
 
+#ifdef PYCBC_V4
+#define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
+#define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
+#define LCB_MUTATION_TOKEN_ID(p) lcb_mutation_token_uuid(p)
+#define LCB_MUTATION_TOKEN_SEQ(p) lcb_mutation_token_seqno(p)
+#else
+#endif
+
 static void
 dur_chain2(pycbc_Bucket *conn,
     pycbc_MultiResult *mres,
@@ -501,27 +509,32 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     if (cbtype == LCB_CALLBACK_GET || cbtype == LCB_CALLBACK_GETREPLICA) {
         const lcb_RESPGET *gresp = (const lcb_RESPGET *)resp;
         lcb_U32 eflags;
-
-        res->flags = gresp->itmflags;
+        lcb_respget_flags(gresp,&res->flags);
         if (mres->mropts & PYCBC_MRES_F_FORCEBYTES) {
             eflags = PYCBC_FMT_BYTES;
         } else {
-            eflags = gresp->itmflags;
+            lcb_respget_flags(gresp,&eflags);
         }
 
         if (res->value) {
             Py_DECREF(res->value);
             res->value = NULL;
         }
-
-        rv = pycbc_tc_decode_value(mres->parent, gresp->value, gresp->nvalue,
-            eflags, &res->value);
+        {
+            const char *value = NULL;
+            size_t nvalue = 0;
+            lcb_respget_value(gresp, &value, &nvalue);
+            rv = pycbc_tc_decode_value(mres->parent, value, nvalue,
+                                       eflags, &res->value);
+        }
         if (rv < 0) {
             pycbc_multiresult_adderr(mres);
         }
     } else if (cbtype == LCB_CALLBACK_COUNTER) {
         const lcb_RESPCOUNTER *cresp = (const lcb_RESPCOUNTER *)resp;
-        res->value = pycbc_IntFromULL(cresp->value);
+        unsigned  long long value = 0;
+        lcb_respcounter_value(cresp, &value);
+        res->value = pycbc_IntFromULL(value);
     }
     GT_DONE:
         operation_completed_with_err_info(

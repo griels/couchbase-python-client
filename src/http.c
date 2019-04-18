@@ -184,7 +184,14 @@ complete_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     /* CONN_THR_BEGIN called by httpresult_complete() */
     (void)instance; (void)cbtype;
 }
+#define DUMMY(...)
 
+void lcb_cmdhttp_path(lcb_CMDHTTP* htcmd, const char* path, size_t length){
+    {
+        pycbc_pybuffer pathbuf = {NULL, path, length};
+        PYCBC_CMD_SET_KEY_SCOPE(http, *htcmd, pathbuf);
+    }
+}
 void
 pycbc_http_callbacks_init(lcb_t instance)
 {
@@ -192,6 +199,9 @@ pycbc_http_callbacks_init(lcb_t instance)
     pycbc_views_callbacks_init(instance);
 }
 
+size_t pycbc_strlen_safe(const char* x){
+    return x?strlen(x):0;
+}
 PyObject *
 pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
 {
@@ -216,8 +226,7 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     const char *content_type = NULL;
     pycbc_HttpResult *htres = NULL;
     pycbc_MultiResult *mres = NULL;
-    lcb_CMDHTTP htcmd = { 0 };
-
+    const char* host = NULL;
     static char *kwlist[] = {
             "type", "method", "path", "content_type", "post_data",
             "response_format", "quiet", "host", NULL
@@ -226,7 +235,7 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     rv = PyArg_ParseTupleAndKeywords(args, kwargs, "iis|zz#IOs", kwlist,
                                      &reqtype, &method, &path,
                                      &content_type, &body, &nbody,
-                                     &value_format, &quiet_O, &htcmd.host);
+                                     &value_format, &quiet_O, &host);
     if (!rv) {
         PYCBC_EXCTHROW_ARGS();
         return NULL;
@@ -247,24 +256,47 @@ pycbc_Bucket__http_request(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     htres = (pycbc_HttpResult*)PYCBC_TYPE_CTOR(&pycbc_HttpResultType);
     pycbc_httpresult_init(htres, mres);
 
-    htres->key = pycbc_SimpleStringZ(path);
+    htres->key = path?pycbc_SimpleStringZ(path):NULL;
     htres->format = value_format;
 
     if (quiet_O != NULL && quiet_O != Py_None && PyObject_IsTrue(quiet_O)) {
         mres->mropts |= PYCBC_MRES_F_QUIET;
     }
     mres->mropts |= PYCBC_MRES_F_SINGLE;
+    {
+        pycbc_CMDHTTP htcmd;
+#ifdef PYCBC_V4
+        lcb_cmdhttp_create(&htcmd, reqtype);
+#else
+        lcb_CMDHTTP htcmd_real={0};
+        htcmd=&htcmd_real;
+        htcmd->type=reqtype;
+#endif
+        PYCBC_DEBUG_LOG("Encoding host [%s]",host?host:"")
+#define PYCBC_BYPASS_SAFETY 1
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(host)) {
+            lcb_cmdhttp_host(htcmd, host, pycbc_strlen_safe(host));
+        }
+        PYCBC_DEBUG_LOG("Encoding path [%s]",path?path:"")
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(path)) {
+            lcb_cmdhttp_path(htcmd, path, pycbc_strlen_safe(path));
+        }
+        if (PYCBC_BYPASS_SAFETY || (body && nbody)){
+            PYCBC_DEBUG_LOG("Encoding body [%.*s]",nbody,body?body:"")
 
-    LCB_CMD_SET_KEY(&htcmd, path, strlen(path));
-    htcmd.body = body;
-    htcmd.nbody = nbody;
-    htcmd.content_type = content_type;
-    htcmd.method = method;
-    htcmd.reqhandle = &htres->u.htreq;
-    htcmd.type = reqtype;
-
-    err = lcb_http3(self->instance, mres, &htcmd);
-
+            lcb_cmdhttp_body(htcmd, body, (size_t) nbody);
+        }
+        if (PYCBC_BYPASS_SAFETY || pycbc_strlen_safe(content_type)){
+            PYCBC_DEBUG_LOG("Encoding content_type [%.*s]",content_type,content_type?content_type:"")
+            lcb_cmdhttp_content_type(htcmd, content_type, pycbc_strlen_safe(content_type));
+        }
+        lcb_cmdhttp_method(htcmd, method);
+        lcb_cmdhttp_handle(htcmd, &htres->u.htreq);
+        err = pycbc_http(self->instance, mres, htcmd);
+#ifdef PYCBC_V4
+        lcb_cmdhttp_destroy(htcmd);
+#endif
+    }
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;
