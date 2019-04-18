@@ -579,15 +579,14 @@ pycbc_oputil_wait_common,pycbc_Bucket *self)
  * on error.
  */
 int
-pycbc_handle_durability_args(pycbc_Bucket *self,
-                             pycbc_dur_params *params,
-                             char persist_to,
-                             char replicate_to)
+pycbc_handle_durability_args(pycbc_Bucket *self, pycbc_dur_params *params, char persist_to, char replicate_to,
+                             pycbc_DURABILITY_LEVEL dur_level)
 {
     if (self->dur_global.persist_to || self->dur_global.replicate_to) {
         if (persist_to == 0 && replicate_to == 0) {
             persist_to = self->dur_global.persist_to;
             replicate_to = self->dur_global.replicate_to;
+            dur_level = self->dur_global.durability_level;
         }
     }
 
@@ -603,7 +602,10 @@ pycbc_handle_durability_args(pycbc_Bucket *self,
 
         return 1;
     }
-
+    else if (dur_level)
+    {
+        params->durability_level=dur_level;
+    }
     return 0;
 }
 
