@@ -27,6 +27,14 @@ warnings.filterwarnings(action='default',
 
 from couchbase.user_constants import *
 import couchbase._libcouchbase as _LCB
+import os
+
+cppyy_build=os.getenv("PYCBC_CPPYY")
+if cppyy_build:
+    try:
+        import cppyy
+    except:
+        pass
 
 from typing import Union, Mapping, List
 
@@ -38,6 +46,14 @@ try:
 
 except ImportError:
     __version__ = "0.0.0-could-not-find-git"
+
+import os
+cppyy_build=os.getenv("PYCBC_CPPYY")
+if cppyy_build:
+    try:
+        import cppyy
+    except:
+        pass
 
 
 def set_json_converters(encode, decode):
