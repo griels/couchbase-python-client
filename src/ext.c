@@ -336,11 +336,19 @@ init_libcouchbase(void)
     X(_SDResult, pycbc_SDResultType_init)              \
     PYCBC_CRYPTO_TYPES(PYCBC_CRYPTO_TYPES_ADAPTER)
 #ifdef PYCBC_TRACING
-#define X_PYTYPES(X)       \
+#define X_PYTYPES_NOCOLLECTIONS(X)       \
     X_PYTYPES_NOTRACING(X) \
     X(Tracer, pycbc_TracerType_init)
 #else
-#define X_PYTYPES(X) X_PYTYPES_NOTRACING(X)
+#define X_PYTYPES_NOCOLLECTIONS(X) X_PYTYPES_NOTRACING(X)
+#endif
+
+#ifdef PYCBC_COLLECTIONS_PROPER
+#define X_PYTYPES(X)       \
+    X_PYTYPES_NOCOLLECTIONS(X) \
+    X(Collection, pycbc_CollectionType_init)
+#else
+#define X_PYTYPES(X) X_PYTYPES_NOCOLLECTIONS(X)
 #endif
 
 #define X(name, inf) PyObject *cls_##name;
