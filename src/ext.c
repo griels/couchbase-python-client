@@ -486,6 +486,14 @@ FAIL:
 #include <inttypes.h>
 #endif
 
+int pycbc_free_debug(const char* FILE, const char* FUNC, int LINE, void* X){
+    if (X) {
+        PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"freeing %p", X);
+    }                                     \
+    free(X);
+    return 0;
+}
+
 #include "oputil.h"
 #if PY_MAJOR_VERSION < 3
 const char *pycbc_cstrn(PyObject *object, Py_ssize_t *length)
@@ -540,9 +548,14 @@ int pycbc_strn_valid(const pycbc_strn buf)
     return buf.buffer ? 1 : 0;
 }
 
-size_t pycbc_strn_len(const pycbc_strn buf)
+size_t pycbc_strn_len(pycbc_strn_base_const buf)
 {
     return buf.length;
+}
+
+pycbc_strn_base_const pycbc_strn_const(pycbc_strn buf)
+{
+    return (pycbc_strn_base_const){buf.buffer,buf.length};
 }
 
 int pycbc_strn_repr_len(const pycbc_strn buf)
@@ -599,6 +612,10 @@ void pycbc_strn_free(pycbc_strn_unmanaged buf)
     free((void*)buf.content.buffer);
 }
 
+pycbc_generic_array pycbc_strn_base_const_array(pycbc_strn_base_const orig)
+{
+    return (pycbc_generic_array){orig.buffer,orig.length};
+}
 #define PYCBC_STRN_FREE(BUF)                            \
     PYCBC_DEBUG_LOG("Freeing string buffer %.*s at %p", \
                     (int)(BUF).content.length,               \
@@ -796,6 +813,13 @@ void pycbc_exception_log(const char *file,
     }
 }
 #endif
+
+int pycbc_debug_info_is_valid(pycbc_debug_info* info)
+{
+    return info && info->FILE && info->FUNC && info->LINE;
+}
+
+
 void pycbc_print_pyformat(const char *format, ...)
 {
     va_list v1;
@@ -834,6 +858,13 @@ PyObject *pycbc_null_or_value(PyObject *tracer)
 {
     return (tracer && PyObject_IsTrue(tracer)) ? tracer : NULL;
 }
+
+lcb_STATUS pycbc_logging_monad_verb(const char* FILE, const char* FUNC, int LINE, lcb_INSTANCE instance, void* COOKIE, void* CMD, const char* CMDNAME, const char* VERB, lcb_STATUS result)
+{
+    PYCBC_DEBUG_LOG_WITH_FILE_FUNC_AND_LINE_NEWLINE(FILE,FUNC,LINE,"Doing %s, %s==%llx: %llx, %llx, got result %d", VERB, CMDNAME, CMD, instance, COOKIE, result);
+    return result;
+}
+
 
 #ifdef PYCBC_TRACING
 
@@ -1268,13 +1299,13 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
         const char *COMPONENTNAME,
         const char *CATEGORY,
         PyObject *KWARGS,
-        pycbc_Bucket *self)
+        pycbc_Tracer_t *tracer)
 {
     return pycbc_logging_monad(FILE,
                                LINE,
                                FUNCTION,
                                COMPONENTNAME,
-                               PYCBC_TRACER_START_SPAN(self->tracer,
+                               PYCBC_TRACER_START_SPAN(tracer,
                                                        KWARGS,
                                                        CATEGORY,
                                                        0,
@@ -1716,6 +1747,13 @@ void pycbc_set_kv_ull(PyObject *dict, PyObject *keystr, lcb_uint64_t parenti_id)
     PyDict_SetItem(dict, keystr, pULL);
     PYCBC_DECREF(pULL);
 }
+
+void pycbc_set_kv_ull_str(PyObject *dict, const char *keystr, lcb_uint64_t parenti_id) {
+    PyObject *keyobj = pycbc_SimpleStringZ(keystr);
+    pycbc_set_kv_ull(dict, keyobj, parenti_id);
+    PYCBC_DECREF(keyobj);
+}
+
 #define PYCBC_TYPE_DEF(NAME, DOC, ...) \
     PyTypeObject pycbc_##NAME##Type = {PYCBC_POBJ_HEAD_INIT(NULL) 0};
 
@@ -1938,7 +1976,7 @@ pycbc_strn_unmanaged pycbc_dupe_strn_tag(const lcbtrace_SPAN *span, const char *
     PYCBC_DEBUG_LOG("Looking for tagname %s from %p, got something: [%.*s]",
                     tagname,
                     span,
-                    (int)pycbc_strn_len(tag_contents),
+                    (int)pycbc_strn_len(pycbc_strn_const(tag_contents)),
                     pycbc_strn_buf(tag_contents));
     return tag_psz;
 }
@@ -3004,3 +3042,65 @@ int pycbc_TracerType_init(PyObject **ptr) {
 }
 
 #endif
+
+#if PYCBC_LCB_API<0x030001
+unsigned long long int lcb_mutation_token_seqno(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_SEQ(pToken);
+}
+
+unsigned short lcb_mutation_token_vbid(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_VB(pToken);
+}
+
+unsigned long long int lcb_mutation_token_uuid(const lcb_MUTATION_TOKEN *pToken) {
+    return LCB_MUTATION_TOKEN_ID(pToken);
+}
+#endif
+
+#if PYCBC_LCB_API<0x031000
+void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy) {
+#if PYCBC_LCB_API >0x030000
+    switch (strategy) {
+        case LCB_REPLICA_MODE_ANY:
+            lcb_cmdgetreplica_create_first(pcmd);
+            break;
+        case LCB_REPLICA_MODE_ALL:
+            lcb_cmdgetreplica_create_all(pcmd);
+            break;
+
+        case LCB_REPLICA_MODE_IDX0:
+        case LCB_REPLICA_MODE_IDX1:
+        case LCB_REPLICA_MODE_IDX2:
+        default:
+        lcb_cmdgetreplica_create_select(pcmd, strategy - LCB_REPLICA_MODE_IDX0);
+            break;
+    }
+#else
+    (*pcmd)->strategy = strategy;                 \
+    switch (strategy) {                         \
+    case LCB_REPLICA_MODE_ANY:                  \
+        (*pcmd)->strategy = LCB_REPLICA_FIRST;    \
+        break;                                  \
+    case LCB_REPLICA_MODE_ALL:                  \
+        (*pcmd)->strategy = LCB_REPLICA_ALL;      \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX0:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 0;                       \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX1:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 1;                       \
+        break;                                  \
+    case LCB_REPLICA_MODE_IDX2:                 \
+        (*pcmd)->strategy = LCB_REPLICA_SELECT;   \
+        (*pcmd)->index = 2;                       \
+        break;                                  \
+    default:                                    \
+        break;                                  \
+    }
+
+#endif
+}
+#endif
+

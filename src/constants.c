@@ -14,7 +14,7 @@
  *   limitations under the License.
  **/
 
-#include "pycbc.h"
+#include "pycbc_http.h"
 #include "iops.h"
 
 /**
@@ -113,7 +113,7 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     #define X(b) ADD_MACRO(LCB_##b);
     XERR(X);
     XHTTP(X);
-#ifdef PYCBC_V4
+#if PYCBC_LCB_API<=0x030001
 #undef X
 #define X(b) handler(module, "LCB_" #b, LCB_STORE_##b);
 #endif
@@ -214,7 +214,6 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     /* View options */
     ADD_MACRO(LCB_CMDVIEWQUERY_F_INCLUDE_DOCS);
     ADD_MACRO(LCB_CMDVIEWQUERY_F_SPATIAL);
-
     ADD_MACRO(LCB_SDCMD_REPLACE);
     ADD_MACRO(LCB_SDCMD_DICT_ADD);
     ADD_MACRO(LCB_SDCMD_DICT_UPSERT);
@@ -226,14 +225,13 @@ do_all_constants(PyObject *module, pycbc_constant_handler handler)
     ADD_MACRO(LCB_SDCMD_COUNTER);
     ADD_MACRO(LCB_SDCMD_REMOVE);
     ADD_MACRO(LCB_SDCMD_ARRAY_INSERT);
-
     /* Bucket types */
     ADD_MACRO(LCB_BTYPE_UNSPEC);
     ADD_MACRO(LCB_BTYPE_COUCHBASE);
     ADD_MACRO(LCB_BTYPE_EPHEMERAL);
     ADD_MACRO(LCB_BTYPE_MEMCACHED);
     /* Encryption options */
-#ifndef PYCBC_V4
+#if PYCBC_LCB_API<0x030001
     ADD_MACRO(LCBCRYPTO_KEY_ENCRYPT);
     ADD_MACRO(LCBCRYPTO_KEY_DECRYPT);
 #endif
