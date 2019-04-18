@@ -1,25 +1,31 @@
 #include "pycbc.h"
 #include "oputil.h"
 #include "structmember.h"
+#if LCB_VERSION<0x030000
 #include <libcouchbase/cbft.h>
+#endif
 
 static void
 fts_row_callback(lcb_t instance, int ign, const lcb_RESPFTS *resp)
 {
-    pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
+    pycbc_MultiResult *mres;
+    lcb_respfts_cookie(resp, (const void **) &mres);
     pycbc_Bucket *bucket = mres->parent;
     pycbc_ViewResult *vres;
     const char * const * hdrs = NULL;
     short htcode = 0;
+    const lcb_RESPHTTP* htresp=NULL;
 
     PYCBC_CONN_THR_END(bucket);
     vres = (pycbc_ViewResult *)PyDict_GetItem((PyObject*)mres, Py_None);
-    if (resp->htresp) {
-        hdrs = resp->htresp->headers;
-        htcode = resp->htresp->htstatus;
+
+    lcb_respfts_http_response(resp,&htresp);
+    if (htresp) {
+        lcb_resphttp_headers(htresp,&hdrs);
+        htcode = (short) lcb_resphttp_status(htresp);
     }
 
-    if (resp->rflags & LCB_RESP_F_FINAL) {
+    if (lcb_respfts_is_final(resp)){
         pycbc_httpresult_add_data(mres, &vres->base, resp->row, resp->nrow);
     } else {
         /* Like views, try to decode the row and invoke the callback; if we can */
