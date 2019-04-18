@@ -14,14 +14,12 @@
  *   limitations under the License.
  **/
 
-#include <libcouchbase/api3.h>
+#include <libcouchbase/couchbase.h>
 #include "pycbc.h"
-
+#include "pycbc_http.h"
 #define CB_THREADS
 
 #ifdef CB_THREADS
-
-static PyObject * mk_sd_tuple(const lcb_SDENTRY *ent);
 
 /*
  * Add the sub-document error to the result list
@@ -79,9 +77,9 @@ enum {
 };
 
 /* Returns true if an error has been added... */
+/* Returns true if an error has been added... */
 static int
-maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
-    int check_enoent)
+maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err, int check_enoent, pycbc_debug_info debug_info)
 {
 #ifdef PYCBC_TRACING
     pycbc_stack_context_handle parent_context =
@@ -106,9 +104,38 @@ maybe_push_operr(pycbc_MultiResult *mres, pycbc_Result *res, lcb_error_t err,
     }
 
     mres->errop = (PyObject*)res;
+    if (pycbc_debug_info_is_valid(&debug_info))
+    {
+        PyObject* py_debug_info=NULL;
+        if (!res->tracing_output)
+        {
+            res->tracing_output=PyDict_New();
+        }
+        {
+            py_debug_info=PyDict_GetItemString(res->tracing_output, PYCBC_DEBUG_INFO_STR);
+            if (!py_debug_info)
+            {
+                py_debug_info=PyDict_New();
+                PyDict_SetItemString(res->tracing_output, PYCBC_DEBUG_INFO_STR, py_debug_info);
+
+            }
+            pycbc_dict_add_text_kv(py_debug_info,"FILE",debug_info.FILE);
+            pycbc_dict_add_text_kv(py_debug_info,"FUNC",debug_info.FUNC);
+            pycbc_set_kv_ull_str(py_debug_info, "LINE", (lcb_uint64_t) debug_info.LINE);
+            PYCBC_DECREF(py_debug_info);
+        };
+    }
     Py_INCREF(mres->errop);
     return 1;
 }
+
+pycbc_debug_info pycbc_build_debug_info(const char* FILE, const char* FUNC, int line)
+{
+    return (pycbc_debug_info){FILE,FUNC,line};
+}
+
+#define PYCBC_BUILD_DEBUG_INFO  pycbc_build_debug_info(__FILE__,__FUNCTION_NAME__,__LINE__)
+#define MAYBE_PUSH_OPERR(mres,res,err,check_enoent) maybe_push_operr(mres,res,err,check_enoent,PYCBC_BUILD_DEBUG_INFO)
 
 static void operation_completed3(pycbc_Bucket *self,
                                  pycbc_MultiResult *mres,
@@ -138,19 +165,26 @@ static void operation_completed3(pycbc_Bucket *self,
 }
 
 
-void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value)
-{
-    if (!key || !value || !dict) {
-        PYCBC_DEBUG_LOG("one of key %p value %p dict %p is NULL", key, value, dict);
-    }
-    PYCBC_DEBUG_LOG("adding %s to %s on %p\n", value, key, dict);
+void pycbc_dict_add_text_kv_strn(PyObject *dict, pycbc_strn_base_const strn_key, pycbc_strn_base_const strn_value);
+
+void pycbc_dict_add_text_kv_strn(PyObject *dict, pycbc_strn_base_const strn_key, pycbc_strn_base_const strn_value) {
+    PYCBC_DEBUG_LOG("adding %.*s to %.*s on %p\n", strn_value.length, strn_value.buffer,
+            strn_key.length, strn_key.buffer, dict);
     {
-        PyObject *valstr = pycbc_SimpleStringZ(value);
-        PyObject *keystr = pycbc_SimpleStringZ(key);
+        PyObject *valstr = pycbc_SimpleStringN(strn_value.buffer, strn_value.length);
+        PyObject *keystr = pycbc_SimpleStringN(strn_key.buffer, strn_key.length);
         PyDict_SetItem(dict, keystr, valstr);
         PYCBC_DECREF(valstr);
         PYCBC_DECREF(keystr);
     }
+}
+
+void pycbc_dict_add_text_kv(PyObject *dict, const char *key, const char *value) {
+    if (!key || !value || !dict) {
+        PYCBC_DEBUG_LOG("one of key %p value %p dict %p is NULL", key, value, dict);
+    }
+    pycbc_dict_add_text_kv_strn(dict, (pycbc_strn_base_const) {.buffer=key, .length=strlen(key)},
+                                (pycbc_strn_base_const) {.buffer=value, .length=strlen(value)});
 }
 
 void pycbc_enhanced_err_register_entry(PyObject **dict,
@@ -167,13 +201,21 @@ void pycbc_enhanced_err_register_entry(PyObject **dict,
 }
 
 static pycbc_enhanced_err_info *pycbc_enhanced_err_info_store(
-        const lcb_RESPBASE *respbase, int cbtype)
+        const lcb_RESPBASE *respbase, int cbtype, pycbc_debug_info* info)
 {
     pycbc_enhanced_err_info *err_info = NULL;
     const char *ref = lcb_resp_get_error_ref(cbtype, respbase);
     const char *context = lcb_resp_get_error_context(cbtype, respbase);
     pycbc_enhanced_err_register_entry(&err_info, "ref", ref);
     pycbc_enhanced_err_register_entry(&err_info, "context", context);
+    if (info) {
+        char LINEBUF[100]={0};
+
+        pycbc_enhanced_err_register_entry(&err_info, "FILE", info->FILE);
+        pycbc_enhanced_err_register_entry(&err_info, "FUNC", info->FUNC);
+        snprintf(LINEBUF, 100, "%d", info->LINE);
+        pycbc_enhanced_err_register_entry(&err_info, "LINE", LINEBUF);
+    }
     return err_info;
 }
 
@@ -184,7 +226,7 @@ static void operation_completed_with_err_info(pycbc_Bucket *self,
                                               pycbc_Result *res)
 {
     pycbc_enhanced_err_info *err_info =
-            pycbc_enhanced_err_info_store(resp, cbtype);
+            pycbc_enhanced_err_info_store(resp, cbtype, NULL);
     pycbc_stack_context_handle context = PYCBC_RESULT_EXTRACT_CONTEXT(res);
     PYCBC_DEBUG_LOG("Completed context %p with %p, nremaining is %d",
                     context,
@@ -208,9 +250,19 @@ static void operation_completed_with_err_info(pycbc_Bucket *self,
  * processing has completed. In both cases the `conn` and `mres` paramters
  * are valid, however.
  */
+
+typedef struct
+{
+    int cbtype;
+    pycbc_strn_base_const key;
+    pycbc_MultiResult* mres;
+    lcb_STATUS rc;
+    uint64_t cas;
+} response_handler;
+
 static int
-get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
-    pycbc_Result **res, int restype, pycbc_MultiResult **mres)
+get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn, pycbc_Result **res, int restype,
+                   pycbc_MultiResult **mres, response_handler *handler)
 
 {
     PyObject *hkey;
@@ -222,13 +274,33 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     pycbc_stack_context_handle decoding_context = NULL;
     int was_tracing_stub = 0;
 #endif
-    pycbc_assert(pycbc_multiresult_check(resp->cookie));
-    *mres = (pycbc_MultiResult*)resp->cookie;
+    switch (handler->cbtype)
+    {
+        case LCB_CALLBACK_REMOVE:
+        case LCB_CALLBACK_UNLOCK:
+        case LCB_CALLBACK_TOUCH:
+        case LCB_CALLBACK_ENDURE:
+        case LCB_CALLBACK_GET:
+        case LCB_CALLBACK_GETREPLICA:
+        case LCB_CALLBACK_COUNTER:
+        case LCB_CALLBACK_OBSERVE:
+        case LCB_CALLBACK_STATS:
+        case LCB_CALLBACK_PING:
+        case LCB_CALLBACK_DIAG:
+        default:
+            lcb_respget_key((const lcb_RESPGET*)resp, &handler->key.buffer, &handler->key.length);
+            handler->rc=lcb_respget_status((lcb_RESPGET*)resp);
+            lcb_respget_cookie((const lcb_RESPGET*)resp,(const void**)mres);
+            lcb_respget_cas((const lcb_RESPGET*)resp,(uint64_t*)&handler->cas);
+            break;
+    }
+
+    pycbc_assert(pycbc_multiresult_check(*mres));
     *conn = (*mres)->parent;
 
     CB_THR_END(*conn);
 
-    rv = pycbc_tc_decode_key(*conn, resp->key, resp->nkey, &hkey);
+    rv = pycbc_tc_decode_key(*conn, handler->key.buffer, handler->key.length, &hkey);
 
     if (rv < 0) {
         pycbc_multiresult_adderr(*mres);
@@ -322,11 +394,11 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
             }
 #endif
 #endif
-        if (resp->rc && res && *res) {
-            (*res)->rc = resp->rc;
+        if (handler->rc && res && *res) {
+            (*res)->rc = handler->rc;
         }
 
-        if (resp->rc != LCB_SUCCESS) {
+        if (handler->rc != LCB_SUCCESS) {
             (*mres)->all_ok = 0;
         }
     }
@@ -343,7 +415,7 @@ get_common_objects(const lcb_RESPBASE *resp, pycbc_Bucket **conn,
     }
     return 0;
 }
-
+#ifndef PYCBC_V4
 static void
 invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
 {
@@ -355,15 +427,10 @@ invoke_endure_test_notification(pycbc_Bucket *self, pycbc_Result *resp)
     Py_XDECREF(ret);
     Py_XDECREF(argtuple);
 }
-
-#ifdef PYCBC_V4
-#define LCB_MUTATION_TOKEN_ISVALID(p) lcb_mutation_token_is_valid(p)
-#define LCB_MUTATION_TOKEN_VB(p) lcb_mutation_token_vbid(p)
-#define LCB_MUTATION_TOKEN_ID(p) lcb_mutation_token_uuid(p)
-#define LCB_MUTATION_TOKEN_SEQ(p) lcb_mutation_token_seqno(p)
-#else
 #endif
 
+
+#ifndef PYCBC_V4
 static void
 dur_chain2(pycbc_Bucket *conn,
     pycbc_MultiResult *mres,
@@ -396,7 +463,7 @@ dur_chain2(pycbc_Bucket *conn,
     }
 
     /** For remove, we check quiet */
-    maybe_push_operr(mres, (pycbc_Result*)res, resp->rc, is_delete ? 1 : 0);
+    MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, resp->rc, is_delete ? 1 : 0);
 
     if ((mres->mropts & PYCBC_MRES_F_DURABILITY) == 0 || resp->rc != LCB_SUCCESS) {
         operation_completed_with_err_info(
@@ -443,7 +510,7 @@ dur_chain2(pycbc_Bucket *conn,
     }
     if (err != LCB_SUCCESS) {
         res->rc = err;
-        maybe_push_operr(mres, (pycbc_Result*)res, err, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, err, 0);
         operation_completed_with_err_info(
                 conn, mres, cbtype, resp, (pycbc_Result *)res);
     }
@@ -461,6 +528,7 @@ durability_chain_common(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     pycbc_OperationResult *res = NULL;
     pycbc_MultiResult *mres;
     int restype = RESTYPE_VARCOUNT;
+    response_handler dur_handler={.cbtype=cbtype};
     PYCBC_DEBUG_LOG("Durability chain callback")
     if (cbtype == LCB_CALLBACK_COUNTER) {
         restype |= RESTYPE_VALUE;
@@ -468,7 +536,7 @@ durability_chain_common(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         restype |= RESTYPE_OPERATION;
     }
 
-    if (get_common_objects(resp, &conn, (pycbc_Result**)&res, restype, &mres) != 0) {
+    if (get_common_objects(resp, &conn, (pycbc_Result **) &res, restype, &mres, &dur_handler) != 0) {
         operation_completed_with_err_info(
                 conn, mres, cbtype, resp, (pycbc_Result *)res);
         PYCBC_DEBUG_LOG("Durability chain returning")
@@ -480,7 +548,7 @@ durability_chain_common(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
                             "durability_chain_common")
     dur_chain2(conn, mres, res, cbtype, resp);
 }
-
+#endif
 static void
 value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
 {
@@ -488,9 +556,10 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     pycbc_Bucket *conn = NULL;
     pycbc_ValueResult *res = NULL;
     pycbc_MultiResult *mres = NULL;
+    response_handler handler={.cbtype=cbtype};
     PYCBC_DEBUG_LOG("Value callback")
-    rv = get_common_objects(resp, &conn, (pycbc_Result**)&res, RESTYPE_VALUE,
-        &mres);
+    rv = get_common_objects(resp, &conn, (pycbc_Result **) &res, RESTYPE_VALUE,
+                            &mres, &handler);
 
     if (rv < 0) {
         goto GT_DONE;
@@ -498,11 +567,11 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
                             "Value callback continues")
 
-    if (resp->rc == LCB_SUCCESS) {
-        res->cas = resp->cas;
+    if (handler.rc == LCB_SUCCESS) {
+        res->cas = handler.cas;
     } else {
-        maybe_push_operr(mres, (pycbc_Result*)res, resp->rc,
-            cbtype != LCB_CALLBACK_COUNTER);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, handler.rc,
+                         cbtype != LCB_CALLBACK_COUNTER);
         goto GT_DONE;
     }
 
@@ -532,7 +601,7 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
         }
     } else if (cbtype == LCB_CALLBACK_COUNTER) {
         const lcb_RESPCOUNTER *cresp = (const lcb_RESPCOUNTER *)resp;
-        unsigned  long long value = 0;
+        uint64_t value = 0;
         lcb_respcounter_value(cresp, &value);
         res->value = pycbc_IntFromULL(value);
     }
@@ -552,13 +621,205 @@ mk_sd_error(pycbc__SDResult *res,
     pycbc_multiresult_adderr(mres);
 }
 
+#if 0
+static void
+get_v4_callback(lcb_INSTANCE* dummy, int cbtype, const lcb_RESPGET *resp)
+{
+    (void)dummy;
+    fprintf(stderr, "Got callback for %s.. ", lcb_strcbtype(cbtype));
+
+    lcb_STATUS rc = lcb_respget_status(resp);
+    if (rc != LCB_SUCCESS) {
+        fprintf(stderr, "Operation failed (%s)\n", lcb_strerror(NULL, rc));
+        return;
+    }
+
+    const char *value;
+    size_t nvalue;
+    lcb_respget_value(resp, &value, &nvalue);
+    fprintf(stderr, "Value %.*s\n", (int)nvalue, value);
+}
+
+static void
+store_v4_callback(lcb_INSTANCE* dummy, int cbtype, const lcb_RESPSTORE *resp)
+{
+    (void)dummy;
+    fprintf(stderr, "Got callback for %s.. ", lcb_strcbtype(cbtype));
+
+    lcb_STATUS rc = lcb_respstore_status(resp);
+    if (rc != LCB_SUCCESS) {
+        fprintf(stderr, "Operation failed (%s)\n", lcb_strerror(NULL, rc));
+        return;
+    }
+
+    fprintf(stderr, "OK\n");
+}
+#endif
+
+
+// cluster_run mode
+#define DEFAULT_CONNSTR "couchbase://localhost"
+/*
+int main(int argc, char **argv) {
+    lcb_create_st crst;
+    memset(&crst,sizeof(crst),0);
+    //= { 0 };
+    crst.version = 3;
+    if (argc > 1) {
+        crst.v.v3.connstr = argv[1];
+    } else {
+        crst.v.v3.connstr = DEFAULT_CONNSTR;
+    }
+    if (argc > 2) {
+        crst.v.v3.username = argv[2];
+    } else {
+        crst.v.v3.username = "Administrator";
+    }
+    if (argc > 3) {
+        crst.v.v3.passwd = argv[3];
+    } else {
+        crst.v.v3.passwd = "password";
+    }
+
+    lcb_INSTANCE *instance;
+    lcb_STATUS rc = lcb_create(&instance, &crst);
+    assert(rc == LCB_SUCCESS);
+
+    rc = lcb_connect(instance);
+    assert(rc == LCB_SUCCESS);
+    lcb_wait(instance);
+    rc = lcb_get_bootstrap_status(instance);
+    assert(rc == LCB_SUCCESS);
+
+    // Install generic callback
+    lcb_install_callback3(instance, LCB_CALLBACK_GET, (lcb_RESPCALLBACK)get_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_STORE, (lcb_RESPCALLBACK)store_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_SDLOOKUP, (lcb_RESPCALLBACK)subdoc_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_SDMUTATE, (lcb_RESPCALLBACK)subdoc_callback);
+
+    // Store an item
+    lcb_CMDSTORE *scmd;
+    lcb_cmdstore_create(&scmd, LCB_STORE_SET);
+    lcb_cmdstore_key(scmd, "key", 3);
+    const char *initval = "{\"hello\":\"world\"}";
+    lcb_cmdstore_value(scmd, initval, strlen(initval));
+    rc = lcb_store(instance, NULL, scmd);
+    lcb_cmdstore_destroy(scmd);
+    assert(rc == LCB_SUCCESS);
+
+    lcb_SUBDOCOPS *specs;
+
+    lcb_subdocops_create(&specs, 5);
+    std::string bufs[10];
+    // Add some mutations
+    for (int ii = 0; ii < 5; ii++) {
+        std::string& path = bufs[ii * 2];
+        std::string& val = bufs[(ii * 2) + 1];
+        char pbuf[24], vbuf[24];
+
+        sprintf(pbuf, "pth%d", ii);
+        sprintf(vbuf, "\"Value_%d\"", ii);
+        path = pbuf;
+        val = vbuf;
+
+        lcb_subdocops_dict_upsert(specs, ii, 0, path.c_str(), path.size(), val.c_str(), val.size());
+    }
+
+    lcb_CMDSUBDOC *mcmd;
+    lcb_cmdsubdoc_create(&mcmd);
+    lcb_cmdsubdoc_key(mcmd, "key", 3);
+    lcb_cmdsubdoc_operations(mcmd, specs);
+    rc = lcb_subdoc(instance, NULL, mcmd);
+    lcb_subdocops_destroy(specs);
+    assert(rc == LCB_SUCCESS);
+
+    // Reset the specs
+    lcb_subdocops_create(&specs, 5);
+    for (int ii = 0; ii < 5; ii++) {
+        char pbuf[24];
+        std::string& path = bufs[ii];
+        sprintf(pbuf, "pth%d", ii);
+        path = pbuf;
+
+        lcb_subdocops_get(specs, ii, 0, path.c_str(), path.size());
+    }
+
+    lcb_subdocops_get(specs, 5, 0, "dummy", 5);
+    lcb_cmdsubdoc_operations(mcmd, specs);
+    rc = lcb_subdoc(instance, NULL, mcmd);
+    lcb_subdocops_destroy(specs);
+    lcb_cmdsubdoc_destroy(mcmd);
+    assert(rc == LCB_SUCCESS);
+
+    lcb_CMDGET *gcmd;
+    lcb_cmdget_create(&gcmd);
+    lcb_cmdget_key(gcmd, "key", 3);
+    rc = lcb_get(instance, NULL, gcmd);
+    assert(rc == LCB_SUCCESS);
+    lcb_cmdget_destroy(gcmd);
+
+    lcb_wait(instance);
+    lcb_destroy(instance);
+}
+
+static void subdoc_v4_callback(lcb_INSTANCE* dummy, int type, const lcb_RESPSUBDOC *resp)
+{
+    lcb_STATUS rc = lcb_respsubdoc_status(resp);
+    (void)dummy;
+
+    fprintf(stderr, "Got callback for %s.. ", lcb_strcbtype(type));
+    if (rc != LCB_SUCCESS && rc != LCB_SUBDOC_MULTI_FAILURE) {
+        fprintf(stderr, "Operation failed (%s)\n", lcb_strerror_short(rc));
+        return;
+    }
+    {
+        size_t total = lcb_respsubdoc_result_size(resp);
+        size_t idx=0;
+        for (idx = 0; idx < total; idx++) {
+            rc = lcb_respsubdoc_result_status(resp, idx);
+            const char *value;
+            size_t
+            nvalue;
+            lcb_respsubdoc_result_value(resp, idx, &value, &nvalue);
+            printf("[%lu]: 0x%x. %.*s\n", idx, rc, (int) nvalue, value);
+        }
+    }
+}
+*/
+
+#if PYCBC_LCB_API>0x030001
+typedef struct{const lcb_RESPSUBDOC* resp; size_t index;} pycbc_SDENTRY;
+#else
+typedef lcb_SDENTRY pycbc_SDENTRY;
+#endif
+
+lcb_STATUS pycbc_respsubdoc_status(const pycbc_SDENTRY* ent){
+#if PYCBC_LCB_API>0x030001
+    return lcb_respsubdoc_result_status(ent->resp,ent->index);
+#else
+    return ent->status;
+#endif
+}
+
+pycbc_strn_base_const pycbc_respsubdoc_value(const pycbc_SDENTRY *ent)
+{
+    pycbc_strn_base_const result;
+#if PYCBC_LCB_API>0x030001
+    lcb_respsubdoc_result_value(ent->resp,ent->index,&result.buffer, &result.length);
+#else
+    result.buffer=ent->value;
+    result.length=ent->nvalue;
+#endif
+    return result;
+}
 static PyObject *
-mk_sd_tuple(const lcb_SDENTRY *ent)
+mk_sd_tuple(const pycbc_SDENTRY *ent)
 {
     PyObject *val = NULL;
     PyObject *ret;
-    if (ent->status == LCB_SUCCESS && ent->nvalue != 0) {
-        int rv = pycbc_tc_simple_decode(&val, ent->value, ent->nvalue, PYCBC_FMT_JSON);
+    pycbc_strn_base_const ent_strn= pycbc_respsubdoc_value(ent);
+    if (pycbc_respsubdoc_status(ent) == LCB_SUCCESS && ent_strn.length != 0) {
+        int rv = pycbc_tc_simple_decode(&val, ent_strn.buffer, ent_strn.length, PYCBC_FMT_JSON);
         if (rv != 0) {
             return NULL;
         }
@@ -569,11 +830,26 @@ mk_sd_tuple(const lcb_SDENTRY *ent)
         Py_INCREF(Py_None);
     }
 
-    ret = Py_BuildValue("(iO)", ent->status, val);
+    ret = Py_BuildValue("(iO)", pycbc_respsubdoc_status(ent), val);
     Py_DECREF(val);
     return ret;
 
 }
+
+int pycbc_sdresult_next(const lcb_RESPSUBDOC *resp, pycbc_SDENTRY *dest, size_t *index){
+#if PYCBC_LCB_API<0x031000
+    return lcb_sdresult_next(resp, dest, index);
+#else
+    if (((*index)+1)>=lcb_respsubdoc_result_size(resp)){
+        return 0;
+    }
+    ++index;
+    *dest=(pycbc_SDENTRY){.resp=resp,.index=*index};
+#endif
+    return 1;
+}
+
+
 
 static void
 subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
@@ -582,27 +858,29 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
     pycbc_Bucket *conn;
     pycbc__SDResult *res;
     pycbc_MultiResult *mres;
-    lcb_SDENTRY cur;
+    pycbc_SDENTRY cur;
+    response_handler handler={.cbtype=cbtype};
     size_t vii = 0, oix = 0;
     const lcb_RESPSUBDOC *resp = (const lcb_RESPSUBDOC *)rb;
     PYCBC_DEBUG_LOG("Subdoc callback")
     rv = get_common_objects(rb, &conn,
-        (pycbc_Result**)&res, RESTYPE_EXISTS_OK, &mres);
+                            (pycbc_Result **) &res, RESTYPE_EXISTS_OK, &mres, &handler);
     if (rv < 0) {
         goto GT_ERROR;
     }
 
     PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
                             "Subdoc callback continues")
-    if (rb->rc == LCB_SUCCESS || rb->rc == LCB_SUBDOC_MULTI_FAILURE) {
-        res->cas = rb->cas;
+    if (handler.rc == LCB_SUCCESS || handler.rc == LCB_SUBDOC_MULTI_FAILURE) {
+        res->cas = handler.cas;
     } else {
-        maybe_push_operr(mres, (pycbc_Result*)res, rb->rc, 0);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, handler.rc, 0);
         goto GT_ERROR;
     }
 
-    while ((lcb_sdresult_next(resp, &cur, &vii))) {
+    while ((pycbc_sdresult_next(resp, &cur, &vii))) {
         size_t cur_index;
+        lcb_STATUS rc;
         PyObject *cur_tuple = mk_sd_tuple(&cur);
 
         if (cbtype == LCB_CALLBACK_SDMUTATE) {
@@ -616,20 +894,23 @@ subdoc_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
             goto GT_ERROR;
         }
 
-        if (cur.status != LCB_SUCCESS) {
+        rc=pycbc_respsubdoc_status(&cur);
+        if (rc != LCB_SUCCESS) {
             if (cbtype == LCB_CALLBACK_SDMUTATE) {
-                mk_sd_error(res, mres, cur.status, cur_index);
-            } else if (cur.status != LCB_SUBDOC_PATH_ENOENT) {
-                mk_sd_error(res, mres, cur.status, cur_index);
+                mk_sd_error(res, mres, rc, cur_index);
+            } else if (rc != LCB_SUBDOC_PATH_ENOENT) {
+                mk_sd_error(res, mres, rc, cur_index);
             }
         }
 
         pycbc_sdresult_addresult(res, cur_index, cur_tuple);
         Py_DECREF(cur_tuple);
     }
-    if (rb->rc == LCB_SUCCESS) {
+    if (handler.rc == LCB_SUCCESS) {
+#ifndef PYCBC_V4
         dur_chain2(conn, mres, (pycbc_OperationResult*)res, cbtype, (const lcb_RESPBASE*)resp);
         return;
+#endif
     }
 
     GT_ERROR:
@@ -647,21 +928,23 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     pycbc_Bucket *conn = NULL;
     pycbc_OperationResult *res = NULL;
     pycbc_MultiResult *mres = NULL;
-
+    response_handler handler={.cbtype=cbtype};
+#ifndef PYCBC_V4
     if (cbtype == LCB_CALLBACK_ENDURE) {
         optflags |= RESTYPE_EXISTS_OK;
     }
+#endif
     PYCBC_DEBUG_LOG("Keyop callback")
-    rv = get_common_objects(resp, &conn, (pycbc_Result**)&res, optflags, &mres);
+    rv = get_common_objects(resp, &conn, (pycbc_Result **) &res, optflags, &mres, &handler);
     PYCBC_DEBUG_LOG_CONTEXT(res ? res->tracing_context : NULL,
                             "Keyop callback continues")
 
     if (rv == 0) {
-        res->rc = resp->rc;
-        maybe_push_operr(mres, (pycbc_Result*)res, resp->rc, 0);
+        res->rc = handler.rc;
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, handler.rc, 0);
     }
-    if (resp->cas) {
-        res->cas = resp->cas;
+    if (handler.cas) {
+        res->cas = handler.cas;
     }
 
     operation_completed_with_err_info(
@@ -693,7 +976,7 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
             res = (pycbc_Result *)pycbc_result_new(parent);
             res->rc = resp->rc;
             res->key = Py_None; Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, resp->rc, 0);
         }
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
@@ -735,8 +1018,9 @@ stats_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     CB_THR_BEGIN(parent);
     (void)instance;
 }
-
-
+#ifndef PYCBC_V4
+#define lcb_respstore_observe_stored(resp_base,dest) *dest=(resp_base->rflags & LCB_RESP_F_FINAL);
+#endif
 
 static void
 observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
@@ -745,8 +1029,9 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     pycbc_ObserveInfo *oi;
     pycbc_Bucket *conn;
     pycbc_ValueResult *vres = NULL;
-    pycbc_MultiResult *mres;
+    pycbc_MultiResult *mres =NULL;
     const lcb_RESPOBSERVE *oresp = (const lcb_RESPOBSERVE *)resp_base;
+    response_handler handler={.cbtype=cbtype};
     PYCBC_DEBUG_LOG("observe callback")
     if (resp_base->rflags & LCB_RESP_F_FINAL) {
         mres = (pycbc_MultiResult*)resp_base->cookie;
@@ -755,8 +1040,8 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
         return;
     }
 
-    rv = get_common_objects(resp_base, &conn, (pycbc_Result**)&vres,
-        RESTYPE_VALUE|RESTYPE_EXISTS_OK|RESTYPE_VARCOUNT, &mres);
+    rv = get_common_objects(resp_base, &conn, (pycbc_Result **) &vres,
+                            RESTYPE_VALUE | RESTYPE_EXISTS_OK | RESTYPE_VARCOUNT, &mres, &handler);
 
     if (rv < 0) {
         goto GT_DONE;
@@ -765,8 +1050,9 @@ observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
     PYCBC_DEBUG_LOG_CONTEXT(vres ? vres->tracing_context : NULL,
                             "observe callback continues")
 
-    if (resp_base->rc != LCB_SUCCESS) {
-        maybe_push_operr(mres, (pycbc_Result*)vres, resp_base->rc, 0);
+
+    if (handler.rc != LCB_SUCCESS) {
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) vres, handler.rc, 0);
         goto GT_DONE;
     }
 
@@ -835,11 +1121,17 @@ bootstrap_callback(lcb_t instance, lcb_error_t err)
     X(N1QL, n1ql)        \
     X(FTS, fts)
 
+#ifdef PYCBC_V4
+#define LCB_PING_GET_TYPE_S(X, Y)  \
+    case LCB_PING_SERVICE_##X: \
+        return #Y;
+#else
 #define LCB_PING_GET_TYPE_S(X, Y)  \
     case LCB_PINGSVC_##X: \
         return #Y;
+#endif
 
-const char *get_type_s(lcb_PINGSVCTYPE type)
+const char *get_type_s(lcb_PING_SERVICE type)
 {
     switch (type) {
         LCB_PING_FOR_ALL_TYPES(LCB_PING_GET_TYPE_S)
@@ -848,9 +1140,22 @@ const char *get_type_s(lcb_PINGSVCTYPE type)
     }
     return "Unknown type";
 }
+
 #undef LCB_PING_GET_TYPE_S
 #undef LCB_PING_FOR_ALL_TYPES
 
+#if PYCBC_LCB_API<0x031000
+typedef enum {
+    LCB_PING_STATUS_OK=LCB_PINGSTATUS_OK,
+    LCB_PING_STATUS_TIMEOUT=LCB_PINGSTATUS_TIMEOUT
+
+} pycbc_ping_STATUS;
+#endif
+
+pycbc_strn_base_const pycbc_strn_base_const_from_psz(const char* buf)
+{
+    return (pycbc_strn_base_const){.buffer=buf,.length=buf?strlen(buf):0};
+}
 static void ping_callback(lcb_t instance,
                           int cbtype,
                           const lcb_RESPBASE *resp_base)
@@ -858,18 +1163,29 @@ static void ping_callback(lcb_t instance,
     pycbc_Bucket *parent;
     const lcb_RESPPING *resp = (const lcb_RESPPING *)resp_base;
 
-    pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
-    PyObject *resultdict = pycbc_multiresult_dict(mres);
+    pycbc_MultiResult *mres = NULL;
+    PyObject *resultdict = NULL;
+#if PYCBC_LCB_API<0x031000
+#define lcb_respping_cookie(RESP, DEST) *(DEST)=(RESP)->cookie;
+#define lcb_respping_status(RESP) (RESP)->rc
+#define lcb_respping_result_size(RESP) resp->nservices
+#define lcb_respping_result_service(RESP, INDEX, DEST)     *(DEST)=(RESP)->services[INDEX].type
+#define lcb_respping_result_latency(RESP, INDEX, DEST)     *(DEST)=(RESP)->services[INDEX].latency
+#define lcb_respping_result_status(RESP,INDEX) (RESP)->services[INDEX].rc
+#define lcb_respping_result_remote(RESP, INDEX, BUFFER, NBUFFER) *(BUFFER)=(RESP)->services[INDEX].server;*(NBUFFER)=strlen((RESP)->services[INDEX].server);
+#define lcb_respping_value(RESP,JSON,NJSON) *(JSON)=resp->json; *(NJSON)=resp->njson;
+#endif
+    lcb_respping_cookie(resp,(void**)&mres);
+    resultdict=pycbc_multiresult_dict(mres);
     parent = mres->parent;
     CB_THR_END(parent);
-
-    if (resp->rc != LCB_SUCCESS) {
+    if (lcb_respping_status(resp)!= LCB_SUCCESS) {
         if (mres->errop == NULL) {
             pycbc_Result *res = (pycbc_Result *)pycbc_result_new(parent);
-            res->rc = resp->rc;
+            res->rc = lcb_respping_status(resp);
             res->key = Py_None;
             Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, lcb_respping_status(resp), 0);
         }
     }
 
@@ -877,9 +1193,10 @@ static void ping_callback(lcb_t instance,
         PyObject *struct_services_dict = PyDict_New();
 
         lcb_SIZE ii;
-        for (ii = 0; ii < resp->nservices; ii++) {
-            lcb_PINGSVC *svc = &resp->services[ii];
-            const char *type_s = get_type_s(svc->type);
+        for (ii = 0; ii < lcb_respping_result_size(resp); ii++) {
+            lcb_PING_SERVICE svc=LCB_PING_SERVICE__MAX;
+            lcb_respping_result_service(resp,ii,&svc);
+            const char *type_s = get_type_s(svc);
             PyObject *struct_server_list =
                     PyDict_GetItemString(struct_services_dict, type_s);
             if (!struct_server_list) {
@@ -891,35 +1208,48 @@ static void ping_callback(lcb_t instance,
             {
                 PyObject *mrdict = PyDict_New();
                 PyList_Append(struct_server_list, mrdict);
-                switch (svc->status) {
-                    case LCB_PINGSTATUS_OK:
+
+                switch (lcb_respping_result_status(resp,ii)) {
+                    case LCB_PING_STATUS_OK:
                         break;
-                    case LCB_PINGSTATUS_TIMEOUT:
+                    case LCB_PING_STATUS_TIMEOUT:
                         break;
                     default:
                         pycbc_dict_add_text_kv(mrdict,
                                                "details",
-                                               lcb_strerror_long(svc->rc));
+                                               lcb_strerror_long((lcb_STATUS)lcb_respping_result_status(resp,ii)));
                 }
-                pycbc_dict_add_text_kv(
-                        mrdict, "server", svc->server);
+                {
+                    pycbc_strn_base_const server_name;
+                    lcb_respping_result_remote(resp, ii, &server_name.buffer, &server_name.length);
+                    pycbc_dict_add_text_kv_strn(
+                            mrdict, pycbc_strn_base_const_from_psz("server"), server_name);
+                }
                 PyDict_SetItemString(mrdict,
                                      "status",
-                                     PyLong_FromLong((long)svc->status));
-                PyDict_SetItemString(
-                        mrdict,
-                        "latency",
-                        PyLong_FromUnsignedLong((unsigned long)svc->latency));
-                Py_DECREF(mrdict);
+                                     PyLong_FromLong((long)lcb_respping_result_status(resp,ii)));
+                {
+                    uint64_t latency=0;
+                    lcb_respping_result_latency(resp,ii, &latency);
+                    PyDict_SetItemString(
+                            mrdict,
+                            "latency",
+                            PyLong_FromUnsignedLong((unsigned long) latency));
+                    Py_DECREF(mrdict);
+                }
             }
         }
         PyDict_SetItemString(
                 resultdict, "services_struct", struct_services_dict);
         Py_DECREF(struct_services_dict);
     }
-    if (resp->njson) {
+    {
+        pycbc_strn_base_const json;
+        lcb_respping_value(resp, &json.buffer, &json.length);
+        if (json.length) {
 
-        pycbc_dict_add_text_kv(resultdict, "services_json", resp->json);
+            pycbc_dict_add_text_kv_strn(resultdict, pycbc_strn_base_const_from_psz("services_json"), json);
+        }
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
         /* Note this can happen in both success and error cases!*/
@@ -936,24 +1266,34 @@ static void diag_callback(lcb_t instance,
 {
     pycbc_Bucket *parent;
     const lcb_RESPDIAG *resp = (const lcb_RESPDIAG *)resp_base;
-
-    pycbc_MultiResult *mres = (pycbc_MultiResult *)resp->cookie;
-    PyObject *resultdict = pycbc_multiresult_dict(mres);
+    pycbc_MultiResult *mres = NULL;
     pycbc_Result *res = NULL;
+    PyObject *resultdict = NULL;
+#if PYCBC_LCB_API<0x031000
+#define lcb_respdiag_cookie(RESP,DEST) *(DEST)=(RESP)->cookie
+#define lcb_respdiag_value(RESP,JSON,NJSON) *(JSON)=(RESP)->json;*(NJSON)=(RESP)->njson;
+#define lcb_respdiag_status(RESP) (RESP)->rc
+#endif
+    lcb_respdiag_cookie(resp,(void**)&mres);
+    resultdict=pycbc_multiresult_dict(mres);
     parent = mres->parent;
     CB_THR_END(parent);
-    if (resp->rc != LCB_SUCCESS) {
+    if (lcb_respdiag_status(resp) != LCB_SUCCESS) {
         if (mres->errop == NULL) {
             res = (pycbc_Result *)pycbc_result_new(parent);
-            res->rc = resp->rc;
+            res->rc = lcb_respdiag_status(resp);
             res->key = Py_None;
             Py_INCREF(res->key);
-            maybe_push_operr(mres, res, resp->rc, 0);
+            MAYBE_PUSH_OPERR(mres, res, lcb_respdiag_status(resp), 0);
         }
     }
+    {
+        pycbc_strn_base_const json;
 
-    if (resp->njson) {
-        pycbc_dict_add_text_kv(resultdict, "health_json", resp->json);
+        lcb_respdiag_value(resp, &json.buffer, &json.length);
+        if (json.length){
+            pycbc_dict_add_text_kv_strn(resultdict, pycbc_strn_base_const_from_psz("health_json"), json);
+        }
     }
     if (resp->rflags & LCB_RESP_F_FINAL) {
         /* Note this can happen in both success and error cases!*/
@@ -974,19 +1314,19 @@ void pycbc_generic_cb(lcb_t instance,
     pycbc_Bucket *conn = NULL;
     pycbc_OperationResult *res = NULL;
     pycbc_MultiResult *mres = NULL;
-
+    response_handler handler={.cbtype=cbtype};
     PYCBC_DEBUG_LOG("%s callback", NAME)
-    rv = get_common_objects((const lcb_RESPBASE *)resp,
+    rv = get_common_objects((const lcb_RESPBASE *) resp,
                             &conn,
-                            (pycbc_Result **)&res,
+                            (pycbc_Result **) &res,
                             optflags,
-                            &mres);
+                            &mres, &handler);
     PYCBC_DEBUG_LOG_CONTEXT(
             res ? res->tracing_context : NULL, "%s callback continues", NAME)
 
     if (rv == 0) {
-        res->rc = resp->rc;
-        maybe_push_operr(mres, (pycbc_Result *)res, resp->rc, 0);
+        res->rc = lcb_respcounter_status(resp);
+        MAYBE_PUSH_OPERR(mres, (pycbc_Result *) res, res->rc, 0);
     }
 
     operation_completed_with_err_info(conn,
@@ -1017,18 +1357,41 @@ void pycbc_generic_cb(lcb_t instance,
 PYCBC_FOR_EACH_GEN_CALLBACK(PYCBC_CALLBACK_GENERIC)
 #endif
 
+
 #ifdef PYCBC_COLLECTIONS
-static void getcid_callback(lcb_t* instance, pycbc_coll_res_t* result, const lcb_RESPGETCID *resp)
+static void getcid_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp_base)
 {
-    result->err=resp->rc;
-    if (resp->rc != LCB_SUCCESS) {
-        fprintf(stderr, "%-20.*s Failed to get collection ID: %s\n", (int)resp->nkey, (char *)resp->key, lcb_strerror_short(resp->rc));
+    pycbc_coll_context* context=NULL;
+    pycbc_strn_base collection,scope;
+    const lcb_RESPGETCID* resp = (const lcb_RESPGETCID*)resp_base;
+
+    lcb_respgetcid_cookie(resp,(void**)&context);
+    collection=context->coll->collection.collection.content;
+    scope=context->coll->collection.scope.content;
+    context->result.err=lcb_respgetcid_status(resp);
+    if (context->result.err!= LCB_SUCCESS) {
+        fprintf(stderr, "%-20.*s, %-20.*s Failed to get collection ID: %s\n",
+                (int)collection.length,
+                (char *)collection.buffer,
+                (int)scope.length,
+                (char*) scope.buffer,
+                lcb_strerror_short(context->result.err));
     } else {
-        result->value.collection_id=resp->collection_id;
-        result->value.manifest_id=resp->manifest_id;
-        printf("%-20.*s ManifestId=0x%02" PRIx64 ", CollectionId=0x%02x\n", (int)resp->nkey, (char *)resp->key,
-               resp->manifest_id, (uint32_t)resp->collection_id);
+        lcb_respgetcid_collection_id(resp,&context->result.value.collection_id);
+        lcb_respgetcid_manifest_id(resp,&context->result.value.manifest_id);
+        printf("%-20.*s, %-20.*s ManifestId=0x%02" PRIx64 ", CollectionId=0x%02x\n",(int)collection.length,
+               (char *)collection.buffer,
+               (int)scope.length,
+               (char*) scope.buffer,
+               (uint64_t)context->result.value.manifest_id,
+               (uint32_t)context->result.value.collection_id);
     }
+    operation_completed_with_err_info(context->coll->bucket,
+                                      NULL,
+                                      cbtype,
+                                      (const lcb_RESPBASE *)resp,
+                                      (pycbc_Result *)NULL);
+
 }
 #endif
 
@@ -1036,13 +1399,18 @@ void
 pycbc_callbacks_init(lcb_t instance)
 {
 #ifdef PYCBC_COLLECTIONS
-    lcb_install_callback3(instance, LCB_CALLBACK_GETCID, (lcb_RESPCALLBACK)getcid_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_GETCID, getcid_callback);
 #endif
+#ifdef PYCBC_V4
+    lcb_install_callback3(instance, LCB_CALLBACK_STORE, value_callback);
+    lcb_install_callback3(instance, LCB_CALLBACK_REMOVE, value_callback);
+#else
+    lcb_install_callback3(instance, LCB_CALLBACK_ENDURE, keyop_simple_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_STORE, durability_chain_common);
     lcb_install_callback3(instance, LCB_CALLBACK_REMOVE, durability_chain_common);
+#endif
     lcb_install_callback3(instance, LCB_CALLBACK_UNLOCK, keyop_simple_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_TOUCH, keyop_simple_callback);
-    lcb_install_callback3(instance, LCB_CALLBACK_ENDURE, keyop_simple_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_GET, value_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_GETREPLICA, value_callback);
     lcb_install_callback3(instance, LCB_CALLBACK_COUNTER, value_callback);
