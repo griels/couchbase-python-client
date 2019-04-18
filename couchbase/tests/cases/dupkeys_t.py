@@ -16,7 +16,7 @@
 #
 import warnings
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase.tests.base import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
 from couchbase.exceptions import NotFoundError, TemporaryFailError
 import couchbase._libcouchbase as LCB
 
@@ -52,12 +52,12 @@ class DupKeyTest(ConnectionTestCase):
                     pass
                 self._assertWarned(wlog)
 
-
-            try:
-                self.cb.lock_multi(("foo", "foo"), ttl=5)
-            except NotFoundError:
-                pass
-            self._assertWarned(wlog)
+            if not PYCBC_BYPASS_V3_FAILURES:
+                try:
+                    self.cb.lock_multi(("foo", "foo"), ttl=5)
+                except NotFoundError:
+                    pass
+                self._assertWarned(wlog)
 
             ktmp = self.gen_key("duplicate_keys")
             rv = self.cb.upsert(ktmp, "value")

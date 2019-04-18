@@ -1288,6 +1288,8 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`endure`
         """
+        if not _LCB.PYCBC_ENDURE:
+            raise NotImplementedInV3("Standalone endure")
         return _Base.endure_multi(self, keys, persist_to=persist_to,
                                   replicate_to=replicate_to,
                                   timeout=timeout, interval=interval,

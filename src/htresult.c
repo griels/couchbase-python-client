@@ -15,6 +15,7 @@
  **/
 
 #include "pycbc.h"
+#include "pycbc_http.h"
 #include "structmember.h"
 
 int
@@ -66,7 +67,7 @@ HttpResult_dealloc(pycbc_HttpResult *self)
             } else if (self->htype == PYCBC_HTTP_HFTS) {
                 lcb_fts_cancel(self->parent->instance, self->u.fts);
             } else {
-                lcb_cancel_http_request(self->parent->instance, self->u.htreq);
+                lcb_http_cancel(self->parent->instance, self->u.htreq);
             }
         }
         self->u.htreq = NULL;
