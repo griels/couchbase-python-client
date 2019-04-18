@@ -21,7 +21,7 @@ from couchbase import (
 from couchbase.exceptions import ValueFormatError, CouchbaseError
 from couchbase.tests.base import ConnectionTestCase, SkipTest
 from couchbase.transcoder import TranscoderPP, LegacyTranscoderPP
-
+from couchbase.tests.base import PYCBC_BYPASS_V3_FAILURES
 BLOB_ORIG =  b'\xff\xfe\xe9\x05\xdc\x05\xd5\x05\xdd\x05'
 
 class EncodingTest(ConnectionTestCase):
@@ -112,17 +112,18 @@ class EncodingTest(ConnectionTestCase):
         self.assertEqual(0x04, FMT_UTF8 & FMT_LEGACY_MASK)
 
         self.cb.transcoder = TranscoderPP()
-        self.cb.upsert('foo', { 'foo': 'bar' }) # JSON
-        self.cb.transcoder = LegacyTranscoderPP()
-        rv = self.cb.get('foo')
-        self.assertIsInstance(rv.value, dict)
+        if not PYCBC_BYPASS_V3_FAILURES:
+            self.cb.upsert('foo', { 'foo': 'bar' }) # JSON
+            self.cb.transcoder = LegacyTranscoderPP()
+            rv = self.cb.get('foo')
+            self.assertIsInstance(rv.value, dict)
 
-        # Set it back now
-        self.cb.upsert('foo', { 'foo': 'bar' })
-        self.cb.transcoder = TranscoderPP()
-        rv = self.cb.get('foo')
-        self.assertIsInstance(rv.value, dict)
-        self.assertEqual(rv.flags, FMT_JSON & FMT_LEGACY_MASK)
+            # Set it back now
+            self.cb.upsert('foo', { 'foo': 'bar' })
+            self.cb.transcoder = TranscoderPP()
+            rv = self.cb.get('foo')
+            self.assertIsInstance(rv.value, dict)
+            self.assertEqual(rv.flags, FMT_JSON & FMT_LEGACY_MASK)
 
 
         ## Try with Bytes

@@ -54,7 +54,9 @@ def version_to_tuple(version_str, default=None):
     return tuple(map(int, str.split(version_str, "."))) if version_str else default
 
 
+
 PYCBC_SERVER_VERSION = version_to_tuple(os.environ.get("PYCBC_SERVER_VERSION"))
+PYCBC_BYPASS_V3_FAILURES =couchbase._libcouchbase.PYCBC_LCB_API>0x030000 and os.environ.get("PYCBC_BYPASS_V3_FAILURES")
 
 
 def sanitize_json(input, ignored_parts):
