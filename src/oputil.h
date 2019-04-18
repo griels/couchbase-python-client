@@ -350,10 +350,8 @@ void pycbc_oputil_conn_unlock(pycbc_Bucket *self);
  * Returns 1 if durability was found, 0 if durability was not found, and -1
  * on error.
  */
-int pycbc_handle_durability_args(pycbc_Bucket *self,
-                                 pycbc_dur_params *params,
-                                 char persist_to,
-                                 char replicate_to);
+int pycbc_handle_durability_args(pycbc_Bucket *self, pycbc_dur_params *params, char persist_to, char replicate_to,
+                                 pycbc_DURABILITY_LEVEL dur_level);
 
 /**
  * Handle the 'key' argument for sub-document paths
