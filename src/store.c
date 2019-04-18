@@ -17,9 +17,12 @@
 
 #include "oputil.h"
 #include "pycbc.h"
+#if PYCBC_LCB_API<0x030001
+typedef lcb_storage_t lcb_STORE_OPERATION;
+#endif
 
 struct storecmd_vars {
-    int operation;
+    lcb_STORE_OPERATION operation;
     int argopts;
     unsigned int sd_doc_flags;
     unsigned long ttl;
@@ -76,13 +79,13 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
         }
 
         if (frag_O == NULL) {
-            if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
+            if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
                 PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "append/prepend must provide options with 'fragment' specifier");
                 return -1;
             }
 
         } else {
-            if (scv->operation != LCB_APPEND && scv->operation != LCB_PREPEND) {
+            if (scv->operation != LCB_STORE_APPEND && scv->operation != LCB_STORE_PREPEND) {
                 PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "'fragment' only valid for append/prepend");
                 return -1;
             }
@@ -91,7 +94,7 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
         }
 
     } else {
-        if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
+        if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
             PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "append/prepend must provide options with 'fragment' specifier");
             return -1;
         }
@@ -105,6 +108,159 @@ handle_item_kv(pycbc_Item *itm, PyObject *options, const struct storecmd_vars *s
     skc->cas = itmcas;
     return 0;
 }
+/* TODO: reverse
+ *
+
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_get(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_GET;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_exists(lcb_SUBDOCOPS *operations,  size_t index, uint32_t flags, const char *path, size_t path_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_EXISTS;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_replace(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_REPLACE;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_dict_add(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_DICT_ADD;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_dict_upsert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_DICT_UPSERT;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_array_add_first(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_FIRST;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_array_add_last(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_LAST;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_array_add_unique(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_ADD_UNIQUE;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_array_insert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, const char *value, size_t value_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_ARRAY_INSERT;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_counter(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len, int64_t delta)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_COUNTER;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    char *value = (char *)calloc(22, sizeof(char));
+    size_t value_len = snprintf(value, 21, "%" PRId64, delta);
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_remove(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_REMOVE;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_get_count(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_GET_COUNT;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_PATH(&operations->specs[index], path, path_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_get(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_GET_FULLDOC;
+    operations->specs[index].options = flags;
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_add(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *value, size_t value_len)
+{
+    operations->options |= LCB_CMDSUBDOC_F_INSERT_DOC;
+    operations->specs[index].sdcmd = LCB_SDCMD_SET_FULLDOC;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_upsert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *value, size_t value_len)
+{
+    operations->options |= LCB_CMDSUBDOC_F_UPSERT_DOC;
+    operations->specs[index].sdcmd = LCB_SDCMD_SET_FULLDOC;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_replace(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *value, size_t value_len)
+{
+    operations->options &= ~(LCB_CMDSUBDOC_F_INSERT_DOC | LCB_CMDSUBDOC_F_UPSERT_DOC);
+    operations->specs[index].sdcmd = LCB_SDCMD_SET_FULLDOC;
+    operations->specs[index].options = flags;
+    LCB_SDSPEC_SET_VALUE(&operations->specs[index], value, value_len);
+    return LCB_SUCCESS;
+}
+
+LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_fulldoc_remove(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags)
+{
+    operations->specs[index].sdcmd = LCB_SDCMD_REMOVE_FULLDOC;
+    operations->specs[index].options = flags;
+    return LCB_SUCCESS;
+}
+
+ * */
+
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
                 handle_multi_mutate, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
@@ -113,13 +269,6 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     int rv;
     const struct storecmd_vars *scv = (const struct storecmd_vars *) arg;
     pycbc_pybuffer keybuf = {NULL};
-#ifdef PYCBC_V4
-    lcb_CMDSUBDOC* cmd = lcb_cmdsubdoc_alloc();
-#else
-    lcb_CMDSUBDOC cmd_real = {0};
-    lcb_CMDSUBDOC* cmd = &cmd_real;
-#endif
-
     if (itm) {
         PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Item not supported in subdoc mode");
         return -1;
@@ -128,16 +277,20 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
         return -1;
     }
+	CMDSCOPE(SUBDOC,subdoc,
 
-    cmd->cas = scv->single_cas;
-    cmd->exptime = scv->ttl;
-    cmd->cmdflags |= scv->sd_doc_flags;
-    LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
-    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, cmd);
-    PYCBC_PYBUF_RELEASE(&keybuf);
-#ifdef PYCBC_V4
-    lcb_cmdsubdoc_dispose(cmd);
+        lcb_cmdsubdoc_cas(cmd,scv->single_cas);
+        lcb_cmdsubdoc_expiration(cmd,scv->ttl);
+#if PYCBC_LCB_API<0x031000
+        cmd->cmdflags |= scv->sd_doc_flags;
+#else
+        lcb_cmdsubdoc_create_if_missing(cmd,(scv->sd_doc_flags & CMDSUBDOC_F_UPSERT_DOC)?1:0);
 #endif
+        PYCBC_CMD_SET_KEY_SCOPE(subdoc,cmd,keybuf);
+        rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, cmd);
+	)
+    GT_DONE:
+    PYCBC_PYBUF_RELEASE(&keybuf);
     return rv;
 }
 
@@ -151,8 +304,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     struct single_key_context skc = {NULL};
     pycbc_pybuffer keybuf = {NULL}, valbuf = {NULL};
     lcb_error_t err;
-    lcb_CMDSTORE cmd = {0};
-
+    lcb_U32 flags = 0;
     if (scv->argopts & PYCBC_ARGOPT_SDMULTI) {
         return PYCBC_TRACE_WRAP(handle_multi_mutate, NULL, self, cv, optype, curkey, curvalue, options, itm, arg);
     }
@@ -176,28 +328,33 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     }
 
     rv = pycbc_tc_encode_value(self, skc.value, skc.flagsobj,
-                               &valbuf, &cmd.flags);
+                               &valbuf, &flags);
     if (rv < 0) {
         rv = -1;
         goto GT_DONE;
     }
+    {
+#define GENSTORE(UC,LC,CMD) lcb_cmdstore_create((CMD), scv->operation)
+        CMDSCOPE_GENERIC(STORE,store,GENSTORE,
+            lcb_cmdstore_flags(cmd,flags);
+            if (scv->operation == LCB_STORE_APPEND || scv->operation == LCB_STORE_PREPEND) {
+                /* The server ignores these flags and libcouchbase will throw an error
+                 * if the flags are present. We check elsewhere here to ensure that
+                 * only UTF8/BYTES are accepted for append/prepend anyway */
+                lcb_cmdstore_flags(cmd,0);
+            }
 
-    if (scv->operation == LCB_APPEND || scv->operation == LCB_PREPEND) {
-        /* The server ignores these flags and libcouchbase will throw an error
-         * if the flags are present. We check elsewhere here to ensure that
-         * only UTF8/BYTES are accepted for append/prepend anyway */
-        cmd.flags = 0;
+            PYCBC_CMD_SET_KEY_SCOPE(store,cmd, keybuf);
+            PYCBC_CMD_SET_VALUE_SCOPE(store,cmd, valbuf);
+
+            lcb_cmdstore_cas(cmd,skc.cas);
+            lcb_cmdstore_expiration(cmd, (uint32_t) skc.ttl);
+
+
+            PYCBC_TRACECMD_TYPED(store, cmd, context, cv->mres, curkey, self);
+            err = pycbc_store(self->instance, cv->mres, cmd);
+        )
     }
-
-    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    LCB_CMD_SET_VALUE(&cmd, valbuf.buffer, valbuf.length);
-    cmd.cas = skc.cas;
-    cmd.operation = (lcb_storage_t) scv->operation;
-    cmd.exptime = skc.ttl;
-    PYCBC_TRACECMD(cmd, context, cv->mres, curkey, self);
-
-    err = lcb_store3(self->instance, cv->mres, &cmd);
-
     PYCBC_DEBUG_LOG_CONTEXT(context, "got result %d", err)
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -313,7 +470,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         ncmds = 1;
     }
 
-    if (operation == LCB_APPEND || operation == LCB_PREPEND) {
+    if (operation == LCB_STORE_APPEND || operation == LCB_STORE_PREPEND) {
         rv = handle_append_flags(self, &scv.flagsobj);
         if (rv < 0) {
             return NULL;
@@ -390,18 +547,18 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
         return result;\
 }
 
-DECLFUNC(upsert_multi, LCB_SET, PYCBC_ARGOPT_MULTI)
-DECLFUNC(insert_multi, LCB_ADD, PYCBC_ARGOPT_MULTI)
-DECLFUNC(replace_multi, LCB_REPLACE, PYCBC_ARGOPT_MULTI)
+DECLFUNC(upsert_multi, LCB_STORE_SET, PYCBC_ARGOPT_MULTI)
+DECLFUNC(insert_multi, LCB_STORE_ADD, PYCBC_ARGOPT_MULTI)
+DECLFUNC(replace_multi, LCB_STORE_REPLACE, PYCBC_ARGOPT_MULTI)
 
-DECLFUNC(append_multi, LCB_APPEND, PYCBC_ARGOPT_MULTI)
-DECLFUNC(prepend_multi, LCB_PREPEND, PYCBC_ARGOPT_MULTI)
+DECLFUNC(append_multi, LCB_STORE_APPEND, PYCBC_ARGOPT_MULTI)
+DECLFUNC(prepend_multi, LCB_STORE_PREPEND, PYCBC_ARGOPT_MULTI)
 
-DECLFUNC(upsert, LCB_SET, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(insert, LCB_ADD, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(replace, LCB_REPLACE, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(upsert, LCB_STORE_SET, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(insert, LCB_STORE_ADD, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(replace, LCB_STORE_REPLACE, PYCBC_ARGOPT_SINGLE)
 
-DECLFUNC(append, LCB_APPEND, PYCBC_ARGOPT_SINGLE)
-DECLFUNC(prepend, LCB_PREPEND, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(append, LCB_STORE_APPEND, PYCBC_ARGOPT_SINGLE)
+DECLFUNC(prepend, LCB_STORE_PREPEND, PYCBC_ARGOPT_SINGLE)
 
 DECLFUNC(mutate_in, 0, PYCBC_ARGOPT_SINGLE | PYCBC_ARGOPT_SDMULTI)
