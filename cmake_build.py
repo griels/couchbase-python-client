@@ -95,7 +95,7 @@ class CMakeBuild(build_ext):
             extdir = os.path.abspath(
                 os.path.dirname(self.get_ext_fullpath(ext.name)))
             import cmodule
-            pycbc_lcb_api=cmodule.BUILD_CFG.get('comp_options',{}).get('PYCBC_LCB_API',None)
+            pycbc_lcb_api=os.getenv("PYCBC_LCB_API",cmodule.BUILD_CFG.get('comp_options',{}).get('PYCBC_LCB_API',None))
             lcb_api_flags = ['-DPYCBC_LCB_API={}'.format(pycbc_lcb_api)] if pycbc_lcb_api else []
             cmake_args = lcb_api_flags + ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                                           '-DPYTHON_EXECUTABLE=' + sys.executable]

@@ -14,7 +14,6 @@
     "src/fts.c",
     "src/get.c",
     "src/htresult.c",
-    "src/http.c",
     "src/iops.c",
     "src/iops.h",
     "src/ixmgmt.c",
@@ -27,12 +26,24 @@
     "src/oputil.c",
     "src/oputil.h",
     "src/pipeline.c",
+    "src/pycbc_http.c",
+    "src/python_wrappers.h",
     "src/result.c",
     "src/store.c",
     "src/typeutil.c",
     "src/views.c"
   ],
   "comp_options": {
-    "PYCBC_LCB_API": "0x030000"
+    "PYCBC_LCB_API": "0x032000"
+  },
+  "apis": {
+    "0x030000": [
+      "src/lcb_v4_backport.h",
+      "src/lcb_v4_backport.c"
+    ],
+    "0x032000": [
+      "src/lcb_v4_wrapper.h",
+      "src/lcb_v4_wrapper.c"
+    ]
   }
 }
