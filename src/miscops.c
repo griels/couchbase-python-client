@@ -97,7 +97,7 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
             }
         }
     }
-#ifdef PYCBC_ENDURE
+#if PYCBC_ENDURE
     else if (optype == PYCBC_CMD_ENDURE) {
         lcb_CMDSTORE cmd_real={0};
         lcb_CMDSTORE* cmd=&cmd_real;
@@ -229,7 +229,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     pycbc_common_vars_finalize(&cv, self);
     return cv.ret;
 }
-#if defined(PYCBC_ENDURE) && 1
+#if PYCBC_ENDURE
 TRACED_FUNCTION_WRAPPER(endure_multi, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
 {
     int rv;

@@ -43,7 +43,7 @@ if os.environ.get("PYCBC_TRACE_GC") in ['FULL', 'STATS_LEAK_ONLY']:
 
 from utilspie.collectionsutils import frozendict
 
-loglevel=os.environ.get("PYCBC_DEBUG_LOG")
+loglevel=os.environ.get("PYCBC_DEBUG_LOG_LEVEL")
 if loglevel:
     ch = logging.StreamHandler()
     ch.setLevel(logging.getLevelName(loglevel))
@@ -202,6 +202,7 @@ class ClusterInformation(object):
         return ret
 
     def make_connection(self, conncls, **kwargs):
+        # type: (type, **Any) -> Bucket
         connargs = self.make_connargs(**kwargs)
         return conncls(**connargs)
 
@@ -425,6 +426,9 @@ class CouchbaseTestCase(ResourcedTestCase):
             self.cls_ObserveInfo = ObserveInfo
             self.should_check_refcount = True
             warnings.warn('Using fallback (couchbase module) defaults')
+        else:
+            self.should_check_refcount = False
+
 
     def skipLcbMin(self, vstr):
         """
@@ -466,7 +470,6 @@ class CouchbaseTestCase(ResourcedTestCase):
         return self.cluster_info.make_connargs(**overrides)
 
     def make_connection(self, **kwargs):
-        # type: (**Dict[str,Any])->Bucket
         return self.cluster_info.make_connection(self.factory, **kwargs)
 
     def make_admin_connection(self):
@@ -512,6 +515,9 @@ class CouchbaseTestCase(ResourcedTestCase):
         super(CouchbaseTestCase,self).assertRaisesRegexp(*args,**kwargs)
 
 class ConnectionTestCaseBase(CouchbaseTestCase):
+    def __init__(self, *args, **kwargs):
+        self.cb =None # type: self.factory
+        super(ConnectionTestCaseBase,self).__init__(*args,**kwargs)
     def checkCbRefcount(self):
         if not self.should_check_refcount:
             return
@@ -556,6 +562,7 @@ class ConnectionTestCaseBase(CouchbaseTestCase):
         #self.assertEqual(oldrc, 2)
 
     def setUp(self, **kwargs):
+        # type: (**Any) -> None
         super(ConnectionTestCaseBase, self).setUp()
         self.cb = self.make_connection(**kwargs)
 
@@ -669,10 +676,10 @@ class TracedCase(ConnectionTestCaseBase):
                 pass
 
 
-if os.environ.get("PYCBC_TRACE_ALL") and couchbase._libcouchbase.PYCBC_TRACING:
-    ConnectionTestCase = TracedCase
-else:
-    ConnectionTestCase = ConnectionTestCaseBase
+#if os.environ.get("PYCBC_TRACE_ALL") and couchbase._libcouchbase.PYCBC_TRACING:
+#    ConnectionTestCase = TracedCase
+#else:
+ConnectionTestCase = ConnectionTestCaseBase
 
 
 class RealServerTestCase(ConnectionTestCase):
