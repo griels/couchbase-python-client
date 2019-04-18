@@ -196,7 +196,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
 
     if (optype == PYCBC_CMD_DELETE) {
         rv = pycbc_handle_durability_args(self, &cv.mres->dur,
-                                          persist_to, replicate_to);
+                                          persist_to, replicate_to, LCB_DURABILITYLEVEL_MAJORITY_AND_PERSIST_ON_MASTER);
         PYCBC_DEBUG_LOG_CONTEXT(
                 context, "Handling delete durability, got rv %d", rv)
         if (rv == 1) {

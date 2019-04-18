@@ -113,7 +113,12 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     int rv;
     const struct storecmd_vars *scv = (const struct storecmd_vars *) arg;
     pycbc_pybuffer keybuf = {NULL};
-    lcb_CMDSUBDOC cmd = {0};
+#ifdef PYCBC_V4
+    lcb_CMDSUBDOC* cmd = lcb_cmdsubdoc_alloc();
+#else
+    lcb_CMDSUBDOC cmd_real = {0};
+    lcb_CMDSUBDOC* cmd = &cmd_real;
+#endif
 
     if (itm) {
         PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Item not supported in subdoc mode");
@@ -124,12 +129,15 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
         return -1;
     }
 
-    cmd.cas = scv->single_cas;
-    cmd.exptime = scv->ttl;
-    cmd.cmdflags |= scv->sd_doc_flags;
-    LCB_CMD_SET_KEY(&cmd, keybuf.buffer, keybuf.length);
-    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, &cmd);
+    cmd->cas = scv->single_cas;
+    cmd->exptime = scv->ttl;
+    cmd->cmdflags |= scv->sd_doc_flags;
+    LCB_CMD_SET_KEY(cmd, keybuf.buffer, keybuf.length);
+    rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres, curkey, curvalue, cmd);
     PYCBC_PYBUF_RELEASE(&keybuf);
+#ifdef PYCBC_V4
+    lcb_cmdsubdoc_dispose(cmd);
+#endif
     return rv;
 }
 
@@ -254,17 +262,17 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     struct storecmd_vars scv = { 0 };
     char persist_to = 0, replicate_to = 0;
-
+    pycbc_DURABILITY_LEVEL dur_level=LCB_DURABILITYLEVEL_MAJORITY;
 
     static char *kwlist_multi[] = {
             "kv", "ttl", "format",
-            "persist_to", "replicate_to",
+            "persist_to", "replicate_to","durability_level",
             NULL
     };
 
     static char *kwlist_single[] = {
             "key", "value", "cas", "ttl", "format",
-            "persist_to", "replicate_to", "_sd_doc_flags",
+            "persist_to", "replicate_to", "_sd_doc_flags", "durability_level",
             NULL
     };
 
@@ -272,17 +280,17 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     scv.argopts = argopts;
 
     if (argopts & PYCBC_ARGOPT_MULTI) {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBB", kwlist_multi,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOBBI", kwlist_multi,
                                          &dict,
                                          &ttl_O, &scv.flagsobj,
-                                         &persist_to, &replicate_to);
+                                         &persist_to, &replicate_to, &dur_level);
 
     } else {
-        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBI", kwlist_single,
+        rv = PyArg_ParseTupleAndKeywords(args, kwargs, "OO|KOOBBII", kwlist_single,
                                          &key, &value,
                                          &scv.single_cas, &ttl_O, &scv.flagsobj,
                                          &persist_to, &replicate_to,
-                                         &scv.sd_doc_flags);
+                                         &scv.sd_doc_flags, &dur_level);
     }
 
     if (!rv) {
@@ -321,7 +329,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     }
 
     rv = pycbc_handle_durability_args(self, &cv.mres->dur,
-                                      persist_to, replicate_to);
+                                      persist_to, replicate_to, dur_level);
 
     if (rv == 1) {
         cv.mres->mropts |= PYCBC_MRES_F_DURABILITY;
