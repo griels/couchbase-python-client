@@ -36,6 +36,8 @@ import couchbase.priv_constants as _P
 import json
 from couchbase.analytics import AnalyticsRequest, AnalyticsQuery
 from couchbase.connstr import ConnectionString
+import couchbase.result
+from typing import *
 
 ### Private constants. This is to avoid imposing a dependency requirement
 ### For simple flags:
@@ -326,7 +328,8 @@ class Bucket(_Base):
     # like. we might move this directly into C some day
 
     def upsert(self, key, value, cas=0, ttl=0, format=None,
-               persist_to=0, replicate_to=0):
+               persist_to=0, replicate_to=0, durability_level=0):
+        # type: (Union[str, bytes], Any, int, int, int, int, int, int) -> Result
         """Unconditionally store the object in Couchbase.
 
         :param key:
@@ -365,6 +368,8 @@ class Bucket(_Base):
         :param int replicate_to: Perform durability checking on this
             many replicas for presence in memory. See :meth:`endure` for
             more information.
+
+        :param int durability_level: Durability level
 
         :raise: :exc:`.ArgumentError` if an argument is supplied that is
             not applicable in this context. For example setting the CAS
@@ -405,9 +410,10 @@ class Bucket(_Base):
 
         .. seealso:: :meth:`upsert_multi`
         """
-        return _Base.upsert(self, key, value, cas=cas, ttl=ttl,
-                            format=format, persist_to=persist_to,
-                            replicate_to=replicate_to)
+        pass
+
+    def upsert(self, key, value, *args, **kwargs):
+        return _Base.upsert(self, key, value, *args, **kwargs)
 
     def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
         """Store an object in Couchbase unless it already exists.
@@ -441,8 +447,15 @@ class Bucket(_Base):
         return _Base.replace(self, key, value, ttl=ttl, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def append(self, key, value, cas=0, format=None,
-               persist_to=0, replicate_to=0):
+    def append(self,
+               key,  # type: str
+               value,  # type: couchbase.JSON
+               cas=0,  # type: long
+               format=None,  # type: long
+               persist_to=0,  # type: int
+               replicate_to=0  # type: int
+               ):
+        # type: (...) -> couchbase.result.Result
         """Append a string to an existing value in Couchbase.
 
         :param string value: The data to append to the existing value.
@@ -474,6 +487,7 @@ class Bucket(_Base):
 
     def prepend(self, key, value, cas=0, format=None,
                 persist_to=0, replicate_to=0):
+        # type: (...)->Result
         """Prepend a string to an existing value in Couchbase.
 
         .. seealso:: :meth:`append`, :meth:`prepend_multi`
@@ -481,7 +495,14 @@ class Bucket(_Base):
         return _Base.prepend(self, key, value, cas=cas, format=format,
                              persist_to=persist_to, replicate_to=replicate_to)
 
-    def get(self, key, ttl=0, quiet=None, replica=False, no_format=False):
+    def get(self,  # type: Bucket
+            key,  # type: str
+            ttl=0,  # type: int
+            quiet=None,  # type: bool
+            replica=False,  # type: bool
+            no_format=False  # type: bool
+            ):
+        # type: (...)->couchbase.result.Result
         """Obtain an object stored in Couchbase by given key.
 
         :param string key: The key to fetch. The type of key is the same
