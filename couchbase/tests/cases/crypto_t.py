@@ -24,7 +24,6 @@ from couchbase.crypto import CTypesCryptoProvider, InMemoryKeyStore, PythonCrypt
 import os
 import logging
 import couchbase._libcouchbase as _LCB
-import couchbase._libcouchbase as _LCB
 
 
 class AESCryptoProvider(CTypesCryptoProvider):
@@ -91,8 +90,10 @@ class ROT13PythonCryptoProvider(PythonCryptoProvider):
 
 class FieldEncryptionTests(ConnectionTestCase):
     def setUp(self, **kwargs):
-        if _LCB.PYCBC_LCB_API>0x030000:
-            raise SkipTest("Crypto not implemented in LCB V4 API yet")
+        if _LCB.PYCBC_CRYPTO_VERSION>1:
+            raise SkipTest("Crypto not supported in V4 yet")
+        super(FieldEncryptionTests,self).setUp(**kwargs)
+
     def test_keystore_returns_correct_value(self):
         keystore = InMemoryKeyStore()
         keystore.set_key('key', 'my-secret')

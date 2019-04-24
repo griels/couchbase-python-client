@@ -24,7 +24,7 @@ class AutoBind(object):
                 items.append("{}{}".format(indent,str(subdecl)) + '\n')
                 dump.writelines(items)
                 if hasattr(subdecl,"declarations"):
-                    dump_declarations(subdecl.declarations,dump,depth)
+                    AutoBind.dump_declarations(subdecl.declarations,dump,depth)
         depth-=1
         indent=' '*(depth*4)
         dump.write("{}]".format(indent))
