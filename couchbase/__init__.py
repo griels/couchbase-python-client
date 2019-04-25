@@ -28,9 +28,9 @@ warnings.filterwarnings(action='default',
 from couchbase.user_constants import *
 import couchbase._libcouchbase as _LCB
 
-from typing import Callable, Any, Union, NewType, Mapping, List
-JSON = Union[str, int, float, bool, None, Mapping[str, 'JSON'], List['JSON']]
+from typing import Union, Mapping, List
 
+JSON = Union[str, int, float, bool, None, Mapping[str, 'JSON'], List['JSON']]
 
 from couchbase.crypto import *
 try:
@@ -52,6 +52,7 @@ def set_json_converters(encode, decode):
     :param callable encode: Callable to invoke when encoding an object to JSON.
         This should have the same prototype as ``json.dumps``, with the
         exception that it is only ever passed a single argument.
+
 
     :param callable decode: Callable to invoke when decoding an object to JSON.
         This should have the same prototype and behavior
