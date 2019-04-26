@@ -153,7 +153,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
     const struct storecmd_vars *scv = (struct storecmd_vars *) arg;
     struct single_key_context skc = {NULL};
     pycbc_pybuffer keybuf = {NULL}, valbuf = {NULL};
-    lcb_error_t err;
+    lcb_error_t err = LCB_SUCCESS;
     lcb_U32 flags = 0;
     if (scv->argopts & PYCBC_ARGOPT_SDMULTI) {
         return PYCBC_TRACE_WRAP(handle_multi_mutate, NULL, self, cv, optype, curkey, curvalue, options, itm, arg);
@@ -186,6 +186,10 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         CMDSCOPE_NG_PARAMS(STORE, store, scv->operation)
         {
             lcb_cmdstore_flags(cmd, flags);
+            PYCBC_DUR_INIT(err, cmd, store, cv->mres->dur);
+            if (err) {
+                CMDSCOPE_GENERIC_FAIL(,STORE,store)
+            };
             if (scv->operation == LCB_STORE_APPEND ||
                 scv->operation == LCB_STORE_PREPEND) {
                 /* The server ignores these flags and libcouchbase will throw an
@@ -205,6 +209,7 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
             err = pycbc_store(self->instance, cv->mres, cmd);
         }
     }
+GT_ERR:
     PYCBC_DEBUG_LOG_CONTEXT(context, "got result %d", err)
     if (err == LCB_SUCCESS) {
         rv = 0;
@@ -269,7 +274,7 @@ set_common, pycbc_Bucket *self, PyObject *args, PyObject *kwargs,
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     struct storecmd_vars scv = { 0 };
     char persist_to = 0, replicate_to = 0;
-    pycbc_DURABILITY_LEVEL dur_level = LCB_DURABILITYLEVEL_MAJORITY;
+    pycbc_DURABILITY_LEVEL dur_level = LCB_DURABILITYLEVEL_NONE;
 
     static char *kwlist_multi[] = {"kv",
                                    "ttl",
