@@ -90,23 +90,6 @@ GET_ATTRIBS(PYCBC_SCOPE_SET)
 
 void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy)
 {
-#if PYCBC_LCB_API > 0x030000
-    switch (strategy) {
-    case LCB_REPLICA_MODE_ANY:
-        lcb_cmdgetreplica_create_first(pcmd);
-        break;
-    case LCB_REPLICA_MODE_ALL:
-        lcb_cmdgetreplica_create_all(pcmd);
-        break;
-
-    case LCB_REPLICA_MODE_IDX0:
-    case LCB_REPLICA_MODE_IDX1:
-    case LCB_REPLICA_MODE_IDX2:
-    default:
-        lcb_cmdgetreplica_create_select(pcmd, strategy - LCB_REPLICA_MODE_IDX0);
-        break;
-    }
-#else
     (*pcmd)->strategy = strategy;
     switch (strategy) {
     case LCB_REPLICA_MODE_ANY:
@@ -130,8 +113,6 @@ void lcb_cmdgetreplica_create(lcb_CMDGETREPLICA **pcmd, int strategy)
     default:
         break;
     }
-
-#endif
 }
 #include "pycbc_subdocops.h"
 LIBCOUCHBASE_API lcb_STATUS lcb_subdocops_create(lcb_SUBDOCOPS **operations,
@@ -189,3 +170,11 @@ PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,
                PYCBC_SDCMD_CASE_COUNTER,
                LITERAL,
                LITERAL)
+
+void lcb_cmdhttp_path(lcb_CMDHTTP *htcmd, const char *path, size_t length)
+{
+    {
+        pycbc_pybuffer pathbuf = {NULL, path, length};
+        PYCBC_CMD_SET_KEY_SCOPE(http, htcmd, pathbuf);
+    }
+}

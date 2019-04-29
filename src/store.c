@@ -18,10 +18,6 @@
 #include "oputil.h"
 #include "pycbc.h"
 
-#if PYCBC_LCB_API < 0x030001
-typedef lcb_U64 lcb_STORE_OPERATION;
-#endif
-
 struct storecmd_vars {
     lcb_STORE_OPERATION operation;
     int argopts;
@@ -132,12 +128,8 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,static, int,
     {
         lcb_cmdsubdoc_cas(cmd, scv->single_cas);
         lcb_cmdsubdoc_expiration(cmd, scv->ttl);
-#if PYCBC_LCB_API < 0x031000
-        cmd->cmdflags |= scv->sd_doc_flags;
-#else
         lcb_cmdsubdoc_create_if_missing(
                 cmd, (scv->sd_doc_flags & CMDSUBDOC_F_UPSERT_DOC) ? 1 : 0);
-#endif
         PYCBC_CMD_SET_KEY_SCOPE(subdoc, cmd, keybuf);
         rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist,
                               NULL,
@@ -191,7 +183,6 @@ handle_single_kv, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optype,
         goto GT_DONE;
     }
     {
-#define GENSTORE(UC, LC, CMD) lcb_cmdstore_create(CMD, scv->operation)
         CMDSCOPE_NG_PARAMS(STORE, store, scv->operation)
         {
             lcb_cmdstore_flags(cmd, flags);

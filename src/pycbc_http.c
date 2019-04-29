@@ -205,15 +205,6 @@ static void complete_callback(lcb_t instance,
     (void)cbtype;
 }
 
-#ifndef PYCBC_V4
-void lcb_cmdhttp_path(lcb_CMDHTTP *htcmd, const char *path, size_t length)
-{
-    {
-        pycbc_pybuffer pathbuf = {NULL, path, length};
-        PYCBC_CMD_SET_KEY_SCOPE(http, htcmd, pathbuf);
-    }
-}
-#endif
 void pycbc_http_callbacks_init(lcb_t instance)
 {
     lcb_install_callback3(instance, LCB_CALLBACK_HTTP, complete_callback);

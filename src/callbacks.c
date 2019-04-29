@@ -756,11 +756,9 @@ keyop_simple_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
     pycbc_OperationResult *res = NULL;
     pycbc_MultiResult *mres = NULL;
     response_handler handler = {.cbtype = cbtype};
-#ifndef PYCBC_V4
     if (cbtype == LCB_CALLBACK_ENDURE) {
         optflags |= RESTYPE_EXISTS_OK;
     }
-#endif
     PYCBC_DEBUG_LOG("Keyop callback")
     rv = get_common_objects(
             resp, &conn, (pycbc_Result **)&res, optflags, &mres, &handler);

@@ -14,9 +14,6 @@
  *   limitations under the License.
  **/
 
-#if PYCBC_LCB_API<0x032000
-#include <libcouchbase/tracing.h>
-#endif
 #include "oputil.h"
 #include "pycbc.h"
 /**
@@ -424,15 +421,8 @@ TRACED_FUNCTION_WRAPPER(_ping,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     CMDSCOPE_NG(PING, ping)
     {
-#if PYCBC_LCB_API > 0x030001
         lcb_cmdping_all(cmd);
         lcb_cmdping_encode_json(cmd, 1, 1, 1);
-#else
-        cmd->services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL |
-                        LCB_PINGSVC_F_VIEWS | LCB_PINGSVC_F_FTS;
-        cmd->options = LCB_PINGOPT_F_JSON | LCB_PINGOPT_F_JSONPRETTY;
-        cmd->options |= LCB_PINGOPT_F_JSONDETAILS;
-#endif
         rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
         if (rv < 0) {
             return NULL;
@@ -463,14 +453,8 @@ TRACED_FUNCTION_WRAPPER(_diagnostics,LCBTRACE_OP_REQUEST_ENCODING,Bucket)
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
     CMDSCOPE_NG(DIAG, diag)
     {
-#ifdef PYCBC_V4
         lcb_cmddiag_prettify(cmd, 1);
         lcb_cmddiag_report_id(cmd, "PYCBC", strlen("PYCBC"));
-#else
-        cmd->options = LCB_PINGOPT_F_JSONPRETTY;
-
-        cmd->id = "PYCBC";
-#endif
         rv = pycbc_common_vars_init(&cv, self, PYCBC_ARGOPT_MULTI, ncmds, 0);
 
         if (rv < 0) {

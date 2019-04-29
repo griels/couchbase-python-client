@@ -147,18 +147,12 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
         case PYCBC_CMD_GETREPLICA:
         case PYCBC_CMD_GETREPLICA_INDEX:
         case PYCBC_CMD_GETREPLICA_ALL: {
-#if PYCBC_LCB_API > 0x030000
-            lcb_CMDGETREPLICA *cmd = NULL;
-#else
-            lcb_CMDGETREPLICA cmd_real = {0};
-            lcb_CMDGETREPLICA *cmd = &cmd_real;
-#endif
-            lcb_cmdgetreplica_create(&cmd, gv->u.replica.strategy);
-            COMMON_OPTS(PYCBC_getreplica_ATTR, rget, getreplica);
-            err = pycbc_rget(self->instance, cv->mres, cmd);
-#if PYCBC_LCB_API > 0x030000
-            lcb_cmdgetreplica_destroy(cmd);
-#endif
+            CMDSCOPE_NG_PARAMS(GETREPLICA, getreplica, gv->u.replica.strategy)
+            {
+                lcb_cmdgetreplica_create(&cmd, gv->u.replica.strategy);
+                COMMON_OPTS(PYCBC_getreplica_ATTR, rget, getreplica);
+                err = pycbc_rget(self->instance, cv->mres, cmd);
+            }
         } break;
         default:
             err = LCB_ERROR;

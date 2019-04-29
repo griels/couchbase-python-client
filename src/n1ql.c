@@ -84,6 +84,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
         if (is_prepared) {
             lcb_cmdn1ql_adhoc(cmd, 1);
         }
+
         if (is_xbucket) {
 #if PYCBC_LCB_API < 0x030001
             cmd->cmdflags |= LCB_CMD_F_MULTIAUTH;

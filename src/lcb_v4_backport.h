@@ -37,6 +37,9 @@
     lcb_CMDDIAG cmd_real = {0}; \
     *(CMD) = &cmd_real;
 #define lcb_cmddiag_destroy(CMD)
+#define lcb_cmddiag_prettify(CMD, X) CMD->options=((CMD)->options&~LCB_PINGOPT_F_JSONPRETTY)|(X?LCB_PINGOPT_F_JSONPRETTY:0)
+#define lcb_cmddiag_report_id(CMD, ID, NID) (CMD)->id=ID; (void)(NID);
+
 #define lcb_cmdstats_create(DEST) \
     lcb_CMDSTATS cmd_real = {0};  \
     *(DEST) = &cmd_real;
@@ -161,6 +164,9 @@
     *(CMD) = &cmd_real;
 #define lcb_cmdsubdoc_destroy(CMD)
 #define lcb_cmdsubdoc_key(CMD, KEY, NKEY) LCB_CMD_SET_KEY(CMD, KEY, NKEY)
+#define lcb_cmdsubdoc_create_if_missing(CMD, ENABLE) (CMD)->cmdflags = (CMD)->cmdflags &~LCB_CMDSUBDOC_F_UPSERT_DOC | ((ENABLE)?LCB_CMDSUBDOC_F_UPSERT_DOC:0);
+#define CMDSUBDOC_F_UPSERT_DOC LCB_CMDSUBDOC_F_UPSERT_DOC
+
 #define lcb_respgetcid_cookie(RESP, DEST) *(DEST) = (RESP)->cookie;
 #define lcb_respgetcid_status(RESP) (RESP)->rc
 #define lcb_respgetcid_collection_id(RESP, DEST) *(DEST) = (RESP)->collection_id
@@ -206,7 +212,10 @@
 #define lcb_respstore_observe_stored(resp_base, dest) \
     *dest = (resp_base->rflags & LCB_RESP_F_FINAL);
 
-#define LCB_PING_SERVICE_KV LCB_PINGSVC_KV
+
+
+
+    #define LCB_PING_SERVICE_KV LCB_PINGSVC_KV
 #define LCB_PING_SERVICE_VIEWS LCB_PINGSVC_VIEWS
 #define LCB_PING_SERVICE_N1QL LCB_PINGSVC_N1QL
 #define LCB_PING_SERVICE_FTS LCB_PINGSVC_FTS
@@ -673,56 +682,122 @@ PYCBC_X_SD_OPS(PYCBC_SDCMD_CASE,
                DUMMY)
 #else
 
-lcb_STATUS
-lcb_subdocops_get(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len);
+lcb_STATUS lcb_subdocops_get(lcb_SUBDOCOPS *operations,
+                             size_t index,
+                             uint32_t flags,
+                             const char *path,
+                             size_t path_len);
 
-lcb_STATUS
-lcb_subdocops_exists(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len);
+lcb_STATUS lcb_subdocops_exists(lcb_SUBDOCOPS *operations,
+                                size_t index,
+                                uint32_t flags,
+                                const char *path,
+                                size_t path_len);
 
-lcb_STATUS
-lcb_subdocops_replace(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                      const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_replace(lcb_SUBDOCOPS *operations,
+                                 size_t index,
+                                 uint32_t flags,
+                                 const char *path,
+                                 size_t path_len,
+                                 const char *value,
+                                 size_t value_len);
 
-lcb_STATUS
-lcb_subdocops_dict_add(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                       const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_dict_add(lcb_SUBDOCOPS *operations,
+                                  size_t index,
+                                  uint32_t flags,
+                                  const char *path,
+                                  size_t path_len,
+                                  const char *value,
+                                  size_t value_len);
 
-lcb_STATUS
-lcb_subdocops_dict_upsert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                          const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_dict_upsert(lcb_SUBDOCOPS *operations,
+                                     size_t index,
+                                     uint32_t flags,
+                                     const char *path,
+                                     size_t path_len,
+                                     const char *value,
+                                     size_t value_len);
 
-lcb_STATUS lcb_subdocops_array_add_first(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
-                                         size_t path_len, const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_array_add_first(lcb_SUBDOCOPS *operations,
+                                         size_t index,
+                                         uint32_t flags,
+                                         const char *path,
+                                         size_t path_len,
+                                         const char *value,
+                                         size_t value_len);
 
-lcb_STATUS
-lcb_subdocops_array_add_last(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                             const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_array_add_last(lcb_SUBDOCOPS *operations,
+                                        size_t index,
+                                        uint32_t flags,
+                                        const char *path,
+                                        size_t path_len,
+                                        const char *value,
+                                        size_t value_len);
 
-lcb_STATUS lcb_subdocops_array_add_unique(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path,
-                                          size_t path_len, const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_array_add_unique(lcb_SUBDOCOPS *operations,
+                                          size_t index,
+                                          uint32_t flags,
+                                          const char *path,
+                                          size_t path_len,
+                                          const char *value,
+                                          size_t value_len);
 
-lcb_STATUS
-lcb_subdocops_array_insert(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                           const char *value, size_t value_len);
+lcb_STATUS lcb_subdocops_array_insert(lcb_SUBDOCOPS *operations,
+                                      size_t index,
+                                      uint32_t flags,
+                                      const char *path,
+                                      size_t path_len,
+                                      const char *value,
+                                      size_t value_len);
 
-lcb_STATUS
-lcb_subdocops_counter(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len,
-                      int64_t delta);
+lcb_STATUS lcb_subdocops_counter(lcb_SUBDOCOPS *operations,
+                                 size_t index,
+                                 uint32_t flags,
+                                 const char *path,
+                                 size_t path_len,
+                                 int64_t delta);
 
-lcb_STATUS
-lcb_subdocops_remove(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len);
+lcb_STATUS lcb_subdocops_remove(lcb_SUBDOCOPS *operations,
+                                size_t index,
+                                uint32_t flags,
+                                const char *path,
+                                size_t path_len);
 
-lcb_STATUS
-lcb_subdocops_get_count(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len);
+lcb_STATUS lcb_subdocops_get_count(lcb_SUBDOCOPS *operations,
+                                   size_t index,
+                                   uint32_t flags,
+                                   const char *path,
+                                   size_t path_len);
 
-lcb_STATUS lcb_subdocops_get_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags);
+lcb_STATUS lcb_subdocops_get_fulldoc(lcb_SUBDOCOPS *operations,
+                                     size_t index,
+                                     uint32_t flags);
 
-lcb_STATUS
-lcb_subdocops_set_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags, const char *path, size_t path_len);
+lcb_STATUS lcb_subdocops_set_fulldoc(lcb_SUBDOCOPS *operations,
+                                     size_t index,
+                                     uint32_t flags,
+                                     const char *path,
+                                     size_t path_len);
 
-lcb_STATUS lcb_subdocops_remove_fulldoc(lcb_SUBDOCOPS *operations, size_t index, uint32_t flags);
+lcb_STATUS lcb_subdocops_remove_fulldoc(lcb_SUBDOCOPS *operations,
+                                        size_t index,
+                                        uint32_t flags);
 
 #    endif
 
+
+#define lcb_cmdping_all(CMD) (CMD)->services = LCB_PINGSVC_F_KV | LCB_PINGSVC_F_N1QL | \
+LCB_PINGSVC_F_VIEWS | LCB_PINGSVC_F_FTS;
+
+#define lcb_cmdping_encode_json(CMD, ENABLE, PRETTY, DETAILS)\
+        CMD->options = (CMD->options&~LCB_PINGOPT_F_JSON) | (ENABLE?LCB_PINGOPT_F_JSON:0);\
+        CMD->options = (CMD->options&~LCB_PINGOPT_F_JSONPRETTY) | (PRETTY?LCB_PINGOPT_F_JSONPRETTY:0);\
+        CMD->options = (CMD->options&~LCB_PINGOPT_F_JSONDETAILS) | (ENABLE?LCB_PINGOPT_F_JSONDETAILS:0);
+
+
+struct lcb_CMDHTTP;
+
+void lcb_cmdhttp_path(lcb_CMDHTTP *htcmd, const char *path, size_t length);
+typedef lcb_U64 lcb_STORE_OPERATION;
 
 #endif // COUCHBASE_PYTHON_CLIENT_LCB_V4_BACKPORT_H
