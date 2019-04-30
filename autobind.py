@@ -1,14 +1,14 @@
 import os.path
-
 import logging
-import traceback
-import couchbase.tests.base
+
 CPPYY=os.getenv("PYCBC_CPPYY")
 loglevel=os.environ.get("PYCBC_DEBUG_LOG") or logging.INFO
 if loglevel:
     ch = logging.StreamHandler()
     ch.setLevel(logging.getLevelName(loglevel))
     logging.getLogger().addHandler(ch)
+
+
 class AutoBind(object):
     def dump_declarations(decls,dump, depth=0):
         indent=' '*(depth*4)

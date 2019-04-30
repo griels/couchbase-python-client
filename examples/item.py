@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from couchbase.items import Item, ItemSequence
-from couchbase.bucket import Bucket
+from couchbase_v2.items import Item, ItemSequence
+from couchbase_v2.bucket import Bucket
 from pprint import pprint
 from random import randint
 

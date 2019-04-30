@@ -3,7 +3,7 @@ try:
 except ImportError:
     import trollius as asyncio
 
-from couchbase.iops.base import (
+from couchbase_v2.iops.base import (
     IOEvent, TimerEvent, LCB_READ_EVENT, LCB_WRITE_EVENT,
     LCB_RW_EVENT, PYCBC_EVACTION_WATCH, PYCBC_EVACTION_UNWATCH
 )

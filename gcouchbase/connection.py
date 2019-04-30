@@ -1,6 +1,6 @@
 from gcouchbase.bucket import Bucket
-from couchbase.bucket import _depr
-from couchbase.connstr import convert_1x_args
+from couchbase_v2.bucket import _depr
+from couchbase_v2.connstr import convert_1x_args
 
 class GConnection(Bucket):
     def __init__(self, bucket, **kwargs):
