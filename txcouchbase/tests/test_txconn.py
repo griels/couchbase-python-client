@@ -14,12 +14,12 @@
 # limitations under the License.
 #
 from twisted.internet import reactor, defer
-from couchbase.exceptions import (
+from couchbase_v2.exceptions import (
     BucketNotFoundError,
     ObjectDestroyedError)
 
-from couchbase.tests.base import ConnectionTestCase
-from couchbase.connstr import ConnectionString
+from couchbase_v2.tests.base import ConnectionTestCase
+from couchbase_v2.connstr import ConnectionString
 from txcouchbase.tests.base import gen_base
 from txcouchbase.bucket import Bucket
 

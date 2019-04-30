@@ -23,8 +23,8 @@ import argparse
 from time import time
 
 
-from couchbase.user_constants import FMT_BYTES
-from couchbase.experimental import enable; enable()
+from couchbase_v2.user_constants import FMT_BYTES
+from couchbase_v2.experimental import enable; enable()
 from acouchbase.bucket import Bucket
 
 ap = argparse.ArgumentParser()

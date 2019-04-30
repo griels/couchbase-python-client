@@ -27,10 +27,10 @@ import requests
 # Uncomment to use the cffi module (useful with pypy)
 # import couchbase_ffi
 
-from couchbase.user_constants import FMT_JSON, FMT_BYTES
-from couchbase.transcoder import Transcoder
-from couchbase.bucket import Bucket
-from couchbase.exceptions import CouchbaseNetworkError, CouchbaseTransientError
+from couchbase_v2.user_constants import FMT_JSON, FMT_BYTES
+from couchbase_v2.transcoder import Transcoder
+from couchbase_v2.bucket import Bucket
+from couchbase_v2.exceptions import CouchbaseNetworkError, CouchbaseTransientError
 
 
 class DocLoader(object):

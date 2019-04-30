@@ -270,7 +270,8 @@ setup(
     packages = [
         'acouchbase',
         'couchbase',
-        'couchbase.v3',
+        'couchbase_v3',
+        'couchbase_v2',
         'couchbase.views',
         'couchbase.iops',
         'couchbase.asynchronous',
