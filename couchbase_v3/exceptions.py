@@ -18,24 +18,43 @@ Derived Exceptions
 Expected to be handled specifically by the application to perform an additional action such as retrying to check if the key has become unlocked.
 """
 
+
 class KeyNotFoundException(KeyValueException):
     pass
+
+
 class KeyExistsException(KeyValueException):
     pass
+
+
 class ValueTooBigException(KeyValueException):
     pass
+
+
 class KeyLockedException(KeyValueException):
     pass
+
+
 class TempFailException(KeyValueException):
     pass
+
+
 class PathNotFoundException(KeyValueException):
     pass
+
+
 class PathExistsException(KeyValueException):
     pass
+
+
 class InvalidRangeException(KeyValueException):
     pass
+
+
 class KeyDeletedException(KeyValueException):
     pass
+
+
 class QueryException(KeyValueException):
     """
     A server error occurred while executing a N1QL query. Assumes that that the service has returned a response.
@@ -46,10 +65,14 @@ class QueryException(KeyValueException):
     Any additional information returned by the server, the node it executed on, payload, HTTP status
     """
     pass
+
+
 """
 Derived Exceptions
 TBD? May be nothing to extend...
 """
+
+
 class SearchException(CouchbaseError):
     pass
 
@@ -60,9 +83,12 @@ class SearchException(CouchbaseError):
     Any additional information returned by the server, the node it executed on, payload, HTTP status
     """
 
+
 """Derived Exceptions
 TBD? May be nothing to extend...
 """
+
+
 class AnalyticsException(CouchbaseError):
     pass
     """A server error occurred while executing an Analytics query. Assumes that that the service has returned a response
@@ -71,10 +97,14 @@ class AnalyticsException(CouchbaseError):
     Properties
     The error(s) returned by response from the server, contextId, any additional information returned by the server, the node it executed on, payload, HTTP status.
     """
+
+
 """
 Derived Exceptions
 TBD? May be nothing to extend...
 """
+
+
 class ViewException(CouchbaseError):
     """A server error occurred while executing a View query.  Assumes that that the service has returned a response.
     Message
@@ -84,9 +114,11 @@ class ViewException(CouchbaseError):
     """
     pass
 
+
 class PartialViewResultException(ViewException):
-    #? (returns rows that it did get)
+    # ? (returns rows that it did get)
     pass
+
 
 class InvalidConfigurationException(CouchbaseError):
     """An invalid configuration was supplied to the client.
@@ -96,6 +128,8 @@ class InvalidConfigurationException(CouchbaseError):
     TBD
     """
     pass
+
+
 class BootstrappingException(CouchbaseError):
     """The client cannot initiate or fails while performing the bootstrap process.
     Message
@@ -103,12 +137,15 @@ class BootstrappingException(CouchbaseError):
     Properties
     TBD"""
     pass
+
+
 class ServiceNotFoundException(CouchbaseError):
     """The client requests or queries a service that is not enabled or available in the cluster.
     Message
     "The service requested is not enabled or cannot be found on the node requested.." details and inner exceptions, any stacktrace info.
     Properties
     TBD"""
+
 
 class TimeoutException(CouchbaseError):
     """---
@@ -117,12 +154,16 @@ class TimeoutException(CouchbaseError):
     Reason: (Exception) Explains the underlying reason we expect this was caused.
     """
     pass
+
+
 class NetworkException(CouchbaseError):
     """A network error happens while executing a query or performing the K/V operation; the query or operation does not succeed with a valid service response.
     Message
     Properties
     Bubble up any platform idiomatic information."""
     pass
+
+
 class NodeUnavailableException(CouchbaseError):
     """The client attempts to use a node which is either offline or cannot fulfill a request.
     Message
@@ -130,6 +171,8 @@ class NodeUnavailableException(CouchbaseError):
     Properties
     TBD"""
     pass
+
+
 class BucketMissingException(CouchbaseError):
     """The application attempts to open or use a bucket which does exist or is not available at that time.
     Message
@@ -137,6 +180,8 @@ class BucketMissingException(CouchbaseError):
     Properties
     TBD"""
     pass
+
+
 class CollectionMissingException(CouchbaseError):
     """The application attempts to open or use a collection which does not exist or is not available at that time.
     Message
@@ -146,12 +191,15 @@ class CollectionMissingException(CouchbaseError):
     """
     pass
 
+
 class AuthenticationException(CouchbaseError):
     """An authorization failure is returned by the server for given resource and credentials.
     Message
     "An authorization error has occurred"
     Properties
     TBD"""
+
+
 class AccessDeniedException(CouchbaseError):
     pass
 

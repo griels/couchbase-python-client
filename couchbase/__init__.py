@@ -1,4 +1,4 @@
 import sys
-from couchbase_v2 import *
+from couchbase_v3 import *
 
-#sys.modules['couchbase']=couchbase_v2
+sys.modules['couchbase']=couchbase_v3

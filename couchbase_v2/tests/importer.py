@@ -48,7 +48,8 @@ def _search_for_tests(base,root):
         imps.append('.'.join(newrootdir))
 
 
-_search_for_tests(os.path.join(os.path.dirname(__file__),'cases'),cases_root)
+_search_for_tests(os.path.join(os.path.dirname(__file__), 'cases'), cases_root)
+
 
 def _get_packages():
     """
@@ -59,21 +60,22 @@ def _get_packages():
         # print(repr(modname))
 
         try:
-            module = __import__('couchbase_v2.tests.cases.'+modname,
-                            fromlist=('couchbase_v2', 'tests', 'cases'))
-            ret["couchbase_v3.tests.cases."+modname] = module
+            module = __import__('couchbase_v2.tests.cases.' + modname,
+                                fromlist=('couchbase_v2', 'tests', 'cases'))
+            ret["couchbase_v3.tests.cases." + modname] = module
         except Exception as e:
-		    try:
-	            module = __import__('couchbase_v3.tests.cases.'+modname,
-	                            fromlist=('couchbase_v3', 'tests', 'cases'))
-	            ret["couchbase_v3.tests.cases."+modname] = module
-			except Exception as e:
-	            if not ('v3' in modname):
-	                raise
-	            import logging
-	            import traceback
-	            logging.error("Got exception {}".format(e))
-	            pass
+            try:
+                module = __import__('couchbase_v3.tests.cases.' + modname,
+                                    fromlist=('couchbase_v3', 'tests', 'cases'))
+                ret["couchbase_v3.tests.cases." + modname] = module
+            except Exception as e:
+                if not ('v3' in modname):
+                    raise
+                import logging
+                import traceback
+                logging.error("Got exception {}".format(e))
+                pass
+
     return ret
 
 def _get_classes(modules):
