@@ -18,7 +18,7 @@ from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
 from txcouchbase.bucket import Bucket
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2.tests.base import ConnectionTestCase
 
 def gen_base(basecls):
     class _TxTestCase(basecls, TestCase):
