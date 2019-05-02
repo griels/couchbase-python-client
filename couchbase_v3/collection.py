@@ -6,7 +6,6 @@ from couchbase_v3 import *
 from couchbase_v3.mutate_in import *
 import copy
 
-
 class IReplaceOptions(OptionBlock):
     def __init__(self, *args, **kwargs):
         super(IReplaceOptions, self).__init__(*args, **kwargs)
@@ -61,8 +60,7 @@ class LockOptions(OptionBlock):
     pass
 
 
-import couchbase._libcouchbase as LCB
-class Collection(LCB.Collection):
+class Collection(_LCB.Collection):
 
     def __init__(self,
                  parent,  # type: Scope
@@ -341,7 +339,16 @@ class Collection(LCB.Collection):
                 *args, **kwargs
                 ):
         # type: (...)->IMutationResult
-        return self.bucket.replace(id, value, **forward_args(locals(), options))
+        return self.bucket.replace(id, value, **forward_args(kwargs))
+
+    def remove(self,  # type: Collection
+               id,  # type: str
+               options=None,  # type: RemoveOptions
+               cas=0,  # type: int
+               persist_to=PersistTo.NONE  # type: PersistTo.Value
+               ):
+        # type: (...)->IMutationResult
+        pass
 
     def remove(self,  # type: Collection
                id,  # type: str
