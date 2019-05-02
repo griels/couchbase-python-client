@@ -1,7 +1,7 @@
 from twisted.internet import error as TxErrors
 
 import couchbase._libcouchbase as LCB
-from couchbase._libcouchbase import (
+from couchbase_v2 import (
     Event, TimerEvent, IOEvent,
     LCB_READ_EVENT, LCB_WRITE_EVENT, LCB_RW_EVENT,
     PYCBC_EVSTATE_ACTIVE,

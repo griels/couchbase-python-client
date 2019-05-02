@@ -20,22 +20,22 @@ from __future__ import print_function
 import logging
 from unittest import SkipTest
 
-import couchbase
-import couchbase.analytics
-import couchbase.exceptions
-from couchbase.tests.base import RealServerTestCase, ConnectionTestCase, version_to_tuple
+import couchbase_v2
+import couchbase_v2.analytics
+import couchbase_v2.exceptions
+from couchbase_v2 import RealServerTestCase, ConnectionTestCase, version_to_tuple
 from parameterized import parameterized
 import json
 import os
 import time
 import copy
-from couchbase import JSON
-from couchbase.analytics_ingester import AnalyticsIngester
-import couchbase.bucket
+from couchbase_v2 import JSON
+from couchbase_v2 import AnalyticsIngester
+import couchbase_v2.bucket
 from typing import *
-from couchbase.analytics_ingester import BucketOperators
+from couchbase_v2 import BucketOperators
 import traceback
-from couchbase.tests.base import PYCBC_SERVER_VERSION
+from couchbase_v2 import PYCBC_SERVER_VERSION
 import os
 
 
@@ -122,7 +122,7 @@ class CBASTestBase(RealServerTestCase):
 
     def initiate_query(self, statement, options, *args, **kwargs):
         logging.info("initiating query {} : {}, {}".format(statement,args,kwargs))
-        query=couchbase.analytics.AnalyticsQuery(statement, *args, **kwargs)
+        query= couchbase_v2.analytics.AnalyticsQuery(statement, *args, **kwargs)
         for k,v in options.items():
             query.set_option(k, v)
         return self.cb.analytics_query(query, self.cluster_info.analytics_host)
@@ -241,7 +241,7 @@ class DeferredAnalyticsTest(CBASTestQueriesBase):
                 if 'setup-dataset' in query_file or 'initiate-shadow' in query_file:
                     continue
                 args, kwargs, statement, options = self.gen_query_params(query_file, cbas_response)
-                real_statement = couchbase.analytics.DeferredAnalyticsQuery(statement,*args, **kwargs)
+                real_statement = couchbase_v2.analytics.DeferredAnalyticsQuery(statement, *args, **kwargs)
                 real_statement.timeout = 100
                 logging.error("scheduling query {} with args{} kwargs {} and options {}".format(real_statement, args, kwargs, options))
                 logging.error("query content; {}, body: {}".format(real_statement,real_statement._body))
@@ -266,7 +266,7 @@ class DeferredAnalyticsTest(CBASTestQueriesBase):
 
     def test_single(self):
         self.init_if_not_setup()
-        x=couchbase.analytics.DeferredAnalyticsQuery("SELECT VALUE bw FROM breweries bw WHERE bw.name = 'Kona Brewing'")
+        x= couchbase_v2.analytics.DeferredAnalyticsQuery("SELECT VALUE bw FROM breweries bw WHERE bw.name = 'Kona Brewing'")
         x.timeout = 100
         response=self.cb.analytics_query(x,self.cluster_info.analytics_host)
         list_resp = list(response)
@@ -280,7 +280,7 @@ class DeferredAnalyticsTest(CBASTestQueriesBase):
 
     def test_correct_timeout_via_query_property(self):
         self.init_if_not_setup()
-        x = couchbase.analytics.DeferredAnalyticsQuery(
+        x = couchbase_v2.analytics.DeferredAnalyticsQuery(
             "SELECT VALUE bw FROM breweries bw WHERE bw.name = 'Kona Brewing'")
 
         def creator(query, host, timeout):
@@ -291,10 +291,10 @@ class DeferredAnalyticsTest(CBASTestQueriesBase):
 
     def test_correct_timeout_in_constructor(self):
         self.init_if_not_setup()
-        x = couchbase.analytics.DeferredAnalyticsQuery(
+        x = couchbase_v2.analytics.DeferredAnalyticsQuery(
             "SELECT VALUE bw FROM breweries bw WHERE bw.name = 'Kona Brewing'")
-        creator = lambda query, host, timeout: couchbase.analytics.DeferredAnalyticsRequest(query, host, self.cb,
-                                                                                            timeout=timeout)
+        creator = lambda query, host, timeout: couchbase_v2.analytics.DeferredAnalyticsRequest(query, host, self.cb,
+                                                                                               timeout=timeout)
         self._check_finish_time_in_bounds(x, creator, 500)
 
     def _check_finish_time_in_bounds(self, x, response_creator, expected_timeout):
@@ -347,8 +347,8 @@ class CBASTestSpecific(CBASTestBase):
         logging.info("got result [{}]".format(result))
 
     def test_cbas_alias(self):
-        import couchbase.cbas
-        query = couchbase.cbas.AnalyticsQuery('SELECT * FROM Metadata.`Dataverse`')
+        import couchbase_v2.cbas
+        query = couchbase_v2.cbas.AnalyticsQuery('SELECT * FROM Metadata.`Dataverse`')
 
 
 class TestIdGenerator:

@@ -17,7 +17,7 @@
 import logging
 from unittest import SkipTest
 
-from couchbase.tests.base import ConnectionTestCase, PYCBC_CB_VERSION
+from couchbase_v2 import ConnectionTestCase, PYCBC_CB_VERSION
 import jsonschema
 import re
 import couchbase._libcouchbase as LCB

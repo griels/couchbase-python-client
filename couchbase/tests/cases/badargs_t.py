@@ -1,10 +1,7 @@
-from time import sleep
-
-from couchbase import FMT_JSON, FMT_PICKLE, FMT_UTF8, FMT_BYTES
-from couchbase.exceptions import (KeyExistsError, ValueFormatError,
-                                  ArgumentError, NotFoundError,
-                                  NotStoredError)
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import FMT_JSON, FMT_PICKLE, FMT_UTF8, FMT_BYTES
+from couchbase_v2.exceptions import (ValueFormatError,
+                                     ArgumentError)
+from couchbase_v2 import ConnectionTestCase
 
 #
 # Copyright 2013, Couchbase, Inc.

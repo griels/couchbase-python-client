@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import CouchbaseTestCase
-from couchbase.iops.select import SelectIOPS
+from couchbase_v2 import CouchbaseTestCase
+from couchbase_v2 import SelectIOPS
 
 # For now, this just checks that basic set/get doesn't explode
 # We'll definitely want to add more here before we consider it stable

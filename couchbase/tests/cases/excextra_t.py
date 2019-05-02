@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-import couchbase.exceptions as E
-from couchbase.tests.base import ConnectionTestCase
+import couchbase_v2.exceptions as E
+from couchbase_v2 import ConnectionTestCase
 
 # These tests try to see if the 'result' and 'all_results' appear properly
 # also verify that other documented exception fields are present

@@ -18,14 +18,14 @@
 # These tests are largely ported from php-ext-couchbase
 import json
 
-from couchbase.views.params import (make_options_string,
-                                    Query,
-                                    ulp,
-                                    UNSPEC,
-                                    _HANDLER_MAP)
+from couchbase_v2 import (make_options_string,
+                          Query,
+                          ulp,
+                          UNSPEC,
+                          _HANDLER_MAP)
 
-from couchbase.exceptions import ArgumentError
-from couchbase.tests.base import CouchbaseTestCase
+from couchbase_v2.exceptions import ArgumentError
+from couchbase_v2 import CouchbaseTestCase
 
 class ViewStringTest(CouchbaseTestCase):
     def setUp(self):

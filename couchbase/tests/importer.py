@@ -64,7 +64,7 @@ def _get_classes(modules):
             if not isinstance(attrobj, type):
                 continue
 
-            from couchbase.tests.base import CouchbaseTestCase
+            from couchbase_v2 import CouchbaseTestCase
             if not issubclass(attrobj, CouchbaseTestCase):
                 continue
 

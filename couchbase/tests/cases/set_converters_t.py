@@ -18,8 +18,8 @@
 import json
 import pickle
 
-from couchbase.tests.base import ConnectionTestCase
-import couchbase
+from couchbase_v2 import ConnectionTestCase
+import couchbase_v2
 import couchbase._libcouchbase as LCB
 
 class ConverertSetTest(ConnectionTestCase):
@@ -49,20 +49,20 @@ class ConverertSetTest(ConnectionTestCase):
             d['decode'] += 1
             return json.loads(val)
 
-        old = self._swap_converters(couchbase.set_json_converters,
+        old = self._swap_converters(couchbase_v2.set_json_converters,
                                     "json",
                                     _encode,
                                     _decode)
 
         key = self.gen_key("test_json_conversion")
 
-        self.cb.upsert(key, ["value"], format=couchbase.FMT_JSON)
+        self.cb.upsert(key, ["value"], format=couchbase_v2.FMT_JSON)
         rv = self.cb.get(key)
         self.assertEqual(rv.value, ["value"])
         self.assertEqual(1, d['encode'])
         self.assertEqual(1, d['decode'])
 
-        self._swap_converters(couchbase.set_json_converters,
+        self._swap_converters(couchbase_v2.set_json_converters,
                               "json",
                               old[0],
                               old[1])
@@ -82,18 +82,18 @@ class ConverertSetTest(ConnectionTestCase):
             return pickle.loads(val)
 
         key = self.gen_key("test_pickle_conversions")
-        old = self._swap_converters(couchbase.set_pickle_converters,
+        old = self._swap_converters(couchbase_v2.set_pickle_converters,
                                     "pickle",
                                     _encode,
                                     _decode)
         fn = set([1,2,3])
-        self.cb.upsert(key, fn, format=couchbase.FMT_PICKLE)
+        self.cb.upsert(key, fn, format=couchbase_v2.FMT_PICKLE)
         rv = self.cb.get(key)
         self.assertEqual(rv.value, fn)
         self.assertEqual(1, d['encode'])
         self.assertEqual(1, d['decode'])
 
-        self._swap_converters(couchbase.set_pickle_converters,
+        self._swap_converters(couchbase_v2.set_pickle_converters,
                               "pickle",
                               old[0],
                               old[1])

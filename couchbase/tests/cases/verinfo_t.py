@@ -16,7 +16,7 @@
 #
 
 import unittest
-from couchbase.tests.base import SkipTest
+from couchbase_v2 import SkipTest
 
 
 try:

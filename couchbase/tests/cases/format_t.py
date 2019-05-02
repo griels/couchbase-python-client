@@ -18,9 +18,9 @@
 import json
 import pickle
 
-from couchbase.tests.base import ConnectionTestCase, SkipTest
-from couchbase.exceptions import ValueFormatError, ArgumentError
-from couchbase import FMT_AUTO, FMT_JSON, FMT_BYTES, FMT_UTF8, FMT_PICKLE
+from couchbase_v2 import ConnectionTestCase, SkipTest
+from couchbase_v2.exceptions import ValueFormatError, ArgumentError
+from couchbase_v2 import FMT_AUTO, FMT_JSON, FMT_BYTES, FMT_UTF8, FMT_PICKLE
 
 class FormatTest(ConnectionTestCase):
 

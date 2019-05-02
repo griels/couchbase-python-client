@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from couchbase import (
+from couchbase_v2 import (
     FMT_BYTES, FMT_JSON, FMT_PICKLE, FMT_UTF8,
     FMT_LEGACY_MASK, FMT_COMMON_MASK)
-from couchbase.exceptions import ValueFormatError, CouchbaseError
-from couchbase.tests.base import ConnectionTestCase, SkipTest
-from couchbase.transcoder import TranscoderPP, LegacyTranscoderPP
-from couchbase.tests.base import PYCBC_BYPASS_V3_FAILURES
+from couchbase_v2.exceptions import ValueFormatError, CouchbaseError
+from couchbase_v2 import ConnectionTestCase, SkipTest
+from couchbase_v2 import TranscoderPP, LegacyTranscoderPP
+from couchbase_v2 import PYCBC_BYPASS_V3_FAILURES
 BLOB_ORIG =  b'\xff\xfe\xe9\x05\xdc\x05\xd5\x05\xdd\x05'
 
 class EncodingTest(ConnectionTestCase):

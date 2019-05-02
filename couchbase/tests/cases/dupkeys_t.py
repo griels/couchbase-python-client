@@ -16,8 +16,8 @@
 #
 import warnings
 
-from couchbase.tests.base import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
-from couchbase.exceptions import NotFoundError, TemporaryFailError
+from couchbase_v2 import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
+from couchbase_v2.exceptions import NotFoundError, TemporaryFailError
 import couchbase._libcouchbase as LCB
 
 class DupKeyTest(ConnectionTestCase):

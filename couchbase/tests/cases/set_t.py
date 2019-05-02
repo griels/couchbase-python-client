@@ -20,11 +20,11 @@ from time import sleep
 
 from nose.plugins.attrib import attr
 
-from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
-from couchbase.exceptions import (KeyExistsError, ValueFormatError,
-                                  ArgumentError, NotFoundError,
-                                  NotStoredError)
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
+from couchbase_v2.exceptions import (KeyExistsError, ValueFormatError,
+                                     ArgumentError, NotFoundError,
+                                     NotStoredError)
+from couchbase_v2 import ConnectionTestCase
 import json
 
 class UpsertTest(ConnectionTestCase):

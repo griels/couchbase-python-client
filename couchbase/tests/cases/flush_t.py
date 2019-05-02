@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import MockTestCase
+from couchbase_v2 import MockTestCase
 
 
 class FlushTest(MockTestCase):

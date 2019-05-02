@@ -18,17 +18,17 @@
 import sys
 import os
 
-from couchbase.admin import Admin
-from couchbase.bucket import Bucket
-from couchbase.result import HttpResult
-from couchbase.connstr import ConnectionString
-from couchbase.exceptions import (
+from couchbase_v2 import Admin
+from couchbase_v2 import Bucket
+from couchbase_v2 import HttpResult
+from couchbase_v2 import ConnectionString
+from couchbase_v2.exceptions import (
     ArgumentError, AuthError, CouchbaseError,
     CouchbaseNetworkError, HTTPError)
-from couchbase.tests.base import CouchbaseTestCase, SkipTest
-from couchbase.auth_domain import AuthDomain
+from couchbase_v2 import CouchbaseTestCase, SkipTest
+from couchbase_v2 import AuthDomain
 
-import couchbase
+import couchbase_v2
 import time
 
 class AdminSimpleTest(CouchbaseTestCase):

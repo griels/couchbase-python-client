@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import CouchbaseTestCase
-from couchbase.connstr import ConnectionString
-from couchbase.cluster import Cluster, ClassicAuthenticator,\
+from couchbase_v2 import CouchbaseTestCase
+from couchbase_v2 import ConnectionString
+from couchbase_v2 import Cluster, ClassicAuthenticator,\
     PasswordAuthenticator, NoBucketError, MixedAuthError
 import gc
 

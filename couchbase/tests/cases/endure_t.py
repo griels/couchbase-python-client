@@ -16,8 +16,8 @@
 #
 from unittest import SkipTest
 
-from couchbase.exceptions import NotFoundError, ArgumentError, TimeoutError
-from couchbase.tests.base import MockTestCase
+from couchbase_v2.exceptions import NotFoundError, ArgumentError, TimeoutError
+from couchbase_v2 import MockTestCase
 import couchbase._libcouchbase as LCB
 class EndureTest(MockTestCase):
     #XXX: Require LCB 2.1.0

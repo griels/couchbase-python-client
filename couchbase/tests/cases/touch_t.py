@@ -18,8 +18,8 @@ import time
 
 from nose.plugins.attrib import attr
 
-from couchbase.tests.base import ConnectionTestCase
-import couchbase.exceptions as E
+from couchbase_v2 import ConnectionTestCase
+import couchbase_v2.exceptions as E
 
 
 @attr('slow')

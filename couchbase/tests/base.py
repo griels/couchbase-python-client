@@ -32,12 +32,12 @@ import gc
 import os
 import time
 from basictracer import BasicTracer, SpanRecorder
-import couchbase
+import couchbase_v2
 import couchbase._libcouchbase
 import traceback
 
 from typing import *
-from couchbase.bucket import Bucket
+from couchbase_v2 import Bucket
 if os.environ.get("PYCBC_TRACE_GC") in ['FULL', 'STATS_LEAK_ONLY']:
     gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
@@ -56,7 +56,7 @@ def version_to_tuple(version_str, default=None):
 
 
 PYCBC_SERVER_VERSION = version_to_tuple(os.environ.get("PYCBC_SERVER_VERSION"))
-PYCBC_BYPASS_V3_FAILURES =couchbase._libcouchbase.PYCBC_LCB_API>0x030000 and os.environ.get("PYCBC_BYPASS_V3_FAILURES")
+PYCBC_BYPASS_V3_FAILURES = couchbase._libcouchbase.PYCBC_LCB_API > 0x030000 and os.environ.get("PYCBC_BYPASS_V3_FAILURES")
 
 
 def sanitize_json(input, ignored_parts):
@@ -138,13 +138,13 @@ except ImportError:
     # Python <3.0 fallback
     from fallback import configparser
 
-from couchbase.exceptions import CouchbaseError
-from couchbase.admin import Admin
-from couchbase.mockserver import CouchbaseMock, BucketSpec, MockControlClient
-from couchbase.result import (
+from couchbase_v2.exceptions import CouchbaseError
+from couchbase_v2 import Admin
+from couchbase_v2 import CouchbaseMock, BucketSpec, MockControlClient
+from couchbase_v2 import (
     MultiResult, ValueResult, OperationResult, ObserveInfo, Result)
-from couchbase._pyport import basestring
-from couchbase._version import __version__ as cb_version
+from couchbase_v2 import basestring
+from couchbase_v2 import __version__ as cb_version
 PYCBC_CB_VERSION = 'PYCBC/' + cb_version
 
 CONFIG_FILE = 'tests.ini' # in cwd
@@ -414,9 +414,9 @@ class CouchbaseTestCase(ResourcedTestCase):
         self._key_counter = 0
 
         if not hasattr(self, 'factory'):
-            from couchbase.bucket import Bucket
-            from couchbase.views.iterator import View
-            from couchbase.result import (
+            from couchbase_v2 import Bucket
+            from couchbase_v2 import View
+            from couchbase_v2 import (
                 MultiResult, Result, OperationResult, ValueResult,
                 ObserveInfo)
 
@@ -642,7 +642,7 @@ class TracedCase(ConnectionTestCaseBase):
             raise SkipTest("too slow when using jaeger")
         enable_logging |= bool(self.trace_all)
         if enable_logging:
-            couchbase.enable_logging()
+            couchbase_v2.enable_logging()
         if self.use_parent_tracer:
             kwargs['init_tracer'] =self.init_tracer
         kwargs['enable_tracing']="true"
@@ -669,7 +669,7 @@ class TracedCase(ConnectionTestCaseBase):
         if self.trace_all and not self.using_jaeger:
             self.flush_tracer()
         super(TracedCase,self).tearDown()
-        couchbase.disable_logging()
+        couchbase_v2.disable_logging()
         if self.tracer and getattr(self.tracer,"close", None):
             try:
                 time.sleep(2)   # yield to IOLoop to flush the spans - https://github.com/jaegertracing/jaeger-client-python/issues/50

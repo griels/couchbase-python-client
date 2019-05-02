@@ -19,12 +19,12 @@ from time import sleep
 
 from nose.plugins.attrib import attr
 
-from couchbase import FMT_JSON, FMT_UTF8
+from couchbase_v2 import FMT_JSON, FMT_UTF8
 
-from couchbase.exceptions import (
+from couchbase_v2.exceptions import (
     CouchbaseError, ValueFormatError, NotFoundError)
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import ConnectionTestCase
 
 class GetTest(ConnectionTestCase):
     def test_trivial_get(self):

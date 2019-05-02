@@ -17,10 +17,10 @@
 import json
 
 
-from couchbase.tests.base import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
-from couchbase.connstr import ConnectionString
-from couchbase._pyport import long
-from couchbase.n1ql import MutationState
+from couchbase_v2 import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
+from couchbase_v2 import ConnectionString
+from couchbase_v2 import long
+from couchbase_v2 import MutationState
 
 
 class MutationTokensTest(ConnectionTestCase):

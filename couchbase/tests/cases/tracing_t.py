@@ -20,19 +20,17 @@ from unittest import SkipTest
 
 from nose.plugins.attrib import attr
 
-from couchbase import FMT_JSON, FMT_UTF8
-
-from couchbase.exceptions import (
+from couchbase_v2.exceptions import (
     CouchbaseError, ValueFormatError, NotFoundError)
 
-from couchbase.tests.base import TracedCase, ConnectionTestCase, ConnectionTestCaseBase
+from couchbase_v2 import TracedCase, ConnectionTestCase, ConnectionTestCaseBase
 import logging
 import couchbase._libcouchbase
-import couchbase._logutil
-from couchbase.exceptions import TimeoutError
+import couchbase_v2._logutil
+from couchbase_v2.exceptions import TimeoutError
 from time import sleep
 import re
-import couchbase
+import couchbase_v2
 from functools import reduce
 from pyparsing import *
 import sys
@@ -52,7 +50,7 @@ class BogusHandler:
         self.count = 0
 
     def handler(self, **kwargs):
-        couchbase._logutil.pylog_log_handler(**kwargs)
+        couchbase_v2._logutil.pylog_log_handler(**kwargs)
         if self.pattern and self.pattern.match(str(kwargs)):
             self.count += 1
         self.records.append(kwargs)
@@ -86,7 +84,7 @@ class TimeoutTest(TracedCase):
         if not couchbase._libcouchbase.PYCBC_TRACING:
             raise SkipTest("Tracing feature not compiled into Python Client")
         kwargs = {}
-        couchbase.enable_logging()
+        couchbase_v2.enable_logging()
         kwargs['enable_tracing'] = "true"
         #super(TimeoutTest, self).setUp(**kwargs)
         super(TimeoutTest, self).setUp(trace_all=True, enable_logging=True, use_parent_tracer=False, flushcount=0)
@@ -98,7 +96,7 @@ class TimeoutTest(TracedCase):
             raise SkipTest("To be fixed on Windows")
         if sys.version_info >= (3,6) and sys.platform.startswith('linux') and os.environ.get("VALGRIND_REPORT_DIR"):
             raise SkipTest("To be fixed on Linux 3.6/Valgrind")
-        couchbase.enable_logging()
+        couchbase_v2.enable_logging()
         bucket = self.cb
         bucket.upsert("key", "value")
 
@@ -166,11 +164,11 @@ class TimeoutTest(TracedCase):
                 logging.error("Got exception [{}]".format(str(e)))
                 to_ops += 1
         logging.info('timedout ops ' + str(to_ops))
-        couchbase._libcouchbase.lcb_logging(couchbase._logutil.pylog_log_handler)
+        couchbase._libcouchbase.lcb_logging(couchbase_v2._logutil.pylog_log_handler)
 
     def tearDown(self):
         super(TimeoutTest, self).tearDown()
-        couchbase.disable_logging()
+        couchbase_v2.disable_logging()
 
 
 class ExceptionGrammar:

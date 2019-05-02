@@ -27,15 +27,15 @@ except ImportError:
     unittest2 = None
 
 
-from couchbase.tests.base import ConnectionTestCaseBase
-from couchbase.user_constants import FMT_JSON, FMT_AUTO, FMT_JSON, FMT_PICKLE
-from couchbase.exceptions import ClientTemporaryFailError
-from couchbase.exceptions import CouchbaseError
-import couchbase
+from couchbase_v2 import ConnectionTestCaseBase
+from couchbase_v2 import FMT_JSON, FMT_AUTO, FMT_JSON, FMT_PICKLE
+from couchbase_v2.exceptions import ClientTemporaryFailError
+from couchbase_v2.exceptions import CouchbaseError
+import couchbase_v2
 import re
 import couchbase._libcouchbase as _LCB
-from couchbase import enable_logging
-from couchbase import COMPRESS_INOUT
+from couchbase_v2 import enable_logging
+from couchbase_v2 import COMPRESS_INOUT
 import logging
 
 
@@ -70,7 +70,7 @@ class MiscTest(ConnectionTestCaseBase):
 
     def test_connection_defaults(self):
         # This will only work on the basic Connection class
-        from couchbase.bucket import Bucket
+        from couchbase_v2 import Bucket
         ctor_params = self.make_connargs()
         # XXX: Change these if any of the defaults change
         defaults = {
@@ -165,9 +165,9 @@ class MiscTest(ConnectionTestCaseBase):
         lcb.lcb_logging(logfn)
         self.assertEqual(logfn, lcb.lcb_logging())
 
-        couchbase.enable_logging()
+        couchbase_v2.enable_logging()
         self.assertTrue(lcb.lcb_logging())
-        couchbase.disable_logging()
+        couchbase_v2.disable_logging()
         self.assertFalse(lcb.lcb_logging())
 
     def test_redaction(self):
@@ -212,7 +212,7 @@ class MiscTest(ConnectionTestCaseBase):
                                                                                                          **val))
                     self.assertRegex(''.join(cm.output), opposite_val['pattern'])
         finally:
-            couchbase.disable_logging()
+            couchbase_v2.disable_logging()
 
     def test_compat_timeout(self):
         cb = self.make_connection(timeout=7.5)
@@ -242,4 +242,4 @@ class MiscTest(ConnectionTestCaseBase):
     def test_compression_named(self):
         import couchbase._libcouchbase as _LCB
         cb = self.make_connection()
-        cb.compression =couchbase.COMPRESS_INOUT
+        cb.compression = couchbase_v2.COMPRESS_INOUT

@@ -22,12 +22,12 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.python.failure import Failure
 
-from couchbase.asynchronous.bucket import AsyncBucket
-from couchbase.asynchronous.view import AsyncViewBase
-from couchbase.asynchronous.n1ql import AsyncN1QLRequest
-from couchbase.asynchronous.fulltext import AsyncSearchRequest
-from couchbase.asynchronous.events import EventQueue
-from couchbase.exceptions import CouchbaseError
+from couchbase_v2 import AsyncBucket
+from couchbase_v2 import AsyncViewBase
+from couchbase_v2 import AsyncN1QLRequest
+from couchbase_v2 import AsyncSearchRequest
+from couchbase_v2 import EventQueue
+from couchbase_v2.exceptions import CouchbaseError
 from txcouchbase.iops import v0Iops
 
 

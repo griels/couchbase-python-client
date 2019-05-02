@@ -18,9 +18,9 @@
 from __future__ import print_function
 import json
 
-from couchbase.tests.base import CouchbaseTestCase
-from couchbase.n1ql import N1QLQuery, CONSISTENCY_REQUEST, CONSISTENCY_UNBOUNDED
-from couchbase.n1ql import MutationState
+from couchbase_v2 import CouchbaseTestCase
+from couchbase_v2 import N1QLQuery, CONSISTENCY_REQUEST, CONSISTENCY_UNBOUNDED
+from couchbase_v2 import MutationState
 
 
 class N1QLStringTest(CouchbaseTestCase):

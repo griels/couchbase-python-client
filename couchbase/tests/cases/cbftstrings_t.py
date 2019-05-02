@@ -1,8 +1,8 @@
 from __future__ import print_function
 
-from couchbase.tests.base import CouchbaseTestCase
-import couchbase.fulltext as cbft
-from couchbase.n1ql import MutationState
+from couchbase_v2 import CouchbaseTestCase
+import couchbase_v2.fulltext as cbft
+from couchbase_v2 import MutationState
 
 
 class FTStringsTest(CouchbaseTestCase):

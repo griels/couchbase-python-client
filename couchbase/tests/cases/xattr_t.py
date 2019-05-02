@@ -1,7 +1,7 @@
-from couchbase.tests.base import MockTestCase
-from couchbase import FMT_UTF8
-import couchbase.subdocument as SD
-import couchbase.exceptions as E
+from couchbase_v2 import MockTestCase
+from couchbase_v2 import FMT_UTF8
+import couchbase_v2.subdocument as SD
+import couchbase_v2.exceptions as E
 
 class XattrTest(MockTestCase):
     def test_xattrs_basic(self):

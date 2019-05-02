@@ -18,9 +18,9 @@ from threading import Thread, Lock
 import time
 
 
-from couchbase.exceptions import CouchbaseError, ObjectThreadError
-from couchbase.tests.base import CouchbaseTestCase
-from couchbase import LOCKMODE_WAIT, LOCKMODE_EXC, LOCKMODE_NONE
+from couchbase_v2.exceptions import CouchbaseError, ObjectThreadError
+from couchbase_v2 import CouchbaseTestCase
+from couchbase_v2 import LOCKMODE_WAIT, LOCKMODE_EXC, LOCKMODE_NONE
 
 class LockmodeTest(CouchbaseTestCase):
     def test_lockmode_defaults(self):

@@ -17,9 +17,9 @@
 
 from unittest import SkipTest
 
-from couchbase.tests.base import CouchbaseTestCase
-from couchbase.connstr import ConnectionString
-from couchbase.cluster import Cluster, ClassicAuthenticator,PasswordAuthenticator, NoBucketError, MixedAuthError, CertAuthenticator
+from couchbase_v2 import CouchbaseTestCase
+from couchbase_v2 import ConnectionString
+from couchbase_v2 import Cluster, ClassicAuthenticator,PasswordAuthenticator, NoBucketError, MixedAuthError, CertAuthenticator
 import gc
 
 
@@ -96,7 +96,7 @@ class ClusterTest(CouchbaseTestCase):
         self.assertRegex(exception.message, r'.*CertAuthenticator.*password.*')
 
     def test_PYCBC_489(self):
-        from couchbase.cluster import Cluster
+        from couchbase_v2 import Cluster
         with self.assertRaises(MixedAuthError) as maerr:
             cluster = Cluster('couchbases://10.142.175.101?certpath=/Users/daschl/tmp/ks/chain.pem&keypath=/Users/daschl/tmp/ks/pkey.key')
             cb = cluster.open_bucket('pixels', password = 'foo')

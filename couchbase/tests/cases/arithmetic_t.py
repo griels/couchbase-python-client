@@ -16,8 +16,8 @@
 #
 from unittest import SkipTest
 
-from couchbase.exceptions import (NotFoundError, DeltaBadvalError)
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2.exceptions import (NotFoundError, DeltaBadvalError)
+from couchbase_v2 import ConnectionTestCase
 import couchbase._libcouchbase as _LCB
 
 

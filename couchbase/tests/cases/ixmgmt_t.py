@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from couchbase.tests.base import RealServerTestCase, SkipTest
-from couchbase.bucketmanager import BucketManager
-from couchbase.bucket import Bucket
-import couchbase.exceptions as E
+from couchbase_v2 import RealServerTestCase, SkipTest
+from couchbase_v2 import BucketManager
+from couchbase_v2 import Bucket
+import couchbase_v2.exceptions as E
 from nose.plugins.attrib import attr
 
 

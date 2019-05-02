@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase, MockTestCase
-from couchbase.result import ObserveInfo
-from couchbase.user_constants import OBS_MASK, OBS_FOUND, OBS_PERSISTED
+from couchbase_v2 import ConnectionTestCase, MockTestCase
+from couchbase_v2 import OBS_MASK, OBS_FOUND
+
 
 class ObserveTest(ConnectionTestCase):
 

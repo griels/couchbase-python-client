@@ -17,9 +17,9 @@
 
 from __future__ import print_function
 
-from couchbase.exceptions import HTTPError
-from couchbase.tests.base import MockTestCase
-from couchbase.n1ql import N1QLQuery
+from couchbase_v2.exceptions import HTTPError
+from couchbase_v2 import MockTestCase
+from couchbase_v2 import N1QLQuery
 import json
 
 

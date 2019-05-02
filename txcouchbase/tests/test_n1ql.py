@@ -17,10 +17,10 @@
 from twisted.internet import defer
 
 from txcouchbase.bucket import BatchedN1QLRequest
-from couchbase.exceptions import HTTPError
-from couchbase.asynchronous.n1ql import AsyncN1QLRequest
+from couchbase_v2.exceptions import HTTPError
+from couchbase_v2 import AsyncN1QLRequest
 
-from couchbase.tests.base import MockTestCase
+from couchbase_v2 import MockTestCase
 from txcouchbase.tests.base import gen_base
 
 class RowsHandler(AsyncN1QLRequest):

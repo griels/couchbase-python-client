@@ -14,12 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import time
 
 from nose.plugins.attrib import attr
 
-from couchbase.tests.base import DDocTestCase
-from couchbase.exceptions import HTTPError, CouchbaseError
+from couchbase_v2 import DDocTestCase
+from couchbase_v2.exceptions import HTTPError
 
 DNAME = "tmp"
 VNAME = "a_view"

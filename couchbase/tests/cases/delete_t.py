@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-from couchbase.exceptions import (KeyExistsError, NotFoundError)
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2.exceptions import (KeyExistsError, NotFoundError)
+from couchbase_v2 import ConnectionTestCase
 
 class DeleteTest(ConnectionTestCase):
 

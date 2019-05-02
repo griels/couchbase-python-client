@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase
-from couchbase.items import Item, ItemSequence, ItemOptionDict
-from couchbase.exceptions import (
+from couchbase_v2 import ConnectionTestCase
+from couchbase_v2 import Item, ItemSequence, ItemOptionDict
+from couchbase_v2.exceptions import (
     NotFoundError, ValueFormatError, ArgumentError, KeyExistsError)
-from couchbase.user_constants import FMT_BYTES, FMT_UTF8
+from couchbase_v2 import FMT_BYTES, FMT_UTF8
 
 class ItemTest(ConnectionTestCase):
     """

@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase, SkipTest
-import couchbase.exceptions as E
+from couchbase_v2 import ConnectionTestCase, SkipTest
+import couchbase_v2.exceptions as E
 
 
 class DatastructureTest(ConnectionTestCase):

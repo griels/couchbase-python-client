@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from couchbase.exceptions import NotFoundError, ArgumentError
+from couchbase_v2.exceptions import NotFoundError, ArgumentError
 
-from couchbase.tests.base import MockTestCase
-from couchbase.mockserver import MockControlClient
+from couchbase_v2 import MockTestCase
+from couchbase_v2 import MockControlClient
 
 class ReplicaGetTest(MockTestCase):
     def setUp(self):

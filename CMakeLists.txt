@@ -317,15 +317,15 @@ add_library(couchbase_python_client SHARED
         acouchbase/asyncio_iops.py
         acouchbase/bucket.py
         acouchbase/py34only/iterator.py
-        couchbase/asynchronous/__init__.py
-        couchbase/asynchronous/bucket.py
-        couchbase/asynchronous/events.py
-        couchbase/asynchronous/n1ql.py
-        couchbase/asynchronous/rowsbase.py
-        couchbase/asynchronous/view.py
-        couchbase/iops/__init__.py
-        couchbase/iops/base.py
-        couchbase/iops/select.py
+        couchbase_v2/asynchronous/__init__.py
+        couchbase_v2/asynchronous/bucket.py
+        couchbase_v2/asynchronous/events.py
+        couchbase_v2/asynchronous/n1ql.py
+        couchbase_v2/asynchronous/rowsbase.py
+        couchbase_v2/asynchronous/view.py
+        couchbase_v2/iops/__init__.py
+        couchbase_v2/iops/base.py
+        couchbase_v2/iops/select.py
         couchbase/tests/admin/__init__.py
         couchbase/tests/cases/__init__.py
         couchbase/tests/cases/admin_t.py
@@ -379,34 +379,34 @@ add_library(couchbase_python_client SHARED
         couchbase/tests/base.py
         couchbase/tests/importer.py
         couchbase/tests/test_sync.py
-        couchbase/views/__init__.py
-        couchbase/views/iterator.py
-        couchbase/views/params.py
-        couchbase/__init__.py
-        couchbase/_bootstrap.py
-        couchbase/_ixmgmt.py
-        couchbase/_logutil.py
-        couchbase/_pyport.py
-        couchbase/admin.py
-        couchbase/auth_domain.py
-        couchbase/bucket.py
-        couchbase/bucketmanager.py
-        couchbase/analytics.py
-        couchbase/cluster.py
-        couchbase/connection.py
-        couchbase/connstr.py
-        couchbase/exceptions.py
-        couchbase/experimental.py
-        couchbase/fulltext.py
-        couchbase/items.py
-        couchbase/mockserver.py
-        couchbase/mutation_state.py
-        couchbase/n1ql.py
-        couchbase/priv_constants.py
-        couchbase/result.py
-        couchbase/subdocument.py
-        couchbase/transcoder.py
-        couchbase/user_constants.py
+        couchbase_v2/views/__init__.py
+        couchbase_v2/views/iterator.py
+        couchbase_v2/views/params.py
+        couchbase_v2/__init__.py
+        couchbase_v2/_bootstrap.py
+        couchbase_v2/_ixmgmt.py
+        couchbase_v2/_logutil.py
+        couchbase_v2/_pyport.py
+        couchbase_v2/admin.py
+        couchbase_v2/auth_domain.py
+        couchbase_v2/bucket.py
+        couchbase_v2/bucketmanager.py
+        couchbase_v2/analytics.py
+        couchbase_v2/cluster.py
+        couchbase_v2/connection.py
+        couchbase_v2/connstr.py
+        couchbase_v2/exceptions.py
+        couchbase_v2/experimental.py
+        couchbase_v2/fulltext.py
+        couchbase_v2/items.py
+        couchbase_v2/mockserver.py
+        couchbase_v2/mutation_state.py
+        couchbase_v2/n1ql.py
+        couchbase_v2/priv_constants.py
+        couchbase_v2/result.py
+        couchbase_v2/subdocument.py
+        couchbase_v2/transcoder.py
+        couchbase_v2/user_constants.py
         examples/abench.py
         examples/basic.py
         examples/bench.py

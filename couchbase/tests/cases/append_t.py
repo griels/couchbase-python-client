@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from couchbase import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
+from couchbase_v2 import FMT_JSON, FMT_PICKLE, FMT_BYTES, FMT_UTF8
 
-from couchbase.exceptions import (KeyExistsError, ValueFormatError,
-                                  ArgumentError, NotFoundError,
-                                  NotStoredError, CouchbaseError)
+from couchbase_v2.exceptions import (KeyExistsError, ValueFormatError,
+                                     ArgumentError, NotFoundError,
+                                     NotStoredError, CouchbaseError)
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import ConnectionTestCase
 
 
 class AppendTest(ConnectionTestCase):

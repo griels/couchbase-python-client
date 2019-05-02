@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase, RealServerTestCase
+from couchbase_v2 import ConnectionTestCase, RealServerTestCase
 
 
 # For Python 2/3 compatibility

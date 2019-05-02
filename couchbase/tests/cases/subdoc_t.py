@@ -1,7 +1,7 @@
-from couchbase.tests.base import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
-from couchbase import FMT_UTF8
-import couchbase.subdocument as SD
-import couchbase.exceptions as E
+from couchbase_v2 import ConnectionTestCase, PYCBC_BYPASS_V3_FAILURES
+from couchbase_v2 import FMT_UTF8
+import couchbase_v2.subdocument as SD
+import couchbase_v2.exceptions as E
 
 
 class SubdocTest(ConnectionTestCase):

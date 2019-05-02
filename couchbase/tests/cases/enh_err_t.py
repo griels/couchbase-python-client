@@ -16,12 +16,12 @@
 #
 import unittest
 
-from couchbase.exceptions import ( CouchbaseError )
-from couchbase.tests.base import MockTestCase, ConnectionTestCase,\
+from couchbase_v2.exceptions import (CouchbaseError)
+from couchbase_v2 import MockTestCase, ConnectionTestCase,\
     CouchbaseTestCase, RealServerTestCase
-from couchbase.auth_domain import AuthDomain
+from couchbase_v2 import AuthDomain
 import sys
-import couchbase
+import couchbase_v2
 import logging
 import time
 from nose import SkipTest
@@ -49,7 +49,7 @@ class EnhancedErrorTest(CouchbaseTestCase):
         del self.admin
 
     def test_enhanced_err_present_authorisation(self):
-        import couchbase.subdocument as SD
+        import couchbase_v2.subdocument as SD
         users=[('writer',('s3cr3t',[('data_reader', 'default'), ('data_writer', 'default')])),
               ('reader',('s3cr3t',[('data_reader', 'default')]))]
         #self.mockclient._do_request("SET_ENHANCED_ERRORS",{"enabled":True})

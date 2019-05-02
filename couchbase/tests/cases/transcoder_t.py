@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 import json
-from unittest import SkipTest
 
-from couchbase.tests.base import ConnectionTestCase
-from couchbase.transcoder import TranscoderPP, Transcoder
-from couchbase.bucket import Bucket
-from couchbase import FMT_UTF8
-import couchbase.exceptions as E
+from couchbase_v2 import ConnectionTestCase
+from couchbase_v2 import TranscoderPP, Transcoder
+from couchbase_v2 import Bucket
+from couchbase_v2 import FMT_UTF8
+import couchbase_v2.exceptions as E
 
 # This won't test every single permutation of the transcoder, but will check
 # mainly to see if error messages are appropriate and how the application handles
@@ -206,7 +205,7 @@ class TranscoderTest(ConnectionTestCase):
         c.upsert(key, "value")
 
     def test_mask_sanity(self):
-        from couchbase import FMT_COMMON_MASK, FMT_LEGACY_MASK
+        from couchbase_v2 import FMT_COMMON_MASK, FMT_LEGACY_MASK
         self.assertEqual(FMT_COMMON_MASK, 0xFF000000)
         self.assertEqual(FMT_LEGACY_MASK, 0x00000007)
 

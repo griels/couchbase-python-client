@@ -19,10 +19,10 @@ from time import sleep
 
 from nose.plugins.attrib import attr
 
-from couchbase.exceptions import (
+from couchbase_v2.exceptions import (
     CouchbaseError, TemporaryFailError, KeyExistsError, ArgumentError)
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import ConnectionTestCase
 
 
 class LockTest(ConnectionTestCase):

@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from couchbase.tests.base import ConnectionTestCase
+from couchbase_v2 import ConnectionTestCase
 
 INT_TYPES = None
 try:

@@ -1,6 +1,6 @@
-from couchbase.bucket import Bucket
-from couchbase.views.iterator import View
+from couchbase_v2.views.iterator import View
 from couchbase.tests.base import ApiImplementationMixin
+from couchbase_v2.bucket import Bucket
 from couchbase.tests.importer import get_configured_classes
 
 class SyncImplMixin(ApiImplementationMixin):

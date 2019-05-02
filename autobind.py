@@ -2,7 +2,7 @@ import os.path
 
 import logging
 import traceback
-import couchbase.tests.base
+import couchbase_v2.tests.base
 CPPYY=os.getenv("PYCBC_CPPYY")
 loglevel=os.environ.get("PYCBC_DEBUG_LOG") or logging.INFO
 if loglevel:

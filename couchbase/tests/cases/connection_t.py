@@ -20,13 +20,13 @@ import os
 
 from nose.plugins.attrib import attr
 
-from couchbase.exceptions import (AuthError, ArgumentError,
-                                  BucketNotFoundError, ConnectError,
-                                  CouchbaseNetworkError,
-                                  NotFoundError, InvalidError,
-                                  TimeoutError)
-from couchbase.tests.base import CouchbaseTestCase, SkipTest, ConnectionTestCase
-from couchbase.connstr import ConnectionString
+from couchbase_v2.exceptions import (AuthError, ArgumentError,
+                                     BucketNotFoundError, ConnectError,
+                                     CouchbaseNetworkError,
+                                     NotFoundError, InvalidError,
+                                     TimeoutError)
+from couchbase_v2 import CouchbaseTestCase, SkipTest, ConnectionTestCase
+from couchbase_v2 import ConnectionString
 
 
 class ConnectionTest(CouchbaseTestCase):
