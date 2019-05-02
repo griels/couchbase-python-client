@@ -196,7 +196,8 @@ typedef lcb_STATUS (*pycbc_query_handler)(const pycbc_Bucket *self,
                                           int is_prepared,
                                           int is_xbucket,
                                           pycbc_MultiResult *mres,
-                                          pycbc_ViewResult *vres);
+                                          pycbc_ViewResult *vres,
+                                          pycbc_stack_context_handle);
 #undef PYCBC_QUERY_GEN
 #ifdef PYCBC_QUERY_GEN
 PYCBC_HANDLE_QUERY(ANALYTICS, analytics, PYCBC_DUMMY, PYCBC_HOST, PYCBC_DUMMY);
@@ -210,7 +211,8 @@ lcb_STATUS pycbc_handle_analytics(const pycbc_Bucket *self,
                                   int is_prepared,
                                   int is_xbucket,
                                   pycbc_MultiResult *mres,
-                                  pycbc_ViewResult *vres)
+                                  pycbc_ViewResult *vres,
+                                  pycbc_stack_context_handle context)
 {
     (void)is_prepared;
     (void)is_xbucket;
@@ -238,14 +240,9 @@ GT_DONE:
     return rc;
 };
 
-lcb_STATUS pycbc_handle_n1ql(const pycbc_Bucket *self,
-                             const char *params,
-                             unsigned int nparams,
-                             const char *host,
-                             int is_prepared,
-                             int is_xbucket,
-                             pycbc_MultiResult *mres,
-                             pycbc_ViewResult *vres)
+lcb_STATUS
+pycbc_handle_n1ql(const pycbc_Bucket *self, const char *params, unsigned int nparams, const char *host, int is_prepared,
+                  int is_xbucket, pycbc_MultiResult *mres, pycbc_ViewResult *vres, pycbc_stack_context_handle context)
 {
     (void)host;
     lcb_STATUS rc = LCB_SUCCESS;
@@ -315,7 +312,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
     static pycbc_query_handler handlers[] = {pycbc_handle_n1ql,
                                              pycbc_handle_analytics};
     rc = (handlers[host ? 1 : 0])(
-            self, params, nparams, host, is_prepared, is_xbucket, mres, vres);
+            self, params, nparams, host, is_prepared, is_xbucket, mres, vres, context);
     if (rc != LCB_SUCCESS) {
         PYCBC_EXC_WRAP(PYCBC_EXC_LCBERR, rc, "Couldn't schedule n1ql query");
         goto GT_DONE;

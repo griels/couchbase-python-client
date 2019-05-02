@@ -985,6 +985,7 @@ void pycbc_Tracer_set_child(pycbc_Tracer_t *pTracer, lcbtrace_TRACER *pTRACER);
                                       SPAN_OPERAND, \
                                       OPERAND,      \
                                       ...)          \
+    SPAN_OPERAND(SCOPE, INSTANCE, CMD, HANDLE, CONTEXT);\
     RV = OPERAND(SCOPE, COMMAND, INSTANCE, HANDLE, CONTEXT, __VA_ARGS__);
 
 #    define PYCBC_TRACECMD_SCOPED(                                   \
