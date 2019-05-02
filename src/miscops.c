@@ -111,11 +111,15 @@ handle_single_keyop, pycbc_Bucket *self, struct pycbc_common_vars *cv, int optyp
 
         CMDSCOPE_NG(REMOVE, remove)
         {
+            PYCBC_DUR_INIT(err, cmd, remove, cv->mres->dur);
+            if (err){
+                CMDSCOPE_GENERIC_FAIL(,REMOVE,remove)
+            }
             COMMON_OPTS(cmd, PYCBC_remove_ATTR, rm, remove);
             err = pycbc_remove(self->instance, cv->mres, cmd);
         }
     }
-    GT_ERR:
+GT_ERR:
     if (err == LCB_SUCCESS) {
         rv = 0;
     } else {
@@ -139,20 +143,28 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     PyObject *is_quiet = NULL;
     PyObject *kobj = NULL;
     char persist_to = 0, replicate_to = 0;
+    pycbc_DURABILITY_LEVEL durability_level =
+            LCB_DURABILITYLEVEL_MAJORITY_AND_PERSIST_ON_MASTER;
     struct pycbc_common_vars cv = PYCBC_COMMON_VARS_STATIC_INIT;
 
-    static char *kwlist[] = {
-            "keys", "cas", "quiet", "persist_to", "replicate_to", NULL
-    };
+    static char *kwlist[] = {"keys",
+                             "cas",
+                             "quiet",
+                             "persist_to",
+                             "replicate_to",
+                             "durability_level",
+                             NULL};
 
     rv = PyArg_ParseTupleAndKeywords(args,
                                      kwargs,
-                                     "O|OOBB",
+                                     "O|OOBBB",
                                      kwlist,
                                      &kobj,
                                      &casobj,
                                      &is_quiet,
-                                     &persist_to, &replicate_to);
+                                     &persist_to,
+                                     &replicate_to,
+                                     &durability_level);
 
     if (!rv) {
         PYCBC_EXCTHROW_ARGS();
@@ -205,12 +217,11 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, PyObject*, keyop_common, p
     }
 
     if (optype == PYCBC_CMD_DELETE) {
-        rv = pycbc_handle_durability_args(
-                self,
-                &cv.mres->dur,
-                persist_to,
-                replicate_to,
-                LCB_DURABILITYLEVEL_MAJORITY_AND_PERSIST_ON_MASTER);
+        rv = pycbc_handle_durability_args(self,
+                                          &cv.mres->dur,
+                                          persist_to,
+                                          replicate_to,
+                                          durability_level);
         PYCBC_DEBUG_LOG_CONTEXT(
                 context, "Handling delete durability, got rv %d", rv)
         if (rv == 1) {
