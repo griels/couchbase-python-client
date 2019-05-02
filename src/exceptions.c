@@ -115,7 +115,7 @@ pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p)
 }
 
 PyObject *
-pycbc_exc_map(int mode, lcb_error_t err)
+pycbc_exc_map(int mode, lcb_STATUS err)
 {
     PyObject *ikey;
     PyObject *excls;
@@ -141,7 +141,7 @@ pycbc_exc_map(int mode, lcb_error_t err)
 }
 
 PyObject *
-pycbc_exc_message(int mode, lcb_error_t err, const char *msg)
+pycbc_exc_message(int mode, lcb_STATUS err, const char *msg)
 {
     PyObject *instance;
     PyObject *args;

@@ -52,7 +52,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
     unsigned int lock = 0;
     struct getcmd_vars_st *gv = (struct getcmd_vars_st *)arg;
     unsigned long ttl = gv->u.ttl;
-    lcb_error_t err = LCB_SUCCESS;
+    lcb_STATUS err = LCB_SUCCESS;
     pycbc_pybuffer keybuf = { NULL };
 
     PYCBC_DEBUG_LOG_CONTEXT(context,"Started processing")
@@ -158,7 +158,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
             abort();
             break;
     }
-
+    GT_ERR:
     if (err != LCB_SUCCESS) {
         PYCBC_DEBUG_LOG_CONTEXT(context, "Got result %d", err)
         PYCBC_EXCTHROW_SCHED(err);
@@ -409,19 +409,20 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING, static, int, handle_single_lookup,
   CMDSCOPE_NG(SUBDOC, subdoc) {
 
     if (itm) {
-      PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Items not supported for subdoc!");
-      return -1;
+        PYCBC_EXC_WRAP(PYCBC_EXC_ARGUMENTS, 0, "Items not supported for subdoc!");
+        return -1;
     }
     if (pycbc_tc_encode_key(self, curkey, &keybuf) != 0) {
-      return -1;
+        return -1;
     }
 
     PYCBC_CMD_SET_KEY_SCOPE(subdoc, cmd, keybuf);
     rv = PYCBC_TRACE_WRAP(pycbc_sd_handle_speclist, NULL, self, cv->mres,
                           curkey, curval, cmd);
+}
+    GT_ERR:
+    GT_DONE:
     PYCBC_PYBUF_RELEASE(&keybuf);
-  }
-GT_DONE:
   return rv;
 }
 

@@ -351,7 +351,7 @@ Bucket_connected(pycbc_Bucket *self, void *unused)
 
     if (ret == Py_False) {
         void *handle = NULL;
-        lcb_error_t err;
+        lcb_STATUS err;
         err = lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_VBCONFIG, &handle);
         if (err == LCB_SUCCESS && handle != NULL) {
             self->flags |= PYCBC_CONN_F_CONNECTED;
@@ -388,7 +388,7 @@ static PyObject *
 Bucket__add_creds(pycbc_Bucket *self, PyObject *args)
 {
     char *arr[2] = { NULL };
-    lcb_error_t rc;
+    lcb_STATUS rc;
     if (!PyArg_ParseTuple(args, "ss", &arr[0], &arr[1])) {
         return NULL;
     }
@@ -431,7 +431,7 @@ Bucket__thr_lockop(pycbc_Bucket *self, PyObject *arg)
 static PyObject *
 Bucket__close(pycbc_Bucket *self)
 {
-    lcb_error_t err;
+    lcb_STATUS err;
 
     if (self->flags & PYCBC_CONN_F_CLOSED) {
         Py_RETURN_NONE;
@@ -527,7 +527,7 @@ Bucket__mutinfo(pycbc_Bucket *self)
     PyObject *ll = PyList_New(0);
     size_t ii, vbmax;
     lcbvb_CONFIG *cfg = NULL;
-    lcb_error_t rc;
+    lcb_STATUS rc;
 
     rc = lcb_cntl(self->instance, LCB_CNTL_GET, LCB_CNTL_VBCONFIG, &cfg);
     if (rc != LCB_SUCCESS) {
@@ -539,7 +539,7 @@ Bucket__mutinfo(pycbc_Bucket *self)
     for (ii = 0; ii < vbmax; ++ii) {
         lcb_KEYBUF kb = { 0 };
         const lcb_MUTATION_TOKEN *mt;
-        lcb_error_t rc = LCB_SUCCESS;
+        lcb_STATUS rc = LCB_SUCCESS;
         PyObject *cur;
 
         kb.type = LCB_KV_VBID;
@@ -866,20 +866,20 @@ static PyMethodDef Bucket_TABLE_methods[] = {
 void pycbc_Bucket_init_tracer(pycbc_Bucket *self);
 #endif
 
-lcb_error_t pycbc_Collection_init_cid(pycbc_Collection *self,
+lcb_STATUS pycbc_Collection_init_cid(pycbc_Collection *self,
                                       PyObject *collection,
                                       PyObject *scope)
 {
-    lcb_error_t err = LCB_SUCCESS;
+    lcb_STATUS err = LCB_SUCCESS;
     self->collection.scope = pycbc_strn_from_managed(scope);
     self->collection.collection = pycbc_strn_from_managed(collection);
     return err;
 }
 
-lcb_error_t pycbc_Collection_get_cid_async(pycbc_Collection *collection,
+lcb_STATUS pycbc_Collection_get_cid_async(pycbc_Collection *collection,
                                            pycbc_coll_res_t *result)
 {
-    lcb_error_t err = LCB_SUCCESS;
+    lcb_STATUS err = LCB_SUCCESS;
 #ifdef PYCBC_COLLECTION_REAL
     lcb_sched_enter(collection->bucket->instance);
     lcb_CMDGETCID get_cid_cmd;
@@ -1044,7 +1044,7 @@ Bucket__init__(pycbc_Bucket *self,
     int rv;
     int conntype = LCB_TYPE_BUCKET;
 
-    lcb_error_t err;
+    lcb_STATUS err;
     PyObject *unlock_gil_O = NULL;
     PyObject *iops_O = NULL;
     PyObject *dfl_fmt = NULL;
@@ -1235,7 +1235,7 @@ void pycbc_Bucket_init_tracer(pycbc_Bucket *self)
 static PyObject*
 Bucket__connect(pycbc_Bucket *self, PyObject* args, PyObject* kwargs)
 {
-    lcb_error_t err;
+    lcb_STATUS err;
 
     if (self->flags & PYCBC_CONN_F_CONNECTED) {
         Py_RETURN_NONE;

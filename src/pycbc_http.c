@@ -120,7 +120,7 @@ static void decode_data(pycbc_MultiResult *mres, pycbc_HttpResult *htres)
 
 void pycbc_httpresult_complete(pycbc_HttpResult *htres,
                                pycbc_MultiResult *mres,
-                               lcb_error_t err,
+                               lcb_STATUS err,
                                short status,
                                const char *const *headers)
 {
@@ -230,7 +230,7 @@ PyObject *pycbc_Bucket__http_request(pycbc_Bucket *self,
     int method;
     int reqtype;
     unsigned value_format = PYCBC_FMT_JSON;
-    lcb_error_t err;
+    lcb_STATUS err;
 
     const char *body = NULL;
     PyObject *ret = NULL;
@@ -321,6 +321,7 @@ PyObject *pycbc_Bucket__http_request(pycbc_Bucket *self,
             err = pycbc_http(self->instance, mres, cmd);
         }
     }
+GT_ERR:
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         goto GT_DONE;

@@ -278,7 +278,7 @@ TRACED_FUNCTION_WRAPPER(_view_request, LCBTRACE_OP_REQUEST_ENCODING, Bucket)
     pycbc_MultiResult *mres = NULL;
     pycbc_ViewResult *vres = NULL;
     viewpath_st vp = { NULL };
-    lcb_error_t rc;
+    lcb_STATUS rc;
     const char *view = NULL, *design = NULL;
     PyObject *options = NULL;
     int flags;

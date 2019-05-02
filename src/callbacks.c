@@ -75,7 +75,7 @@ enum {
 
 static int maybe_push_operr(pycbc_MultiResult *mres,
                             pycbc_Result *res,
-                            lcb_error_t err,
+                            lcb_STATUS err,
                             int check_enoent,
                             pycbc_debug_info debug_info)
 {
@@ -456,7 +456,7 @@ dur_chain2(pycbc_Bucket *conn,
     pycbc_MultiResult *mres,
     pycbc_OperationResult *res, int cbtype, const lcb_RESPBASE *resp)
 {
-    lcb_error_t err;
+    lcb_STATUS err;
     lcb_durability_opts_t dopts = { 0 };
     lcb_CMDENDURE cmd = { 0 };
     lcb_MULTICMD_CTX *mctx = NULL;
@@ -646,7 +646,7 @@ value_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *resp)
 
 static void
 mk_sd_error(pycbc__SDResult *res,
-    pycbc_MultiResult *mres, lcb_error_t rc, size_t ix)
+    pycbc_MultiResult *mres, lcb_STATUS rc, size_t ix)
 {
     PyObject *spec = PyTuple_GET_ITEM(res->specs, ix);
     PYCBC_EXC_WRAP_OBJ(PYCBC_EXC_LCBERR, rc, "Subcommand failure", spec);
@@ -929,7 +929,7 @@ end_global_callback(lcb_t instance, pycbc_Bucket *self)
 }
 
 static void
-bootstrap_callback(lcb_t instance, lcb_error_t err)
+bootstrap_callback(lcb_t instance, lcb_STATUS err)
 {
     pycbc_Bucket *self;
 

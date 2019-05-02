@@ -26,10 +26,10 @@ CryptoProvider__init(pycbc_CryptoProvider *self,
 static void
 CryptoProvider_dtor(pycbc_CryptoProvider *self);
 
-lcb_error_t pycbc_cstrndup(char **key, size_t *key_len, PyObject *result)
+lcb_STATUS pycbc_cstrndup(char **key, size_t *key_len, PyObject *result)
 {
     const char *data = NULL;
-    lcb_error_t lcb_result = LCB_EINTERNAL;
+    lcb_STATUS lcb_result = LCB_EINTERNAL;
 
     data = PYCBC_CSTRN(result, key_len);;
     if (data) {
@@ -64,7 +64,7 @@ const char *pycbc_cstrdup_or_default_and_exception(
     return buffer_data ? buffer_data : fallback;
 }
 
-lcb_error_t pycbc_is_true(uint8_t *key, const size_t key_len, PyObject *result) {
+lcb_STATUS pycbc_is_true(uint8_t *key, const size_t key_len, PyObject *result) {
     return (result && PyObject_IsTrue(result) && !PyErr_Occurred())?
            LCB_SUCCESS:
            LCB_EINTERNAL;
@@ -72,7 +72,7 @@ lcb_error_t pycbc_is_true(uint8_t *key, const size_t key_len, PyObject *result) 
 
 #define PYCBC_SIZE(X) (sizeof(X)/sizeof(char))
 
-void pycbc_report_method_exception(lcb_error_t errflags, const char* fmt, ...) {
+void pycbc_report_method_exception(lcb_STATUS errflags, const char* fmt, ...) {
     char buffer[1000];
     va_list args;
     va_start(args,fmt);
@@ -242,7 +242,7 @@ pycbc_crypto_buf pycbc_gen_buf(const uint8_t *data, size_t len)
 
 typedef const char *PYCBC_CSTR_T;
 PYCBC_CSTR_T PYCBC_CSTR_T_ERRVALUE = "[VALUE NOT FOUND]";
-lcb_error_t lcb_error_t_ERRVALUE = LCB_GENERIC_TMPERR;
+lcb_STATUS lcb_STATUS_ERRVALUE = LCB_GENERIC_TMPERR;
 
 #define PYCBC_CSTRDUP_WRAPPER(DUMMY, DUMMY2, OBJECT) \
     pycbc_cstrdup_or_default_and_exception(          \
@@ -251,22 +251,22 @@ lcb_error_t lcb_error_t_ERRVALUE = LCB_GENERIC_TMPERR;
 #define PYCBC_CSTRNDUP_WRAPPER(BUF, BUF_LEN, OBJECT) \
     pycbc_cstrndup((char **)BUF, BUF_LEN, OBJECT)
 
-#define EXC(X) ((lcb_error_t)X),((lcb_error_t)PYCBC_CRYPTO_PROVIDER_KEY_SIZE_EXCEPTION),
+#define EXC(X) ((lcb_STATUS)X),((lcb_STATUS)PYCBC_CRYPTO_PROVIDER_KEY_SIZE_EXCEPTION),
 
 #define PYCBC_X_COMMON_CRYPTO_METHODS(X)         \
-    X(lcb_error_t,                               \
+    X(lcb_STATUS,                               \
       generic,                                   \
       generate_iv,                               \
       PYCBC_CSTRNDUP_WRAPPER,                    \
       PYCBC_GENERATE_IV_TYPES,                   \
       EXC(PYCBC_CRYPTO_EXECUTION_ERROR))         \
-    X(lcb_error_t,                               \
+    X(lcb_STATUS,                               \
       generic,                                   \
       sign,                                      \
       PYCBC_CSTRNDUP_WRAPPER,                    \
       PYCBC_SIGN_TYPES,                          \
       EXC(PYCBC_CRYPTO_PROVIDER_SIGNING_FAILED)) \
-    X(lcb_error_t,                               \
+    X(lcb_STATUS,                               \
       generic,                                   \
       verify_signature,                          \
       pycbc_is_true,                             \
@@ -274,18 +274,18 @@ lcb_error_t lcb_error_t_ERRVALUE = LCB_GENERIC_TMPERR;
       EXC(PYCBC_CRYPTO_ERROR))
 
 #define PYCBC_X_V0_ONLY_CRYPTO_METHODS(X) \
-    X(lcb_error_t,                        \
+    X(lcb_STATUS,                        \
       v0,                                 \
       load_key,                           \
       PYCBC_CSTRNDUP_WRAPPER,             \
       PYCBC_LOAD_KEY_TYPES,               \
       EXC(PYCBC_CRYPTO_ERROR))            \
-    X(lcb_error_t,                        \
+    X(lcb_STATUS,                        \
       v0,                                 \
       encrypt,                            \
       PYCBC_CSTRNDUP_WRAPPER,             \
       PYCBC_V0_ENCRYPT_TYPES)             \
-    X(lcb_error_t,                        \
+    X(lcb_STATUS,                        \
       v0,                                 \
       decrypt,                            \
       PYCBC_CSTRNDUP_WRAPPER,             \
@@ -297,13 +297,13 @@ PYCBC_X_V0_ONLY_CRYPTO_METHODS(X)\
 PYCBC_X_COMMON_CRYPTO_METHODS(X)
 
 #define PYCBC_X_V1_ONLY_CRYPTO_METHODS(X)        \
-    X(lcb_error_t,                               \
+    X(lcb_STATUS,                               \
       v1,                                        \
       encrypt,                                   \
       PYCBC_CSTRNDUP_WRAPPER,                    \
       PYCBC_V1_ENCRYPT_TYPES,                    \
       EXC(PYCBC_CRYPTO_PROVIDER_ENCRYPT_FAILED)) \
-    X(lcb_error_t,                               \
+    X(lcb_STATUS,                               \
       v1,                                        \
       decrypt,                                   \
       PYCBC_CSTRNDUP_WRAPPER,                    \
@@ -380,7 +380,7 @@ pycbc_NamedCryptoProvider *pycbc_extract_named_crypto_provider(
 }
 
 void pycbc_exc_wrap_obj(pycbc_NamedCryptoProvider *named_crypto_provider,
-                        lcb_error_t err_code)
+                        lcb_STATUS err_code)
 {
     PyObject *name =
             named_crypto_provider
@@ -436,18 +436,18 @@ void pycbc_exc_wrap_obj(pycbc_NamedCryptoProvider *named_crypto_provider,
         }                                                                     \
         if (lcb_result == RTYPE##_ERRVALUE) {                                 \
             PYCBC_WRAP_CRYPTO_EXCEPTION(named_crypto_provider,                \
-                                        __VA_ARGS__ lcb_error_t_ERRVALUE);    \
+                                        __VA_ARGS__ lcb_STATUS_ERRVALUE);    \
         }                                                                     \
     FAIL:                                                                     \
         return lcb_result;                                                    \
     }
 
-PyObject *pycbc_va_list_v(lcb_error_t sentinel, va_list errs)
+PyObject *pycbc_va_list_v(lcb_STATUS sentinel, va_list errs)
 {
     PyObject *err_list = PyList_New(0);
     do {
         PyObject *py_enum;
-        lcb_error_t val = va_arg(errs, lcb_error_t);
+        lcb_STATUS val = va_arg(errs, lcb_STATUS);
         if (val == sentinel)
             break;
         py_enum = PyLong_FromLong(val);
@@ -459,7 +459,7 @@ PyObject *pycbc_va_list_v(lcb_error_t sentinel, va_list errs)
 
 void pycbc_set_var_items_dict(PyObject *dict,
                               const char *key,
-                              lcb_error_t sentinel,
+                              lcb_STATUS sentinel,
                               ...)
 {
     PyObject *err_list;
@@ -478,8 +478,8 @@ PyObject *pycbc_gen_crypto_exception_map(void)
         RTYPE, VERSION, METHOD, PROCESSOR, X_ARGS, ...)                    \
     pycbc_set_var_items_dict(exception_map,                                \
                              #METHOD,                                      \
-                             (lcb_error_t)PYCBC_CRYPTO_PROVIDER_ERROR_MAX, \
-                             __VA_ARGS__(lcb_error_t)                      \
+                             (lcb_STATUS)PYCBC_CRYPTO_PROVIDER_ERROR_MAX, \
+                             __VA_ARGS__(lcb_STATUS)                      \
                                      PYCBC_CRYPTO_PROVIDER_ERROR_MAX);
     PYCBC_CRYPTO_METHODS(PYCBC_CRYPTO_EXC_MAP_WRAPPER)
 
@@ -491,9 +491,9 @@ PYCBC_X_ALL_CRYPTO_FUNCTIONS(PYCBC_SIG_METHOD)
 PYCBC_CRYPTO_METHODS(PYCBC_CRYPTO_EXC_WRAPPER)
 #else
 
-static lcb_error_t pycbc_crypto_generic_generate_iv(lcbcrypto_PROVIDER *provider, uint8_t **subject,
+static lcb_STATUS pycbc_crypto_generic_generate_iv(lcbcrypto_PROVIDER *provider, uint8_t **subject,
                                                     size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "generate_iv") : ((void *) 0);
     if (method) {
         const char *PYARGS_FMTSTRING = "(" ")";
@@ -508,10 +508,10 @@ static lcb_error_t pycbc_crypto_generic_generate_iv(lcbcrypto_PROVIDER *provider
     return lcb_result;
 }
 
-static lcb_error_t
+static lcb_STATUS
 pycbc_crypto_generic_sign(lcbcrypto_PROVIDER *provider, const lcbcrypto_SIGV *inputs, size_t inputs_num,
                           uint8_t **subject, size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "sign") : ((void *) 0);
     if (method) {
         PyObject *inputs_list = pycbc_gen_list_lcbcrypto_SIGV(inputs, inputs_num, pycbc_convert_lcbcrypto_SIGV);
@@ -528,10 +528,10 @@ pycbc_crypto_generic_sign(lcbcrypto_PROVIDER *provider, const lcbcrypto_SIGV *in
     return lcb_result;
 }
 
-static lcb_error_t
+static lcb_STATUS
 pycbc_crypto_generic_verify_signature(lcbcrypto_PROVIDER *provider, const lcbcrypto_SIGV *inputs, size_t inputs_num,
                                       uint8_t *subject, size_t subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "verify_signature") : ((void *) 0);
     if (method) {
         PyObject *inputs_list = pycbc_gen_list_lcbcrypto_SIGV(inputs, inputs_num, pycbc_convert_lcbcrypto_SIGV);
@@ -549,10 +549,10 @@ pycbc_crypto_generic_verify_signature(lcbcrypto_PROVIDER *provider, const lcbcry
 }
 
 
-static lcb_error_t
+static lcb_STATUS
 pycbc_crypto_v1_encrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size_t input_len, const uint8_t *iv,
                         size_t iv_len, uint8_t **subject, size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "encrypt") : ((void *) 0);
     if (method) {
         PyObject *input_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(input, (input_len > 0) ? (input_len - 1) : 0));
@@ -571,10 +571,10 @@ pycbc_crypto_v1_encrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size
     return lcb_result;
 }
 
-static lcb_error_t
+static lcb_STATUS
 pycbc_crypto_v1_decrypt(lcbcrypto_PROVIDER *provider, const uint8_t *input, size_t input_len, const uint8_t *iv,
                         size_t iv_len, uint8_t **subject, size_t *subject_len) {
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     PyObject *method = !PyErr_Occurred() ? pycbc_retrieve_method(provider, "decrypt") : ((void *) 0);
     if (method) {
         PyObject *input_cstrn = pycbc_convert_uint8_t(pycbc_gen_buf(input, input_len));
@@ -615,7 +615,7 @@ static PYCBC_CSTR_T pycbc_crypto_V1_get_key_id(lcbcrypto_PROVIDER *provider)
     return lcb_result;
 }
 
-static lcb_error_t pycbc_crypto_exc_wrap_v1_encrypt(
+static lcb_STATUS pycbc_crypto_exc_wrap_v1_encrypt(
         lcbcrypto_PROVIDER *provider,
         const uint8_t *input,
         size_t input_len,
@@ -628,7 +628,7 @@ static lcb_error_t pycbc_crypto_exc_wrap_v1_encrypt(
             pycbc_extract_named_crypto_provider(provider);
     lcbcrypto_PROVIDER *orig_lcb_provider =
             named_crypto_provider->orig_py_provider->lcb_provider;
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     if (PyErr_Occurred()) {
         goto FAIL;
     }
@@ -641,15 +641,15 @@ static lcb_error_t pycbc_crypto_exc_wrap_v1_encrypt(
                                                      subject,
                                                      subject_len);
     }
-    if (lcb_result == lcb_error_t_ERRVALUE) {
+    if (lcb_result == lcb_STATUS_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_PROVIDER_ENCRYPT_FAILED));
+                           ((lcb_STATUS)PYCBC_CRYPTO_PROVIDER_ENCRYPT_FAILED));
     }
 FAIL:
     return lcb_result;
 }
 
-static lcb_error_t pycbc_crypto_exc_wrap_v1_decrypt(
+static lcb_STATUS pycbc_crypto_exc_wrap_v1_decrypt(
         lcbcrypto_PROVIDER *provider,
         const uint8_t *input,
         size_t input_len,
@@ -662,7 +662,7 @@ static lcb_error_t pycbc_crypto_exc_wrap_v1_decrypt(
             pycbc_extract_named_crypto_provider(provider);
     lcbcrypto_PROVIDER *orig_lcb_provider =
             named_crypto_provider->orig_py_provider->lcb_provider;
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     if (PyErr_Occurred()) {
         goto FAIL;
     }
@@ -675,9 +675,9 @@ static lcb_error_t pycbc_crypto_exc_wrap_v1_decrypt(
                                                      subject,
                                                      subject_len);
     }
-    if (lcb_result == lcb_error_t_ERRVALUE) {
+    if (lcb_result == lcb_STATUS_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_PROVIDER_DECRYPT_FAILED));
+                           ((lcb_STATUS)PYCBC_CRYPTO_PROVIDER_DECRYPT_FAILED));
     }
 FAIL:
     return lcb_result;
@@ -699,20 +699,20 @@ static PYCBC_CSTR_T pycbc_crypto_exc_wrap_V1_get_key_id(
     }
     if (lcb_result == PYCBC_CSTR_T_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_ERROR));
+                           ((lcb_STATUS)PYCBC_CRYPTO_ERROR));
     }
 FAIL:
     return lcb_result;
 }
 
-static lcb_error_t pycbc_crypto_exc_wrap_generic_generate_iv(
+static lcb_STATUS pycbc_crypto_exc_wrap_generic_generate_iv(
         lcbcrypto_PROVIDER *provider, uint8_t **subject, size_t *subject_len)
 {
     pycbc_NamedCryptoProvider *named_crypto_provider =
             pycbc_extract_named_crypto_provider(provider);
     lcbcrypto_PROVIDER *orig_lcb_provider =
             named_crypto_provider->orig_py_provider->lcb_provider;
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     if (PyErr_Occurred()) {
         goto FAIL;
     }
@@ -720,15 +720,15 @@ static lcb_error_t pycbc_crypto_exc_wrap_generic_generate_iv(
         lcb_result = orig_lcb_provider->v.v1.generate_iv(
                 orig_lcb_provider, subject, subject_len);
     }
-    if (lcb_result == lcb_error_t_ERRVALUE) {
+    if (lcb_result == lcb_STATUS_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_EXECUTION_ERROR));
+                           ((lcb_STATUS)PYCBC_CRYPTO_EXECUTION_ERROR));
     }
 FAIL:
     return lcb_result;
 }
 
-static lcb_error_t pycbc_crypto_exc_wrap_generic_sign(
+static lcb_STATUS pycbc_crypto_exc_wrap_generic_sign(
         lcbcrypto_PROVIDER *provider,
         const lcbcrypto_SIGV *inputs,
         size_t inputs_num,
@@ -739,7 +739,7 @@ static lcb_error_t pycbc_crypto_exc_wrap_generic_sign(
             pycbc_extract_named_crypto_provider(provider);
     lcbcrypto_PROVIDER *orig_lcb_provider =
             named_crypto_provider->orig_py_provider->lcb_provider;
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     if (PyErr_Occurred()) {
         goto FAIL;
     }
@@ -747,15 +747,15 @@ static lcb_error_t pycbc_crypto_exc_wrap_generic_sign(
         lcb_result = orig_lcb_provider->v.v1.sign(
                 orig_lcb_provider, inputs, inputs_num, subject, subject_len);
     }
-    if (lcb_result == lcb_error_t_ERRVALUE) {
+    if (lcb_result == lcb_STATUS_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_PROVIDER_SIGNING_FAILED));
+                           ((lcb_STATUS)PYCBC_CRYPTO_PROVIDER_SIGNING_FAILED));
     }
 FAIL:
     return lcb_result;
 }
 
-static lcb_error_t pycbc_crypto_exc_wrap_generic_verify_signature(
+static lcb_STATUS pycbc_crypto_exc_wrap_generic_verify_signature(
         lcbcrypto_PROVIDER *provider,
         const lcbcrypto_SIGV *inputs,
         size_t inputs_num,
@@ -766,7 +766,7 @@ static lcb_error_t pycbc_crypto_exc_wrap_generic_verify_signature(
             pycbc_extract_named_crypto_provider(provider);
     lcbcrypto_PROVIDER *orig_lcb_provider =
             named_crypto_provider->orig_py_provider->lcb_provider;
-    lcb_error_t lcb_result = lcb_error_t_ERRVALUE;
+    lcb_STATUS lcb_result = lcb_STATUS_ERRVALUE;
     if (PyErr_Occurred()) {
         goto FAIL;
     }
@@ -774,9 +774,9 @@ static lcb_error_t pycbc_crypto_exc_wrap_generic_verify_signature(
         lcb_result = orig_lcb_provider->v.v1.verify_signature(
                 orig_lcb_provider, inputs, inputs_num, subject, subject_len);
     }
-    if (lcb_result == lcb_error_t_ERRVALUE) {
+    if (lcb_result == lcb_STATUS_ERRVALUE) {
         pycbc_exc_wrap_obj(named_crypto_provider,
-                           ((lcb_error_t)PYCBC_CRYPTO_ERROR));
+                           ((lcb_STATUS)PYCBC_CRYPTO_ERROR));
     }
 FAIL:
     return lcb_result;

@@ -31,7 +31,7 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
 {
     int rv = 0;
 
-    lcb_error_t err;
+    lcb_STATUS err;
     struct arithmetic_common_vars my_params;
     static const char *kwlist[] = {"delta", "initial", "ttl", NULL};
     pycbc_pybuffer keybuf = { 0 };
@@ -103,6 +103,7 @@ handle_single_arith, pycbc_Bucket *self, struct pycbc_common_vars *cv,
             err = pycbc_counter(self->instance, cv->mres, cmd);
         }
     }
+    GT_ERR:
     if (err != LCB_SUCCESS) {
         PYCBC_EXCTHROW_SCHED(err);
         rv = -1;

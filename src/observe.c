@@ -94,7 +94,7 @@ handle_single_observe(pycbc_Bucket *self, PyObject *curkey, int master_only,
     int rv;
     pycbc_pybuffer keybuf = { NULL };
     lcb_CMDOBSERVE cmd = { 0 };
-    lcb_error_t err;
+    lcb_STATUS err;
 
     rv = pycbc_tc_encode_key(self, curkey, &keybuf);
     if (rv < 0) {

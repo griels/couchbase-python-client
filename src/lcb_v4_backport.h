@@ -47,7 +47,11 @@
 #define lcb_cmdstats_create(DEST) \
     lcb_CMDSTATS cmd_real = {0};  \
     *(DEST) = &cmd_real;
-#define lcb_cmdstats_destroy(DEST) 0
+#define lcb_cmdstats_destroy(DEST) LCB_SUCCESS
+#define pycbc_cmdstats_kv(CMD)  (CMD)->cmdflags |= LCB_CMDSTATS_F_KV;
+#define pycbc_stats(...) lcb_stats3(__VA_ARGS__)
+
+
 #define lcb_cmdget_expiration(cmd, time) cmd->exptime = time;
 #define lcb_cmdget_timeout(cmd, time) cmd->exptime = time;
 #define lcb_cmdtouch_create(CMD) \

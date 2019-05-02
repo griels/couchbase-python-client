@@ -50,7 +50,7 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     PyObject *ret = NULL;
     pycbc_MultiResult *mres;
     pycbc_ViewResult *vres;
-    lcb_error_t rc;
+    lcb_STATUS rc;
     pycbc_pybuffer buf = { 0 };
     PyObject *params_o = NULL;
     pycbc_stack_context_handle context = PYCBC_TRACE_GET_STACK_CONTEXT_TOPLEVEL(
@@ -100,6 +100,7 @@ pycbc_Bucket__fts_query(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
                                           cmd);
         }
     }
+    GT_ERR:
     PYCBC_PYBUF_RELEASE(&buf);
 
     if (rc != LCB_SUCCESS) {

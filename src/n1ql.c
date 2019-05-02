@@ -236,6 +236,7 @@ lcb_STATUS pycbc_handle_analytics(const pycbc_Bucket *self,
                                        cmd)
         }
     }
+GT_ERR:
 GT_DONE:
     return rc;
 };
@@ -271,6 +272,8 @@ pycbc_handle_n1ql(const pycbc_Bucket *self, const char *params, unsigned int npa
                                        cmd)
         }
     }
+
+GT_ERR:
 GT_DONE:
     return rc;
 };
@@ -291,7 +294,7 @@ TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
     PyObject *ret = NULL;
     pycbc_MultiResult *mres;
     pycbc_ViewResult *vres;
-    lcb_error_t rc = LCB_SUCCESS;
+    lcb_STATUS rc = LCB_SUCCESS;
     if (-1 == pycbc_oputil_conn_lock(self)) {
         return NULL;
     }

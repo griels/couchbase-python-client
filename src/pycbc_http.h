@@ -94,7 +94,7 @@ void pycbc_httpresult_add_data_strn(pycbc_MultiResult *mres,
  */
 void pycbc_httpresult_complete(pycbc_HttpResult *htres,
                                pycbc_MultiResult *mres,
-                               lcb_error_t err,
+                               lcb_STATUS err,
                                short status,
                                const char *const *headers);
 

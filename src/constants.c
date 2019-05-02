@@ -402,7 +402,7 @@ pycbc_init_pyconstants(PyObject *module)
 
 
 PyObject *
-pycbc_lcb_errstr(lcb_t instance, lcb_error_t err)
+pycbc_lcb_errstr(lcb_t instance, lcb_STATUS err)
 {
 #if PY_MAJOR_VERSION == 3
 

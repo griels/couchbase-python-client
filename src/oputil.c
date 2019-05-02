@@ -878,14 +878,14 @@ static int sd_convert_spec(PyObject *pyspec,
 
 TRACED_FUNCTION(LCBTRACE_OP_REQUEST_ENCODING,
                 ,
-                lcb_error_t,
+                lcb_STATUS,
                 pycbc_call_subdoc,
                 const pycbc_Bucket *self,
                 pycbc_MultiResult *mres,
                 PyObject *key,
                 lcb_CMDSUBDOC *cmd,
                 int rv,
-                lcb_error_t *err,
+                lcb_STATUS *err,
                 pycbc__SDResult *newitm)
 {
     if (rv == 0) {
@@ -921,7 +921,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
     PyObject *key, PyObject *spectuple, lcb_CMDSUBDOC *cmd)
 {
     int rv = 0;
-    lcb_error_t err = LCB_SUCCESS;
+    lcb_STATUS err = LCB_SUCCESS;
     size_t nspecs = 0;
     pycbc__SDResult *newitm = NULL;
     pycbc_pybuffer pathbuf_s = { NULL }, valbuf_s = { NULL };
@@ -986,7 +986,7 @@ pycbc_sd_handle_speclist, pycbc_Bucket *self, pycbc_MultiResult *mres,
                                    newitm);
         }
     }
-
+GT_ERR:
 GT_DONE : {
     size_t ii;
     for (ii = 0; nspecs > 0 && ii < (size_t)nspecs; ++ii) {

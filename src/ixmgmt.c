@@ -52,13 +52,13 @@ pycbc_Bucket__ixmanage(pycbc_Bucket *self, PyObject *args, PyObject *kwargs)
     PyObject *ret = NULL;
     pycbc_MultiResult *mres;
     pycbc_ViewResult *vres;
-    lcb_error_t rc;
+    lcb_STATUS rc;
     unsigned cmdflags = 0;
     lcb_CMDN1XMGMT cmd = { { 0 } };
     const char *params;
     const char *action;
     pycbc_strlen_t nparams;
-    lcb_error_t (*action_fn)(lcb_t, const void *, const lcb_CMDN1XMGMT*);
+    lcb_STATUS (*action_fn)(lcb_t, const void *, const lcb_CMDN1XMGMT*);
 
     static char *kwlist[] = { "action", "index", "flags",  NULL };
     rv = PyArg_ParseTupleAndKeywords(args, kwargs,
@@ -134,7 +134,7 @@ pycbc_Bucket__ixwatch(pycbc_Bucket *self, PyObject *args, PyObject *kw)
     int rv;
     size_t ii;
     Py_ssize_t nspecs;
-    lcb_error_t rc;
+    lcb_STATUS rc;
 
     static char *kwlist[] = { "indexes", "timeout_us", "interval_us", NULL};
 

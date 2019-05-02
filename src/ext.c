@@ -1983,7 +1983,7 @@ pycbc_strn pycbc_get_string_tag_basic(lcbtrace_SPAN *span, const char *tagname)
 {
     char *buffer = NULL;
     size_t length;
-    lcb_error_t err =
+    lcb_STATUS err =
             lcbtrace_span_get_tag_str(span, tagname, &buffer, &length);
     if (err) {
         return pycbc_invalid_strn;
@@ -2093,7 +2093,7 @@ void pycbc_forward_string_tag(lcbtrace_SPAN *span,
 
 lcb_uint64_t pycbc_get_uint64_tag(const lcbtrace_SPAN *span,
                                   const char *tagname,
-                                  lcb_error_t *result)
+                                  lcb_STATUS *result)
 {
     lcb_uint64_t value = 0;
     (*result) = lcbtrace_span_get_tag_uint64(
@@ -2106,7 +2106,7 @@ void pycbc_dupe_uint64_tag(const lcbtrace_SPAN *span,
                            lcb_uint64_t **latency)
 {
     lcb_uint64_t value;
-    lcb_error_t result = lcbtrace_span_get_tag_uint64(
+    lcb_STATUS result = lcbtrace_span_get_tag_uint64(
             (lcbtrace_SPAN *)span, tagname, &value);
     if (result == LCB_SUCCESS) {
         *latency = PYCBC_MALLOC_TYPED(1, uint64_t);
@@ -2500,7 +2500,7 @@ void pycbc_propagate_tag_ull(const lcbtrace_SPAN *span,
                              lcbtrace_SPAN *dest,
                              const char *tagname)
 {
-    lcb_error_t result = LCB_NOT_STORED;
+    lcb_STATUS result = LCB_NOT_STORED;
     pycbc_get_uint64_tag(dest, tagname, &result);
     if (result != LCB_SUCCESS) {
         lcb_uint64_t value = pycbc_get_uint64_tag(span, tagname, &result);
@@ -2528,7 +2528,7 @@ void pycbc_forward_opname_to_tag(lcbtrace_SPAN *span, lcbtrace_SPAN *dest)
 
 void pycbc_forward_opid_to_tag(lcbtrace_SPAN *span, lcbtrace_SPAN *dest, const char *tagname) {
     lcb_uint64_t value;
-    lcb_error_t lcb_result=lcbtrace_span_get_tag_uint64(span, tagname, &value);
+    lcb_STATUS lcb_result=lcbtrace_span_get_tag_uint64(span, tagname, &value);
     if (lcb_result)
     {
         value=lcbtrace_span_get_span_id(span);

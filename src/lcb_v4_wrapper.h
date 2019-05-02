@@ -22,23 +22,14 @@
 #ifdef PYCBC_BACKPORT_CRYPTO
 #    include <libcouchbase/../../../libcouchbase_src-prefix/src/libcouchbase_src/src/internalstructs.h>
 #endif
-#define PYCBC_V4
 #define PYCBC_ENDURE 0
 
 #include "python_wrappers.h"
 
-#define PYCBC_SCOPE_GET(SCOPE, CTXTYPE, ATTRIB, TYPE)      \
-    TYPE pycbc_##SCOPE##_##ATTRIB(CTXTYPE ctx)             \
-    {                                                      \
-        TYPE##_DEFINE(TYPE);                               \
-        lcb_resp##SCOPE##_##ATTRIB(ctx, TYPE##_USE(TYPE)); \
-        return temp;                                       \
-    }
 
 typedef lcb_DURABILITY_LEVEL pycbc_DURABILITY_LEVEL;
 
 typedef lcb_INSTANCE *lcb_t;
-typedef lcb_STATUS lcb_error_t;
 
 typedef lcb_VIEW_HANDLE *pycbc_VIEW_HANDLE;
 typedef lcb_HTTP_HANDLE *pycbc_HTTP_HANDLE;
@@ -300,6 +291,14 @@ typedef enum {
 #define lcb_cmdobserve_parent_span(CMD, SPAN) \
     LCB_CMD_SET_TRACESPAN((CMD), (SPAN));
 #define lcb_cmdgetreplica_expiration(CMD, TTL)
+
+#define lcb_cmdstats_create(DEST) \
+    lcb_CMDSTATS cmd_real = {0};  \
+    *(DEST) = &cmd_real;
+#define lcb_cmdstats_destroy(DEST) LCB_SUCCESS
+#define pycbc_cmdstats_kv(CMD)  (CMD)->cmdflags |= LCB_CMDSTATS_F_KV;
+#define pycbc_stats(...) lcb_stats3(__VA_ARGS__)
+
 #define lcb_respstats_cookie(CMD, ...)
 #define lcb_resphttp_key(CMD, ...)
 #define lcb_resphttp_cas(CMD, ...)

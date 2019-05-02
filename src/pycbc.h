@@ -444,7 +444,7 @@ static char *const PYCBC_DEBUG_INFO_STR = "debug_info";
                     (BUF).content.buffer,               \
                     (BUF).content.buffer)               \
     pycbc_strn_free(BUF);
-
+/*
 #define RAWTYPE_DEFINE(X) X temp;
 #define LENGTHTYPE_DEFINE(X) X temp;
 #define RAWTYPE_USE(X) temp
@@ -456,15 +456,22 @@ static char *const PYCBC_DEBUG_INFO_STR = "debug_info";
 #define pycbc_strn_DEFINE(X) X temp;
 #define pycbc_strn_base_const_USE(X) &temp.buffer, &temp.length
 #define pycbc_strn_base_const_DEFINE(X) X temp;
-
+*/
 #define PYCBC_DUMMY(...)
 
 
 
 
-#define CMDSCOPE_GENERIC_FAIL(PREFIX,UC,LC) \
-    fail = 1;                 \
-    continue;
+//#define CMDSCOPE_GENERIC_FAIL(PREFIX,UC,LC) \
+//    fail = 1;                 \
+//    continue;
+
+#define CMDSCOPE_GENERIC_FAIL(PREFIX, UC, LC) \
+    fail = 1;                                 \
+    goto GT_##PREFIX##_##UC##_ERR;
+
+#define CMDSCOPE_GENERIC_DONE(PREFIX, UC, LC) goto GT_##PREFIX##_##UC##_DONE;
+
 #define CMDSCOPE_GENERIC_ALL_PREFIX(                                           \
         PREFIX, UC, LC, INITIALIZER, DESTRUCTOR, CMDS, ...)                    \
     INITIALIZER(UC, LC, CMDS, __VA_ARGS__);                                    \
@@ -477,6 +484,10 @@ static char *const PYCBC_DEBUG_INFO_STR = "debug_info";
     GT_##PREFIX##_##UC##_DONE : PYCBC_DEBUG_LOG("Cleanup up %s %s", #UC, #LC)( \
                                         void)(DESTRUCTOR(UC, LC, CMDS));       \
     goto GT_DONE;                                                              \
+    goto GT_##PREFIX##_##UC##_ERR;\
+    GT_##PREFIX##_##UC##_ERR : (void)(DESTRUCTOR(UC, LC, CMDS));               \
+    goto GT_ERR;                                                               \
+                                                                               \
     SKIP_##PREFIX##_##UC##_FAIL                                                \
         : for (int finished = 0, fail = 0; !(finished) && !fail;               \
                (finished = (1 + DESTRUCTOR(UC, LC, CMDS))))
@@ -528,17 +539,9 @@ lcb_STATUS pycbc_logging_monad_verb(const char *FILE,
 
 PYCBC_X_VERBS(PYCBC_CMD_PROXY_DECL);
 
-
-
-#define CMDSCOPE_SDCMD_CREATE_RAW_V4(TYPE, LC, CMD, ...) \
-    TYPE *CMD = NULL;                                    \
-    lcb_##LC##_create(&CMD)
-
 #define CMDSCOPE_SDCMD_CREATE_V4(TYPE, LC, CMD, ...) \
     TYPE *CMD = NULL;                                \
     lcb_##LC##_create(&(CMD), __VA_ARGS__);
-
-#define CMDSCOPE_SDCMD_DESTROY_V4(TYPE, LC, CMD, ...) lcb_##LC##_destroy(CMD)
 
 #define CMDSCOPE_SDCMD_DESTROY_RAW_V4(TYPE, LC, CMD, ...) \
     lcb_##LC##_destroy(CMD)
@@ -562,26 +565,17 @@ PYCBC_X_VERBS(PYCBC_CMD_PROXY_DECL);
                          CMDSCOPE_CREATECMD_RAW_V4,  \
                          CMDSCOPE_DESTROYCMD_RAW_V4, \
                          cmd)
-#define CMDSCOPE_NG_PARAMS_V4(UC, LC, ...)       \
-    CMDSCOPE_GENERIC_ALL(UC,                     \
-                         LC,                     \
-                         CMDSCOPE_CREATECMD_V4,  \
-                         CMDSCOPE_DESTROYCMD_V4, \
-                         cmd,                    \
-                         __VA_ARGS__)
 #define CMDSCOPE_NG(UC, LC) \
     CMDSCOPE_GENERIC_ALL(   \
             UC, LC, CMDSCOPE_CREATECMD_RAW, CMDSCOPE_DESTROYCMD_RAW, cmd)
+
+#define CMDSCOPE_NG_PREFIX(PREFIX, UC, LC) \
+    CMDSCOPE_GENERIC_ALL_PREFIX(   \
+            PREFIX, UC, LC, CMDSCOPE_CREATECMD_RAW, CMDSCOPE_DESTROYCMD_RAW, cmd)
+
 #define CMDSCOPE_NG_PARAMS(UC, LC, ...) \
     CMDSCOPE_GENERIC_ALL(               \
             UC, LC, CMDSCOPE_CREATECMD, CMDSCOPE_DESTROYCMD, cmd, __VA_ARGS__)
-#define CMDSCOPE_NG_GENERIC(TYPE, LC, CMDNAME, ...) \
-    CMDSCOPE_GENERIC_ALL(TYPE,                      \
-                         LC,                        \
-                         CMDSCOPE_SDCMD_CREATE_V4,  \
-                         CMDSCOPE_SDCMD_DESTROY_V4, \
-                         CMDNAME,                   \
-                         __VA_ARGS__)
 #define CMDSCOPE_NG_GENERIC_PARAMS(PREFIX, TYPE, LC, CMDNAME, ...) \
     CMDSCOPE_GENERIC_ALL_PREFIX(PREFIX,                            \
                                 TYPE,                              \
@@ -694,7 +688,7 @@ typedef struct {
 
 typedef struct {
     pycbc_coll_res_success_t value;
-    lcb_error_t err;
+    lcb_STATUS err;
 } pycbc_coll_res_t;
 
 typedef struct {
@@ -1211,7 +1205,7 @@ pycbc_stack_context_handle pycbc_explicit_named_setup(
 
 #define pycbc_Result_HEAD \
     PyObject_HEAD \
-    lcb_error_t rc; \
+    lcb_STATUS rc; \
     PyObject *key; \
     TRACING_DATA
 
@@ -1362,7 +1356,7 @@ struct pycbc_exception_params {
     int line;
 
     /** LCB Error code, if any */
-    lcb_error_t err;
+    lcb_STATUS err;
 
     /** Error message, if any */
     const char *msg;
@@ -1624,7 +1618,7 @@ extern struct pycbc_helpers_ST pycbc_helpers;
 
 /** Initializes the constants, constants. */
 void pycbc_init_pyconstants(PyObject *module);
-PyObject *pycbc_lcb_errstr(lcb_t instance, lcb_error_t err);
+PyObject *pycbc_lcb_errstr(lcb_t instance, lcb_STATUS err);
 PyObject *pycbc_print_constants(PyObject *mod, PyObject *args);
 
 int pycbc_ResultType_init(PyObject **ptr);
@@ -1743,13 +1737,13 @@ void pycbc_exc_wrap_REAL(int mode, struct pycbc_exception_params *p);
  * @param err the libcouchbase error, if any
  * @return a borrowed reference to the appropriate exception class
  */
-PyObject* pycbc_exc_map(int mode, lcb_error_t err);
+PyObject* pycbc_exc_map(int mode, lcb_STATUS err);
 
 /**
  * Creates a simple exception with a given message. The exception
  * is not thrown.
  */
-PyObject* pycbc_exc_message(int mode, lcb_error_t err, const char *msg);
+PyObject* pycbc_exc_message(int mode, lcb_STATUS err, const char *msg);
 
 /**
  * Gets the error classifier categories (as a set of bit flags) for a given
@@ -1772,7 +1766,7 @@ PyObject* pycbc_exc_get_categories(PyObject *self, PyObject *arg);
         struct pycbc_exception_params __pycbc_ep = {0};                        \
         __pycbc_ep.file = __FILE__;                                            \
         __pycbc_ep.line = __LINE__;                                            \
-        __pycbc_ep.err = (lcb_error_t)e_err;                                   \
+        __pycbc_ep.err = (lcb_STATUS)e_err;                                   \
         __pycbc_ep.msg = e_msg;                                                \
         __pycbc_ep.key = e_key;                                                \
         __pycbc_ep.objextra = e_objextra;                                      \
@@ -1913,7 +1907,7 @@ pycbc_iowrap_getiops(PyObject *iowrap);
 /**
  * Event callback handling
  */
-void pycbc_invoke_connected_event(pycbc_Bucket *conn, lcb_error_t err);
+void pycbc_invoke_connected_event(pycbc_Bucket *conn, lcb_STATUS err);
 
 /**
  * Schedule the dtor event
